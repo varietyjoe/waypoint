@@ -1,0 +1,45 @@
+const Anthropic = require('@anthropic-ai/sdk');
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+/**
+ * Send a message to Claude and get a response
+ * @param {string} message - The user's message
+ * @param {Array} conversationHistory - Previous messages in the conversation
+ * @returns {Promise<string>} - Claude's response
+ */
+async function sendMessage(message, conversationHistory = []) {
+    try {
+        // Build messages array from conversation history
+        const messages = [
+            ...conversationHistory,
+            {
+                role: 'user',
+                content: message
+            }
+        ];
+
+        // Call Claude API
+        const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1024,
+            messages: messages
+        });
+
+        // Extract the text response
+        const assistantMessage = response.content[0].text;
+
+        return assistantMessage;
+    } catch (error) {
+        console.error('Error calling Claude API:', error);
+        console.error('Full error details:', JSON.stringify(error, null, 2));
+        throw error;
+    }
+}
+
+module.exports = {
+    sendMessage
+};

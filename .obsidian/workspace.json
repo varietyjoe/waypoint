@@ -1,0 +1,241 @@
+{
+  "main": {
+    "id": "fb9d30850bf6f494",
+    "type": "split",
+    "children": [
+      {
+        "id": "e9159e70d75ccfb9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d30e14d463202ddb",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "REBUILD_PLAN.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "REBUILD_PLAN"
+            }
+          },
+          {
+            "id": "b7a6e901ab329915",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "pm_log/Phase 2/Phase 2.0 - Code Review Handoff.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Phase 2.0 - Code Review Handoff"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "291af33c0110c248",
+    "type": "split",
+    "children": [
+      {
+        "id": "bc6c02113268e6b7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "76c86ef2de698611",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "ce44b916d7f2f695",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "ce12814922b4a771",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "47bc079712ca3eaf",
+    "type": "split",
+    "children": [
+      {
+        "id": "a9b748353e9e267f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3da23734923c7c21",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "pm_log/Phase 2/Phase 2.0 - Code Review Handoff.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Phase 2.0 - Code Review Handoff"
+            }
+          },
+          {
+            "id": "e7ff9506df1a098d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "pm_log/Phase 2/Phase 2.0 - Code Review Handoff.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Phase 2.0 - Code Review Handoff"
+            }
+          },
+          {
+            "id": "2daaa3e4d3070ea4",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "366db28ed7b7257a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "43960a9d8873d639",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "pm_log/Phase 2/Phase 2.0 - Code Review Handoff.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Phase 2.0 - Code Review Handoff"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "b7a6e901ab329915",
+  "lastOpenFiles": [
+    "pm_log/Phase 2/Phase 2.0 - Engineer Handoff.md",
+    "test_tracker/Phase 2.0 - Foundation Fixes.md",
+    "pm_log/Phase 2/Phase 2.0 - Code Review Handoff.md",
+    "pm_log/Phase 2/Phase 2.0 - Foundation Fixes.md",
+    "pm_log/Design Brief - Full Vision Prototype.md",
+    "pm_log/Phase 2.0 - Engineer Handoff.md",
+    "pm_log/Phase 4/Phase 4.1 - Outcome Dependencies.md",
+    "pm_log/Phase 4/Phase 4.3 - Claude as Advisor.md",
+    "pm_log/Phase 4/Phase 4.2 - Stakeholder Visibility.md",
+    "pm_log/Phase 4/Phase 4.0 - Capture Everywhere.md",
+    "pm_log/Phase 4",
+    "pm_log/Phase 3/Phase 3.1 - Morning Brief.md",
+    "pm_log/Phase 3/Phase 3.3 - Pattern Memory & Execution Analytics.md",
+    "pm_log/Phase 3/Phase 3.2 - The Library.md",
+    "pm_log/Phase 3/Phase 3.0 - Calendar Integration & Today View.md",
+    "pm_log/Phase 3",
+    "pm_log/Phase 2/Phase 2.6 - Delight.md",
+    "pm_log/Phase 2/Phase 2.5 - Persistent Focus Memory.md",
+    "pm_log/Phase 2/Phase 2.4 - Smart Inbox Triage.md",
+    "pm_log/Phase 2/Phase 2.3 - AI Breakdown.md",
+    "pm_log/Phase 2/Phase 2.2 - User Context Memory.md",
+    "pm_log/Phase 2/Phase 2.1 - Focus Mode.md",
+    "pm_log/Phase 2",
+    "pm_log/Phase 1/Phase 1.6 - Mobile Stats & Polish.md",
+    "pm_log/Phase 1/Phase 1.5 - Mobile Layout Brief.md",
+    "pm_log/Phase 1/Phase 1.5 - Engineer Handoff.md",
+    "pm_log/Phase 1/Phase 1.5 - Code Review Handoff.md",
+    "pm_log/Phase 1/Phase 1.4 - Engineer Handoff.md",
+    "pm_log/Phase 1/Phase 1.4 - Code Review Handoff.md",
+    "pm_log/Phase 1",
+    "docs",
+    "src/services/scheduler.js",
+    "node_modules/node-cron/dist/esm/pattern/convertion/week-day-names-conversion.d.ts",
+    "node_modules/node-cron/dist/cjs/pattern/convertion/week-day-names-conversion.d.ts",
+    "node_modules/node-cron/dist/esm/task-registry.d.ts",
+    "node_modules/node-cron/dist/cjs/task-registry.d.ts",
+    "features_to_build/projects_and_slideouts/Screenshot_2026-01-29_at_4_42_13_PM.png"
+  ]
+}

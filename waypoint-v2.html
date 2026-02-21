@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waypoint — Outcome-Driven Execution</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 2px; }
+
+    /* Custom checkbox */
+    .action-check {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px; height: 15px;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .action-check:checked { background: #10B981; border-color: #10B981; }
+    .action-check:checked::after {
+      content: '';
+      position: absolute;
+      left: 2px; top: 0px;
+      width: 9px; height: 5px;
+      border-left: 1.5px solid white;
+      border-bottom: 1.5px solid white;
+      transform: rotate(-45deg);
+    }
+    .action-check:disabled { opacity: 0.35; cursor: not-allowed; }
+    .action-check:hover:not(:checked):not(:disabled) { border-color: #9CA3AF; background: #F9FAFB; }
+
+    /* Outcome card */
+    .outcome-card { transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease; cursor: pointer; }
+    .outcome-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-1px); }
+
+    /* Action row */
+    .action-row { transition: background 0.1s ease; border-radius: 8px; }
+    .action-row:hover { background: #F9FAFB; }
+
+    /* Phase button */
+    .phase-btn { transition: all 0.15s ease; user-select: none; }
+
+    /* Progress bar */
+    .prog-bar { transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+
+    /* Toast */
+    .toast { animation: toastIn 0.25s ease forwards, toastOut 0.25s ease 3.5s forwards; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(-4px); } }
+
+    /* Fade-in for view switches */
+    .fade-in { animation: fadeIn 0.2s ease forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Add action input */
+    .add-action-input:focus { outline: none; }
+
+    /* Completion glow */
+    .completion-glow { box-shadow: 0 0 0 3px rgba(16,185,129,0.1), 0 4px 20px rgba(16,185,129,0.08); }
+
+    /* Reflection textarea */
+    .reflect-area {
+      resize: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .reflect-area:focus { outline: none; border-color: #93C5FD; background: #fff; }
+
+    /* Sidebar outcome hover */
+    .sidebar-outcome { transition: background 0.1s ease; }
+    .sidebar-outcome:hover { background: #F3F4F6; }
+
+    /* Focus toggle */
+    .focus-track { transition: background-color 0.2s ease; }
+    .focus-thumb { transition: transform 0.2s ease; }
+
+    /* Project pill hover */
+    .project-row { transition: background 0.1s ease; }
+    .project-row:hover { background: #F9FAFB; }
+
+    /* Quick capture wrapper */
+    .capture-wrap { transition: border-color 0.15s ease, background 0.15s ease; }
+    .capture-wrap:focus-within { border-color: #93C5FD; background: #fff; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased" style="height:100vh;overflow:hidden;">
+
+<!-- ============================================================ -->
+<!-- HEADER                                                        -->
+<!-- ============================================================ -->
+<header class="h-[48px] bg-white border-b border-gray-200 flex items-center px-5 z-30 relative shrink-0">
+
+  <!-- Logo -->
+  <div class="flex items-center gap-2 shrink-0" style="width:256px">
+    <div class="w-[26px] h-[26px] bg-gray-900 rounded-[7px] flex items-center justify-center shrink-0">
+      <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-[13px] text-gray-900 tracking-tight">Waypoint</span>
+    <span class="text-gray-200 text-sm mx-0.5">|</span>
+    <span class="text-gray-400 text-[11px]">Execution OS</span>
+  </div>
+
+  <!-- Phase Indicator (center) -->
+  <div class="flex-1 flex items-center justify-center">
+    <div class="flex items-center" id="phaseIndicator"><!-- JS rendered --></div>
+  </div>
+
+  <!-- User -->
+  <div class="shrink-0 flex items-center justify-end gap-3" style="width:288px">
+    <button class="text-gray-300 hover:text-gray-500 transition-colors">
+      <svg class="w-[15px] h-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+    </button>
+    <div class="flex items-center gap-2">
+      <div class="w-[28px] h-[28px] bg-gray-900 rounded-full flex items-center justify-center shrink-0">
+        <span class="text-white font-semibold" style="font-size:10px">JT</span>
+      </div>
+      <div style="font-size:11px">
+        <div class="font-medium text-gray-800 leading-tight">Joe Tancula</div>
+        <div class="text-gray-400 leading-tight">Personal</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- THREE-COLUMN LAYOUT                                           -->
+<!-- ============================================================ -->
+<div class="flex" style="height:calc(100vh - 48px);">
+
+  <!-- ==================== LEFT PANEL ==================== -->
+  <aside class="bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto" style="width:256px;height:100%;">
+
+    <!-- Date + Focus -->
+    <div class="px-4 pt-4 pb-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Today</div>
+        <button class="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors" onclick="toggleFocus()" style="font-size:10px">
+          <div class="focus-track h-4 rounded-full flex items-center px-0.5 bg-gray-200" style="width:28px" id="focusTrack">
+            <div class="focus-thumb w-3 h-3 bg-white rounded-full shadow-sm" id="focusThumb"></div>
+          </div>
+          <span id="focusLabel" class="text-gray-400" style="font-size:10px">Focus</span>
+        </button>
+      </div>
+      <div class="font-semibold text-gray-900 text-sm" id="todayDate">—</div>
+      <div class="text-gray-400 mt-0.5" id="focusStatus" style="font-size:10px">Normal mode · All areas active</div>
+    </div>
+
+    <!-- Quick Capture -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Quick Capture</div>
+      <div class="capture-wrap flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+        <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        <input
+          type="text"
+          placeholder="Capture an outcome…"
+          class="flex-1 bg-transparent text-gray-700 placeholder-gray-400 border-none focus:outline-none"
+          style="font-size:11px"
+          onkeydown="handleQuickCapture(event)"
+        >
+      </div>
+      <div class="text-gray-300 mt-1.5 ml-0.5" style="font-size:10px">Press Enter to add</div>
+    </div>
+
+    <!-- Today's Progress -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-2.5">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Outcomes Today</div>
+        <span class="font-semibold text-gray-600" style="font-size:10px" id="progressCount">— / —</span>
+      </div>
+      <div class="flex gap-1.5 mb-2" id="progressBars"><!-- JS --></div>
+      <div class="flex items-center gap-3 text-gray-400" id="progressLegend" style="font-size:10px"><!-- JS --></div>
+    </div>
+
+    <!-- Active Outcomes (mini list) -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Active</div>
+        <button class="text-blue-500 hover:text-blue-600 font-medium transition-colors" style="font-size:10px" onclick="setPhase(1)">View all</button>
+      </div>
+      <div class="space-y-1" id="sidebarOutcomes"><!-- JS --></div>
+    </div>
+
+    <!-- Projects -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Projects</div>
+      <div class="space-y-0.5" id="sidebarProjects"><!-- JS --></div>
+    </div>
+
+    <!-- Recently Closed -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Recently Closed</div>
+      <div class="space-y-1">
+        <div class="flex items-start gap-2 px-2 py-1.5 rounded-md cursor-pointer sidebar-outcome">
+          <svg class="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+          <div>
+            <div class="text-gray-600 leading-snug" style="font-size:11px">Set Q1 OKR Baseline</div>
+            <div class="text-gray-400" style="font-size:10px">Feb 14 · 2h 10m</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-2 px-2 py-1.5 rounded-md cursor-pointer sidebar-outcome">
+          <svg class="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+          <div>
+            <div class="text-gray-600 leading-snug" style="font-size:11px">Hire Backend Engineer</div>
+            <div class="text-gray-400" style="font-size:10px">Feb 11 · 8h 45m</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics footer -->
+    <div class="px-4 py-3 mt-auto" id="sidebarMetrics"><!-- JS --></div>
+  </aside>
+
+  <!-- ==================== CENTER PANEL ==================== -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 overflow-y-auto" id="centerContent"><!-- JS --></div>
+  </main>
+
+  <!-- ==================== RIGHT PANEL ==================== -->
+  <aside class="bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto" style="width:288px;height:100%;">
+    <div id="rightPanel"><!-- JS --></div>
+  </aside>
+
+</div><!-- end flex -->
+
+<!-- Toast Container -->
+<div id="toastContainer" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+
+// ============================================================
+// DATA (loaded from API)
+// ============================================================
+
+let OUTCOMES = []
+let PROJECTS = []
+
+// ============================================================
+// STATE
+// ============================================================
+
+let currentPhase = 1
+let selectedId   = null
+let isFocusMode  = false
+
+// ============================================================
+// DATA NORMALISATION
+// ============================================================
+
+function normalizeOutcome(o) {
+  let daysLeft = null
+  let deadlineDisplay = '—'
+  if (o.deadline) {
+    // Parse as local date to avoid UTC offset issues
+    const [y, m, d] = o.deadline.split('-').map(Number)
+    const dl  = new Date(y, m - 1, d)
+    const now = new Date(); now.setHours(0, 0, 0, 0)
+    daysLeft = Math.max(0, Math.ceil((dl - now) / 86400000))
+    deadlineDisplay = dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+  const actions = (o.actions || []).map(normalizeAction)
+  return {
+    ...o,
+    daysLeft,
+    deadline:      deadlineDisplay,
+    estimatedTime: actions.reduce((s, a) => s + a.time, 0),
+    project:       o.project_name  || 'Unknown Project',
+    projectColor:  o.project_color || '#818cf8',
+    actions,
+  }
+}
+
+function normalizeAction(a) {
+  return {
+    ...a,
+    time:      a.time_estimate || 0,
+    energy:    a.energy_type   || 'light',
+    done:      !!a.done,
+    blocked:   !!a.blocked,
+    blockedBy: a.blocked_by    || '',
+  }
+}
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+
+async function loadData() {
+  try {
+    const [outRes, projRes] = await Promise.all([
+      fetch('/api/outcomes?status=active'),
+      fetch('/api/projects'),
+    ])
+    const outData  = await outRes.json()
+    const projData = await projRes.json()
+
+    OUTCOMES = (outData.data  || []).map(normalizeOutcome)
+    PROJECTS = (projData.data || [])
+
+    // Validate selectedId still exists
+    if (selectedId !== null && !OUTCOMES.find(o => o.id === selectedId)) {
+      selectedId = OUTCOMES.length > 0 ? OUTCOMES[0].id : null
+    }
+  } catch (err) {
+    console.error('Failed to load data:', err)
+    showToast('Failed to load data from server', 'warning')
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+async function init() {
+  await loadData()
+  renderAll()
+}
+
+function renderAll() {
+  updateDate()
+  renderPhaseIndicator()
+  renderSidebarStats()
+  renderSidebarOutcomes()
+  renderSidebarProjects()
+  renderCenter()
+  renderRightPanel()
+}
+
+function updateDate() {
+  const el = document.getElementById('todayDate')
+  if (el) el.textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'short', day: 'numeric'
+  })
+}
+
+// ============================================================
+// PHASE MANAGEMENT
+// ============================================================
+
+function setPhase(n) {
+  currentPhase = n
+  if (n === 2 && !selectedId && OUTCOMES.length > 0) selectedId = OUTCOMES[0].id
+  renderPhaseIndicator()
+  renderSidebarOutcomes()
+  renderCenter()
+  renderRightPanel()
+}
+
+function selectOutcome(id) {
+  selectedId   = id
+  currentPhase = 2
+  renderPhaseIndicator()
+  renderSidebarOutcomes()
+  renderCenter()
+  renderRightPanel()
+}
+
+// ============================================================
+// PHASE INDICATOR
+// ============================================================
+
+function renderPhaseIndicator() {
+  const steps = [
+    { n: 1, label: 'Define Outcome' },
+    { n: 2, label: 'Break Into Actions' },
+    { n: 3, label: 'Complete & Close' },
+  ]
+
+  document.getElementById('phaseIndicator').innerHTML = steps.map((s, i) => {
+    const state = s.n < currentPhase ? 'done' : s.n === currentPhase ? 'active' : 'idle'
+
+    let dot
+    if (state === 'done') {
+      dot = `<span class="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+        <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+        </svg>
+      </span>`
+    } else if (state === 'active') {
+      dot = `<span class="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0" style="font-size:9px">${s.n}</span>`
+    } else {
+      dot = `<span class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 font-medium shrink-0" style="font-size:9px">${s.n}</span>`
+    }
+
+    let cls = 'phase-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium cursor-pointer '
+    if (state === 'done')   cls += 'text-emerald-600 hover:bg-emerald-50'
+    else if (state === 'active') cls += 'text-blue-600 bg-blue-50'
+    else cls += 'text-gray-400 hover:bg-gray-50'
+
+    const connector = i < 2 ? `<div class="w-5 h-px bg-gray-200 mx-0.5 shrink-0"></div>` : ''
+
+    return `<button class="${cls}" onclick="setPhase(${s.n})" style="font-size:11px">
+      ${dot}
+      <span>${s.label}</span>
+    </button>${connector}`
+  }).join('')
+}
+
+// ============================================================
+// SIDEBAR RENDERING
+// ============================================================
+
+function renderSidebarStats() {
+  const total  = OUTCOMES.length
+  const done   = OUTCOMES.filter(o => getProgress(o) === 100).length
+  const active = total - done
+
+  document.getElementById('progressCount').textContent = `${done} / ${total}`
+
+  // Progress bars — one bar per outcome coloured by completion state
+  document.getElementById('progressBars').innerHTML = OUTCOMES.map(o => {
+    const pct = getProgress(o)
+    const col = pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'
+    return `<div class="h-1.5 flex-1 rounded-full ${col}"></div>`
+  }).join('') || '<div class="h-1.5 flex-1 rounded-full bg-gray-100"></div>'
+
+  document.getElementById('progressLegend').innerHTML =
+    `<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>${done} done</span>
+     <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>${active} active</span>`
+
+  document.getElementById('sidebarMetrics').innerHTML = `
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2.5" style="font-size:10px">Today's Metrics</div>
+    <div class="grid grid-cols-2 gap-2">
+      <div class="bg-gray-50 rounded-lg p-2.5">
+        <div class="text-gray-400 mb-0.5" style="font-size:10px">Outcomes</div>
+        <div class="font-semibold text-gray-800 text-sm">${done} / ${total}</div>
+        <div class="text-emerald-500" style="font-size:10px">done today</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-2.5">
+        <div class="text-gray-400 mb-0.5" style="font-size:10px">Actions done</div>
+        <div class="font-semibold text-gray-800 text-sm">${OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.done).length, 0)}</div>
+        <div class="text-blue-400" style="font-size:10px">completed</div>
+      </div>
+    </div>`
+}
+
+function renderSidebarOutcomes() {
+  document.getElementById('sidebarOutcomes').innerHTML = OUTCOMES.length === 0
+    ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No active outcomes</div>`
+    : OUTCOMES.map(o => {
+        const pct  = getProgress(o)
+        const risk = getRisk(o)
+        const sel  = o.id === selectedId && currentPhase === 2
+        return `<div class="sidebar-outcome flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer ${sel ? 'bg-blue-50' : ''}" onclick="selectOutcome(${o.id})">
+          <svg class="shrink-0" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+          <div class="flex-1 min-w-0">
+            <div class="truncate ${sel ? 'text-blue-700 font-medium' : 'text-gray-700'}" style="font-size:11px">${o.title}</div>
+            <div class="flex items-center gap-1 mt-0.5">
+              <div class="h-1 flex-1 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'}" style="width:${pct}%"></div>
+              </div>
+              <span class="text-gray-400 shrink-0" style="font-size:9px">${pct}%</span>
+            </div>
+          </div>
+          ${risk === 'high' ? '<div class="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0"></div>' : risk === 'medium' ? '<div class="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0"></div>' : ''}
+        </div>`
+      }).join('')
+}
+
+function renderSidebarProjects() {
+  document.getElementById('sidebarProjects').innerHTML = PROJECTS.length === 0
+    ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No projects yet</div>`
+    : PROJECTS.map(p => {
+        const outcomeCount = OUTCOMES.filter(o => o.project_id === p.id).length
+        return `<div class="project-row flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer">
+          <div class="w-2 h-2 rounded-full shrink-0" style="background:${p.color || '#818cf8'}"></div>
+          <span class="flex-1 text-gray-700" style="font-size:11px">${p.name}</span>
+          <span class="text-gray-400" style="font-size:10px">${outcomeCount}</span>
+        </div>`
+      }).join('')
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getOutcome(id) { return OUTCOMES.find(o => o.id === id) }
+
+function getProgress(o) {
+  const total = o.actions.reduce((s, a) => s + a.time, 0)
+  const done  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  if (!total) return 0
+  return Math.round((done / total) * 100)
+}
+
+function getRisk(o) {
+  if (o.daysLeft <= 2)  return 'high'
+  if (o.daysLeft <= 5)  return 'medium'
+  return 'low'
+}
+
+function fmt(min) {
+  if (min < 60) return `${min}m`
+  const h = Math.floor(min / 60), m = min % 60
+  return m ? `${h}h ${m}m` : `${h}h`
+}
+
+function priorityBadge(p) {
+  const map = {
+    critical: ['bg-red-50 text-red-600 border border-red-100',    'Critical'],
+    high:     ['bg-orange-50 text-orange-600 border border-orange-100', 'High'],
+    medium:   ['bg-gray-50 text-gray-500 border border-gray-200',  'Medium'],
+  }
+  const [cls, label] = map[p] || map.medium
+  return `<span class="${cls} font-medium px-2 py-0.5 rounded-full" style="font-size:10px">${label}</span>`
+}
+
+function deadlineBadge(o) {
+  const r = getRisk(o)
+  if (r === 'high')   return `<span class="bg-red-50 text-red-600 border border-red-100 font-medium px-2 py-0.5 rounded-full" style="font-size:10px">Due ${o.deadline} — At Risk</span>`
+  if (r === 'medium') return `<span class="bg-amber-50 text-amber-600 border border-amber-100 font-medium px-2 py-0.5 rounded-full" style="font-size:10px">Due ${o.deadline} — Approaching</span>`
+  return `<span class="bg-gray-50 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-full" style="font-size:10px">Due ${o.deadline}</span>`
+}
+
+// ============================================================
+// CENTER PANEL ROUTING
+// ============================================================
+
+function renderCenter() {
+  const el = document.getElementById('centerContent')
+  if      (currentPhase === 1) el.innerHTML = renderPhase1()
+  else if (currentPhase === 2) el.innerHTML = renderPhase2()
+  else                          el.innerHTML = renderPhase3()
+
+  // Attach checkbox listeners
+  el.querySelectorAll('.action-check').forEach(cb => {
+    cb.addEventListener('change', function () {
+      toggleAction(parseInt(this.dataset.oid), parseInt(this.dataset.aid), this.checked)
+    })
+  })
+}
+
+// ============================================================
+// PHASE 1 — Define Outcome
+// ============================================================
+
+function renderPhase1() {
+  const cards = OUTCOMES.map(o => {
+    const pct  = getProgress(o)
+    const risk = getRisk(o)
+    const borderCls = risk === 'high' ? 'border-red-200' : risk === 'medium' ? 'border-amber-200' : 'border-gray-200'
+    return `<div class="outcome-card bg-white rounded-xl border ${borderCls} p-5" onclick="selectOutcome(${o.id})">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+            <span class="text-gray-400" style="font-size:10px">${o.project}</span>
+            <span class="text-gray-200 mx-0.5">·</span>
+            <span class="text-gray-400" style="font-size:10px">${o.impact}</span>
+          </div>
+          <div class="font-semibold text-gray-900 leading-snug" style="font-size:14px">${o.title}</div>
+          <div class="text-gray-500 mt-1 leading-relaxed" style="font-size:11px">${o.description}</div>
+        </div>
+        <div class="shrink-0 flex flex-col items-end gap-1.5">
+          ${priorityBadge(o.priority)}
+          ${deadlineBadge(o)}
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="flex items-center gap-3 mb-3">
+        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full prog-bar ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+        </div>
+        <span class="font-semibold text-gray-600 shrink-0" style="font-size:11px">${pct}%</span>
+      </div>
+
+      <!-- Meta row -->
+      <div class="flex items-center gap-3 text-gray-400" style="font-size:10px">
+        <span class="flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>${fmt(o.estimatedTime)} total
+        </span>
+        <span class="flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
+          </svg>${o.actions.length} actions
+        </span>
+        <span>${o.actions.filter(a => a.done).length} / ${o.actions.length} done</span>
+        <span class="ml-auto text-blue-500 font-medium">Start executing →</span>
+      </div>
+    </div>`
+  }).join('')
+
+  return `<div class="p-6 fade-in">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="font-semibold text-gray-900 text-sm">Active Outcomes</div>
+        <div class="text-gray-400 mt-0.5" style="font-size:11px">Select an outcome to begin executing on it</div>
+      </div>
+      <button
+        class="flex items-center gap-1.5 font-medium text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors"
+        style="font-size:11px"
+        onclick="handleNewOutcome()"
+      >
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Outcome
+      </button>
+    </div>
+
+    <div class="flex items-center gap-2 mb-4 text-gray-400" style="font-size:10px">
+      <div class="flex gap-1">
+        <div class="w-2 h-2 bg-emerald-400 rounded-full"></div>
+        <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+        <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
+      </div>
+      Recommended: 1–3 active outcomes at a time. You currently have ${OUTCOMES.length}.
+    </div>
+
+    ${OUTCOMES.length === 0 ? `<div class="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
+      <div class="text-gray-400 text-sm mb-3">No active outcomes yet</div>
+      <div class="text-gray-300" style="font-size:11px">Use Quick Capture on the left to create your first outcome</div>
+    </div>` : ''}
+
+    <div class="space-y-4">${cards}</div>
+  </div>`
+}
+
+// ============================================================
+// PHASE 2 — Break Into Actions
+// ============================================================
+
+function renderPhase2() {
+  const o = getOutcome(selectedId)
+  if (!o) return renderPhase1()
+
+  const pct       = getProgress(o)
+  const totalTime = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const remTime   = totalTime - doneTime
+
+  const actionRows = o.actions.map((a, i) => {
+    const blocked = a.blocked && !a.done
+    const rowOpacity = a.done ? 'opacity-50' : blocked ? 'opacity-40' : ''
+    return `<div class="action-row flex items-start gap-3 px-3 py-2.5 ${rowOpacity}">
+      <input
+        type="checkbox"
+        class="action-check mt-0.5"
+        ${a.done ? 'checked' : ''}
+        ${blocked ? `disabled title="Blocked: waiting on ${a.blockedBy}"` : ''}
+        data-oid="${o.id}"
+        data-aid="${a.id}"
+      >
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-2">
+          <span class="${a.done ? 'line-through text-gray-400' : 'text-gray-800'} leading-snug" style="font-size:12px">${a.title}</span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="${a.energy === 'deep' ? 'text-blue-600 bg-blue-50' : 'text-violet-600 bg-violet-50'} px-1.5 py-0.5 rounded-md font-medium" style="font-size:10px">
+              ${a.energy === 'deep' ? 'Deep' : 'Light'}
+            </span>
+            <span class="text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-md" style="font-size:10px">${fmt(a.time)}</span>
+          </div>
+        </div>
+        ${blocked ? `<div class="flex items-center gap-1 mt-0.5">
+          <svg class="w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <span class="text-gray-400" style="font-size:10px">Blocked · ${a.blockedBy}</span>
+        </div>` : ''}
+      </div>
+    </div>`
+  }).join('')
+
+  const completionBanner = pct === 100 ? `<div class="mx-4 mt-4">
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+      <div>
+        <div class="font-semibold text-emerald-800" style="font-size:12px">All actions complete</div>
+        <div class="text-emerald-600 mt-0.5" style="font-size:11px">Ready to close this outcome.</div>
+      </div>
+      <button class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors" style="font-size:11px" onclick="setPhase(3)">
+        Complete &amp; Close →
+      </button>
+    </div>
+  </div>` : ''
+
+  return `<div class="fade-in">
+    <!-- Sticky outcome header -->
+    <div class="bg-white border-b border-gray-200 px-6 pt-5 pb-4 sticky top-0 z-10">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1.5">
+            <button class="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors" style="font-size:10px" onclick="setPhase(1)">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>Outcomes
+            </button>
+            <span class="text-gray-200">/</span>
+            <span class="text-gray-400" style="font-size:10px">${o.project_name || o.project}</span>
+          </div>
+          <div class="font-semibold text-gray-900 leading-tight" style="font-size:15px">${o.title}</div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          ${priorityBadge(o.priority)}
+          ${deadlineBadge(o)}
+        </div>
+      </div>
+      <!-- Progress -->
+      <div class="flex items-center gap-3">
+        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full prog-bar ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+        </div>
+        <span class="font-semibold text-gray-500 shrink-0" style="font-size:11px">${pct}% · ${fmt(remTime)} left</span>
+      </div>
+    </div>
+
+    <!-- Actions list -->
+    <div class="px-2 pt-3 pb-2">
+      <div class="flex items-center justify-between mb-1 px-3">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Actions</div>
+        <div class="text-gray-400" style="font-size:10px">${o.actions.filter(a => a.done).length} / ${o.actions.length} complete</div>
+      </div>
+
+      <div class="space-y-0.5" id="actionsList">${actionRows}</div>
+
+      <!-- Add action inline -->
+      <div class="mt-2 px-3">
+        <div class="flex items-center gap-2.5 text-gray-400 group cursor-text" onclick="document.getElementById('addActionInput').focus()">
+          <div class="w-[15px] h-[15px] border border-dashed border-gray-300 rounded flex items-center justify-center shrink-0 group-hover:border-gray-400 transition-colors">
+            <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <input
+            id="addActionInput"
+            type="text"
+            placeholder="Add an action…"
+            class="flex-1 bg-transparent border-none focus:outline-none text-gray-700 placeholder-gray-400 add-action-input"
+            style="font-size:12px"
+            onkeydown="handleAddAction(event, ${o.id})"
+          >
+        </div>
+      </div>
+    </div>
+
+    ${completionBanner}
+  </div>`
+}
+
+// ============================================================
+// PHASE 3 — Complete & Close
+// ============================================================
+
+function renderPhase3() {
+  const o = getOutcome(selectedId) || OUTCOMES[0]
+  const pct       = getProgress(o)
+  const totalTime = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const done      = o.actions.filter(a => a.done).length
+
+  const now     = new Date()
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+  return `<div class="p-6 fade-in max-w-xl mx-auto">
+
+    <!-- Completion card -->
+    <div class="bg-white border border-emerald-200 rounded-2xl p-6 mb-5 completion-glow">
+      <div class="flex items-start gap-4 mb-5">
+        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-emerald-600 font-semibold uppercase tracking-wider mb-1" style="font-size:10px">Outcome Complete</div>
+          <div class="font-semibold text-gray-900 leading-tight" style="font-size:15px">${o.title}</div>
+          <div class="text-gray-400 mt-0.5" style="font-size:11px">${dateStr} at ${timeStr}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+        <div class="text-center">
+          <div class="text-gray-400 mb-1" style="font-size:10px">Actions</div>
+          <div class="font-semibold text-gray-800 text-sm">${done} / ${o.actions.length}</div>
+          <div class="text-emerald-500 mt-0.5" style="font-size:10px">completed</div>
+        </div>
+        <div class="text-center border-x border-gray-100">
+          <div class="text-gray-400 mb-1" style="font-size:10px">Estimated</div>
+          <div class="font-semibold text-gray-800 text-sm">${fmt(totalTime)}</div>
+          <div class="text-gray-400 mt-0.5" style="font-size:10px">planned</div>
+        </div>
+        <div class="text-center">
+          <div class="text-gray-400 mb-1" style="font-size:10px">Progress</div>
+          <div class="font-semibold text-sm ${pct >= 100 ? 'text-emerald-600' : 'text-amber-600'}">${pct}%</div>
+          <div class="text-gray-400 mt-0.5" style="font-size:10px">complete</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reflection -->
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="font-semibold text-gray-700 mb-4" style="font-size:11px">Quick Reflection</div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-gray-500 font-medium block mb-1.5" style="font-size:10px">What worked well?</label>
+          <textarea rows="2" class="reflect-area w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2.5" style="font-size:11px" placeholder="The QA process caught edge cases early…"></textarea>
+        </div>
+        <div>
+          <label class="text-gray-500 font-medium block mb-1.5" style="font-size:10px">What slipped or could improve?</label>
+          <textarea rows="2" class="reflect-area w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2.5" style="font-size:11px" placeholder="Marketing coordination took longer than expected…"></textarea>
+        </div>
+        <div>
+          <label class="text-gray-500 font-medium block mb-1.5" style="font-size:10px">Reusable insight for next time?</label>
+          <textarea rows="2" class="reflect-area w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2.5" style="font-size:11px" placeholder="Buffer 30% more time for cross-team coordination…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="flex gap-3">
+      <button class="flex-1 bg-gray-900 text-white font-semibold py-2.5 rounded-xl hover:bg-gray-700 transition-colors" style="font-size:11px" onclick="archiveOutcome()">
+        Archive Outcome
+      </button>
+      <button class="border border-gray-200 text-gray-600 font-medium py-2.5 px-4 rounded-xl hover:bg-gray-50 transition-colors" style="font-size:11px" onclick="setPhase(2)">
+        Back
+      </button>
+    </div>
+  </div>`
+}
+
+// ============================================================
+// RIGHT PANEL
+// ============================================================
+
+function renderRightPanel() {
+  const p = document.getElementById('rightPanel')
+  if      (currentPhase === 1) p.innerHTML = renderRightP1()
+  else if (currentPhase === 2) p.innerHTML = renderRightP2()
+  else                          p.innerHTML = renderRightP3()
+}
+
+function renderRightP1() {
+  const totalTime = OUTCOMES.reduce((s, o) => s + o.estimatedTime, 0)
+  const deepTime  = OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.energy === 'deep').reduce((sa, a) => sa + a.time, 0), 0)
+  const lightTime = OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.energy === 'light').reduce((sa, a) => sa + a.time, 0), 0)
+  const total     = deepTime + lightTime || 1
+  const deepPct   = Math.round(deepTime / total * 100)
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Workspace Overview</div>
+
+    <div class="space-y-2 mb-4">
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div class="text-gray-600" style="font-size:11px">Active Outcomes</div>
+        <div class="font-semibold text-gray-900 text-sm">${OUTCOMES.length}</div>
+      </div>
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div class="text-gray-600" style="font-size:11px">Total Work Queued</div>
+        <div class="font-semibold text-gray-900 text-sm">${fmt(totalTime)}</div>
+      </div>
+    </div>
+
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Work Type Split</div>
+    <div class="bg-gray-50 rounded-xl p-3 mb-4">
+      <div class="flex h-2 rounded-full overflow-hidden mb-2">
+        <div class="bg-blue-400 rounded-l-full" style="width:${deepPct}%"></div>
+        <div class="bg-violet-400 rounded-r-full flex-1"></div>
+      </div>
+      <div class="flex items-center gap-4" style="font-size:10px">
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span><span class="text-gray-500">Deep ${fmt(deepTime)}</span></span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-violet-400 rounded-full"></span><span class="text-gray-500">Light ${fmt(lightTime)}</span></span>
+      </div>
+    </div>
+
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Deadline Risk</div>
+    <div class="space-y-2">
+      ${OUTCOMES.map(o => {
+        const r = getRisk(o)
+        const dot = r === 'high' ? 'bg-red-400' : r === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'
+        return `<div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" onclick="selectOutcome('${o.id}')">
+          <div class="w-1.5 h-1.5 ${dot} rounded-full shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <div class="text-gray-700 truncate" style="font-size:11px">${o.title}</div>
+            <div class="text-gray-400" style="font-size:10px">${o.daysLeft}d remaining</div>
+          </div>
+          <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>`
+      }).join('')}
+    </div>
+  </div>`
+}
+
+function renderRightP2() {
+  const o = getOutcome(selectedId)
+  if (!o) return ''
+
+  const pct        = getProgress(o)
+  const totalTime  = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime   = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const remTime    = totalTime - doneTime
+  const deepTime   = o.actions.filter(a => a.energy === 'deep').reduce((s, a) => s + a.time, 0)
+  const lightTime  = o.actions.filter(a => a.energy === 'light').reduce((s, a) => s + a.time, 0)
+  const blocked    = o.actions.filter(a => a.blocked && !a.done).length
+  const risk       = getRisk(o)
+  const avail      = o.actions.filter(a => !a.done && !a.blocked)
+  const todayTime  = avail.reduce((s, a) => s + a.time, 0)
+  const total      = deepTime + lightTime || 1
+  const deepPct    = Math.round(deepTime / total * 100)
+
+  // SVG ring
+  const r   = 28
+  const c   = 2 * Math.PI * r
+  const off = c * (1 - pct / 100)
+  const strokeColor = pct >= 100 ? '#10B981' : '#3B82F6'
+
+  const riskBg = risk === 'high' ? 'bg-red-50 border-red-100' : risk === 'medium' ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'
+  const riskText = risk === 'high' ? 'text-red-700' : risk === 'medium' ? 'text-amber-700' : 'text-gray-700'
+  const riskSub  = risk === 'high' ? 'text-red-500' : risk === 'medium' ? 'text-amber-500' : 'text-gray-400'
+  const riskLabel = risk === 'high' ? 'High Risk' : risk === 'medium' ? 'Approaching' : 'On Track'
+  const riskMsg   = risk === 'high'
+    ? 'Deadline very close. Reprioritize immediately.'
+    : risk === 'medium'
+    ? `${fmt(remTime)} of work with ${o.daysLeft} days remaining.`
+    : `Good pacing. ${fmt(remTime)} left to schedule.`
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Execution Intelligence</div>
+
+    <!-- Ring + title -->
+    <div class="bg-gray-50 rounded-xl p-4 mb-3 flex items-center gap-4">
+      <div class="shrink-0 relative" style="width:64px;height:64px">
+        <svg width="64" height="64" viewBox="0 0 64 64" style="transform:rotate(-90deg)">
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="#E5E7EB" stroke-width="5"/>
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="${strokeColor}" stroke-width="5"
+            stroke-linecap="round"
+            stroke-dasharray="${c.toFixed(1)}"
+            stroke-dashoffset="${off.toFixed(1)}"
+          />
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span class="font-bold text-gray-800" style="font-size:13px">${pct}%</span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-gray-800 leading-tight" style="font-size:11px">${o.title}</div>
+        <div class="text-gray-400 mt-0.5" style="font-size:10px">${o.actions.filter(a => a.done).length} of ${o.actions.length} actions done</div>
+      </div>
+    </div>
+
+    <!-- Time breakdown -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Time Breakdown</div>
+    <div class="space-y-1.5 mb-3">
+      <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+        <div class="text-gray-500" style="font-size:11px">Total Estimated</div>
+        <div class="font-semibold text-gray-800" style="font-size:11px">${fmt(totalTime)}</div>
+      </div>
+      <div class="flex items-center justify-between p-2.5 bg-emerald-50 rounded-lg">
+        <div class="text-emerald-600" style="font-size:11px">Completed</div>
+        <div class="font-semibold text-emerald-700" style="font-size:11px">${fmt(doneTime)}</div>
+      </div>
+      <div class="flex items-center justify-between p-2.5 bg-blue-50 rounded-lg">
+        <div class="text-blue-600" style="font-size:11px">Remaining</div>
+        <div class="font-semibold text-blue-700" style="font-size:11px">${fmt(remTime)}</div>
+      </div>
+    </div>
+
+    <!-- Deep / Light -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Work Type</div>
+    <div class="bg-gray-50 rounded-xl p-3 mb-3">
+      <div class="flex h-2 rounded-full overflow-hidden mb-2">
+        <div class="bg-blue-400 rounded-l-full" style="width:${deepPct}%"></div>
+        <div class="bg-violet-400 rounded-r-full flex-1"></div>
+      </div>
+      <div class="flex items-center gap-4" style="font-size:10px">
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span><span class="text-gray-500">Deep ${fmt(deepTime)}</span></span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-violet-400 rounded-full"></span><span class="text-gray-500">Light ${fmt(lightTime)}</span></span>
+      </div>
+    </div>
+
+    <!-- Deadline risk -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Deadline Risk</div>
+    <div class="p-3 rounded-xl border mb-3 ${riskBg}">
+      <div class="flex items-center justify-between mb-1">
+        <div class="font-medium ${riskText}" style="font-size:11px">${riskLabel}</div>
+        <div class="${riskSub}" style="font-size:10px">${o.daysLeft}d left</div>
+      </div>
+      <div class="${riskSub}" style="font-size:10px">${riskMsg}</div>
+    </div>
+
+    ${blocked > 0 ? `
+    <!-- Dependency warnings -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Dependency Warnings</div>
+    <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-3">
+      <div class="flex items-center gap-1.5 text-amber-700 font-medium mb-1" style="font-size:11px">
+        <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        ${blocked} action${blocked > 1 ? 's' : ''} blocked
+      </div>
+      <div class="text-amber-600" style="font-size:10px">Complete unblocked actions first to unlock the chain.</div>
+    </div>
+    ` : ''}
+
+    <!-- Today's plan -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Available Today</div>
+    <div class="bg-gray-50 rounded-xl p-3">
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-gray-600" style="font-size:11px">Actionable now</div>
+        <div class="font-semibold text-gray-800" style="font-size:11px">${fmt(todayTime)}</div>
+      </div>
+      <div class="text-gray-400" style="font-size:10px">${avail.length} action${avail.length !== 1 ? 's' : ''} ready to start</div>
+    </div>
+  </div>`
+}
+
+function renderRightP3() {
+  const o = getOutcome(selectedId) || OUTCOMES[0]
+  const totalTime = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const done      = o.actions.filter(a => a.done).length
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Completion Summary</div>
+
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+      <div class="flex items-center gap-2 text-emerald-700 font-semibold mb-3" style="font-size:12px">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>Closed Loop
+      </div>
+      <div class="space-y-2" style="font-size:11px">
+        <div class="flex justify-between">
+          <span class="text-emerald-600">Status</span>
+          <span class="text-emerald-800 font-medium">Complete</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-emerald-600">Actions done</span>
+          <span class="text-emerald-800 font-medium">${done} / ${o.actions.length}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-emerald-600">Time logged</span>
+          <span class="text-emerald-800 font-medium">${fmt(doneTime)} / ${fmt(totalTime)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-gray-400 text-center leading-relaxed px-1" style="font-size:10px">
+      Archive this outcome to add it to your completion history and unlock velocity insights.
+    </div>
+  </div>`
+}
+
+// ============================================================
+// TOGGLE ACTION
+// ============================================================
+
+async function toggleAction(oid, aid, checked) {
+  const o = getOutcome(oid)
+  if (!o) return
+  const a = o.actions.find(x => x.id === aid)
+  if (!a) return
+
+  // Optimistic update
+  a.done = checked
+  renderSidebarOutcomes()
+  renderCenter()
+  renderRightPanel()
+
+  try {
+    const res = await fetch(`/api/actions/${aid}/toggle`, { method: 'PATCH' })
+    if (!res.ok) throw new Error('toggle failed')
+    // Sync from server (updates done_at etc.)
+    await loadData()
+    renderAll()
+    const pct = getProgress(getOutcome(oid) || o)
+    if (checked && pct === 100) {
+      showToast('All actions complete · Ready to close this outcome', 'success')
+    } else if (checked) {
+      showToast(`"${a.title}" marked complete`, 'info')
+    }
+  } catch (err) {
+    // Revert
+    a.done = !checked
+    renderSidebarOutcomes()
+    renderCenter()
+    renderRightPanel()
+    showToast('Failed to update action', 'warning')
+  }
+}
+
+// ============================================================
+// QUICK CAPTURE
+// ============================================================
+
+async function handleQuickCapture(e) {
+  if (e.key !== 'Enter') return
+  const v = e.target.value.trim()
+  if (!v) return
+
+  if (PROJECTS.length === 0) {
+    showToast('No projects found — create a project first', 'warning')
+    return
+  }
+
+  e.target.value = ''
+
+  try {
+    const res = await fetch('/api/outcomes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: PROJECTS[0].id, title: v }),
+    })
+    if (!res.ok) throw new Error('create failed')
+    const data = await res.json()
+    await loadData()
+    selectedId = data.data.id
+    setPhase(2)
+    showToast(`"${v}" created`, 'success')
+  } catch (err) {
+    showToast('Failed to create outcome', 'warning')
+  }
+}
+
+// ============================================================
+// ADD ACTION
+// ============================================================
+
+async function handleAddAction(e, oid) {
+  if (e.key !== 'Enter') return
+  const v = e.target.value.trim()
+  if (!v) return
+
+  e.target.value = ''
+
+  try {
+    const res = await fetch(`/api/outcomes/${oid}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: v, energy_type: 'light', time_estimate: 30 }),
+    })
+    if (!res.ok) throw new Error('add failed')
+    await loadData()
+    renderCenter()
+    renderRightPanel()
+    renderSidebarOutcomes()
+    renderSidebarStats()
+    showToast('Action added', 'info')
+    setTimeout(() => { const i = document.getElementById('addActionInput'); if (i) i.focus() }, 60)
+  } catch (err) {
+    showToast('Failed to add action', 'warning')
+  }
+}
+
+// ============================================================
+// FOCUS MODE
+// ============================================================
+
+function toggleFocus() {
+  isFocusMode = !isFocusMode
+  const track  = document.getElementById('focusTrack')
+  const thumb  = document.getElementById('focusThumb')
+  const status = document.getElementById('focusStatus')
+  const label  = document.getElementById('focusLabel')
+
+  if (isFocusMode) {
+    track.style.backgroundColor = '#3B82F6'
+    thumb.style.transform = 'translateX(12px)'
+    status.textContent = 'Focus mode · Notifications paused'
+    status.className = 'text-blue-500 mt-0.5'
+    label.textContent = 'Focus'
+    label.style.color = '#3B82F6'
+    showToast('Focus mode on · Stay the course', 'info')
+  } else {
+    track.style.backgroundColor = ''
+    thumb.style.transform = ''
+    status.textContent = 'Normal mode · All areas active'
+    status.className = 'text-gray-400 mt-0.5'
+    label.textContent = 'Focus'
+    label.style.color = ''
+  }
+}
+
+// ============================================================
+// ARCHIVE OUTCOME
+// ============================================================
+
+async function archiveOutcome() {
+  if (!selectedId) return
+  try {
+    const res = await fetch(`/api/outcomes/${selectedId}/archive`, { method: 'POST' })
+    if (!res.ok) throw new Error('archive failed')
+    await loadData()
+    selectedId   = OUTCOMES.length > 0 ? OUTCOMES[0].id : null
+    currentPhase = 1
+    renderAll()
+    showToast('Outcome archived · Closed loop.', 'success')
+  } catch (err) {
+    showToast('Failed to archive outcome', 'warning')
+  }
+}
+
+// ============================================================
+// NEW OUTCOME
+// ============================================================
+
+function handleNewOutcome() {
+  showToast('Use Quick Capture on the left to add an outcome', 'info')
+  document.querySelector('input[placeholder="Capture an outcome…"]').focus()
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer')
+  const el = document.createElement('div')
+  const styles = {
+    info:    'bg-gray-900 text-white',
+    success: 'bg-emerald-600 text-white',
+    warning: 'bg-amber-500 text-white',
+  }
+  const icons = {
+    info:    `<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    success: `<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`,
+    warning: `<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+  }
+  el.className = `toast flex items-center gap-2 ${styles[type] || styles.info} px-4 py-2.5 rounded-xl shadow-lg font-medium pointer-events-auto`
+  el.style.fontSize = '11px'
+  el.innerHTML = `${icons[type] || icons.info}<span>${msg}</span>`
+  container.appendChild(el)
+  setTimeout(() => el.remove(), 4200)
+}
+
+// ============================================================
+// KEYBOARD
+// ============================================================
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && ['1','2','3'].includes(e.key)) {
+    e.preventDefault()
+    setPhase(parseInt(e.key))
+  }
+})
+
+// ============================================================
+// BOOT
+// ============================================================
+
+init().catch(err => console.error('Boot error:', err))
+
+</script>
+</body>
+</html>

@@ -1,0 +1,3241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waypoint — Outcome-Driven Execution</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 2px; }
+
+    /* Custom checkbox */
+    .action-check {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px; height: 15px;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .action-check:checked { background: #10B981; border-color: #10B981; }
+    .action-check:checked::after {
+      content: '';
+      position: absolute;
+      left: 2px; top: 0px;
+      width: 9px; height: 5px;
+      border-left: 1.5px solid white;
+      border-bottom: 1.5px solid white;
+      transform: rotate(-45deg);
+    }
+    .action-check:disabled { opacity: 0.35; cursor: not-allowed; }
+    .action-check:hover:not(:checked):not(:disabled) { border-color: #9CA3AF; background: #F9FAFB; }
+
+    /* Outcome card */
+    .outcome-card { transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease; cursor: pointer; }
+    .outcome-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-1px); }
+
+    /* Action row */
+    .action-row { transition: background 0.1s ease; border-radius: 8px; }
+    .action-row:hover { background: #F9FAFB; }
+
+    /* Phase button */
+    .phase-btn { transition: all 0.15s ease; user-select: none; }
+
+    /* Progress bar */
+    .prog-bar { transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+
+    /* Toast */
+    .toast { animation: toastIn 0.25s ease forwards, toastOut 0.25s ease 3.5s forwards; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(-4px); } }
+
+    /* Fade-in for view switches */
+    .fade-in { animation: fadeIn 0.2s ease forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Add action input */
+    .add-action-input:focus { outline: none; }
+
+    /* Completion glow */
+    .completion-glow { box-shadow: 0 0 0 3px rgba(16,185,129,0.1), 0 4px 20px rgba(16,185,129,0.08); }
+
+    /* Reflection textarea */
+    .reflect-area {
+      resize: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .reflect-area:focus { outline: none; border-color: #93C5FD; background: #fff; }
+
+    /* Sidebar outcome hover */
+    .sidebar-outcome { transition: background 0.1s ease; }
+    .sidebar-outcome:hover { background: #F3F4F6; }
+
+    /* Focus toggle */
+    .focus-track { transition: background-color 0.2s ease; }
+    .focus-thumb { transition: transform 0.2s ease; }
+
+    /* Project pill hover */
+    .project-row { transition: background 0.1s ease; }
+    .project-row:hover { background: #F9FAFB; }
+
+    /* Quick capture wrapper */
+    .capture-wrap { transition: border-color 0.15s ease, background 0.15s ease; }
+    .capture-wrap:focus-within { border-color: #93C5FD; background: #fff; }
+
+    /* Command palette */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes cmdIn {
+      from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .cmd-panel { animation: cmdIn 0.18s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* ============================================================ */
+    /* MOBILE RESPONSIVE — Phase 1.5 (breakpoint: 640px)            */
+    /* ============================================================ */
+
+    @media (max-width: 640px) {
+      /* §1 — Body overflow: override inline overflow:hidden / height:100vh */
+      body {
+        overflow: auto !important;
+        height: auto !important;
+      }
+
+      /* §2 — Three-column → single column */
+      aside.left-panel  { display: none !important; }
+      aside.right-panel { display: none !important; }
+      .column-wrapper   { flex-direction: column; height: auto; }
+      main.center-panel { width: 100%; min-height: calc(100vh - 48px - 49px); }
+
+      /* §9 — Header: shrink fixed-width zones, hide redundant elements */
+      #phaseIndicator       { display: none; }
+      #inboxNavBtn          { display: none; }
+      header .logo-zone     { width: auto !important; }
+      header .user-zone     { width: auto !important; }
+
+      /* §3 — Active tab indicator */
+      .mobile-tab-active       { color: #111827; }
+      .mobile-tab-active svg   { stroke: #111827; }
+
+      /* §6 — Touch targets (44×44pt minimum per Apple HIG) */
+      .action-check {
+        width: 20px;
+        height: 20px;
+      }
+      .action-row {
+        min-height: 44px;
+        align-items: center;
+      }
+      .sidebar-outcome,
+      .project-row,
+      .outcome-card {
+        min-height: 44px;
+      }
+      .outcome-card { padding: 16px; }
+
+      /* §7 — iOS Safari auto-zoom prevention: inputs/textareas must be ≥16px */
+      #quickCaptureInput,
+      .add-action-input,
+      .reflect-area {
+        font-size: 16px !important;
+      }
+
+      /* §7 — Bump small JS-rendered labels */
+      .action-row span[style*="font-size:12px"],
+      .action-row span[style*="font-size:10px"],
+      .action-row span[style*="font-size:11px"] {
+        font-size: 13px !important;
+      }
+
+      /* §8 — Phase 3: reflection textareas and CTA buttons */
+      .reflect-area {
+        min-height: 100px;
+      }
+      #centerContent button {
+        min-height: 44px;
+      }
+
+      /* §10 — Bottom padding so content isn't obscured by tab bar */
+      #centerContent,
+      #mobileHomePanel {
+        padding-bottom: calc(49px + env(safe-area-inset-bottom) + 16px);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased" style="height:100vh;overflow:hidden;">
+
+<!-- ============================================================ -->
+<!-- HEADER                                                        -->
+<!-- ============================================================ -->
+<header class="h-[48px] bg-white border-b border-gray-200 flex items-center px-5 z-30 relative shrink-0">
+
+  <!-- Logo -->
+  <div class="logo-zone flex items-center gap-2 shrink-0" style="width:256px">
+    <div class="w-[26px] h-[26px] bg-gray-900 rounded-[7px] flex items-center justify-center shrink-0">
+      <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-[13px] text-gray-900 tracking-tight">Waypoint</span>
+    <span class="text-gray-200 text-sm mx-0.5">|</span>
+    <span class="text-gray-400 text-[11px]">Execution OS</span>
+  </div>
+
+  <!-- Phase Indicator (center) -->
+  <div class="flex-1 flex items-center justify-center">
+    <div class="flex items-center" id="phaseIndicator"><!-- JS rendered --></div>
+  </div>
+
+  <!-- User -->
+  <div class="user-zone shrink-0 flex items-center justify-end gap-3" style="width:288px">
+    <button id="inboxNavBtn" onclick="openInboxView()" class="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 transition-colors relative" title="Inbox">
+      <svg class="w-[15px] h-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/>
+      </svg>
+      <span id="inboxBadge" class="hidden absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-500 rounded-full text-white flex items-center justify-center" style="font-size:8px;line-height:1"></span>
+    </button>
+    <div class="flex items-center gap-2">
+      <div class="w-[28px] h-[28px] bg-gray-900 rounded-full flex items-center justify-center shrink-0">
+        <span class="text-white font-semibold" style="font-size:10px">JT</span>
+      </div>
+      <div style="font-size:11px">
+        <div class="font-medium text-gray-800 leading-tight">Joe Tancula</div>
+        <div class="text-gray-400 leading-tight">Personal</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- THREE-COLUMN LAYOUT                                           -->
+<!-- ============================================================ -->
+<div class="column-wrapper flex" style="height:calc(100vh - 48px);">
+
+  <!-- ==================== LEFT PANEL ==================== -->
+  <aside class="left-panel bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto" style="width:256px;height:100%;">
+
+    <!-- Date + Focus -->
+    <div class="px-4 pt-4 pb-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Today</div>
+        <button class="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors" onclick="toggleFocus()" style="font-size:10px">
+          <div class="focus-track h-4 rounded-full flex items-center px-0.5 bg-gray-200" style="width:28px" id="focusTrack">
+            <div class="focus-thumb w-3 h-3 bg-white rounded-full shadow-sm" id="focusThumb"></div>
+          </div>
+          <span id="focusLabel" class="text-gray-400" style="font-size:10px">Focus</span>
+        </button>
+      </div>
+      <div class="font-semibold text-gray-900 text-sm" id="todayDate">—</div>
+      <div class="text-gray-400 mt-0.5" id="focusStatus" style="font-size:10px">Normal mode · All areas active</div>
+    </div>
+
+    <!-- Quick Capture -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Quick Capture</div>
+      <div class="capture-wrap flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+        <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        <input
+          type="text"
+          id="quickCaptureInput"
+          placeholder="Capture an action…"
+          class="flex-1 bg-transparent text-gray-700 placeholder-gray-400 border-none focus:outline-none"
+          style="font-size:11px"
+          onkeydown="handleQuickCapture(event)"
+        >
+      </div>
+      <select id="quickCaptureOutcome" class="mt-1.5 w-full bg-gray-50 border border-gray-200 rounded-md text-gray-500 focus:outline-none" style="font-size:10px;padding:3px 6px;">
+        <option value="">— leave unassigned —</option>
+      </select>
+      <div class="text-gray-300 mt-1 ml-0.5" style="font-size:10px">Press Enter to add as action</div>
+    </div>
+
+    <!-- Today's Progress -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-2.5">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Outcomes Today</div>
+        <span class="font-semibold text-gray-600" style="font-size:10px" id="progressCount">— / —</span>
+      </div>
+      <div class="flex gap-1.5 mb-2" id="progressBars"><!-- JS --></div>
+      <div class="flex items-center gap-3 text-gray-400" id="progressLegend" style="font-size:10px"><!-- JS --></div>
+    </div>
+
+    <!-- Active Outcomes (mini list) -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Active</div>
+        <button class="text-blue-500 hover:text-blue-600 font-medium transition-colors" style="font-size:10px" onclick="setPhase(1)">View all</button>
+      </div>
+      <div class="space-y-1" id="sidebarOutcomes"><!-- JS --></div>
+    </div>
+
+    <!-- Projects -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Projects</div>
+      <div class="space-y-0.5" id="sidebarProjects"><!-- JS --></div>
+    </div>
+
+    <!-- Recently Closed -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Recently Closed</div>
+      <div class="space-y-1" id="sidebarRecentlyClosed"><!-- JS --></div>
+    </div>
+
+    <!-- Metrics footer -->
+    <div class="px-4 py-3 mt-auto" id="sidebarMetrics"><!-- JS --></div>
+  </aside>
+
+  <!-- ==================== CENTER PANEL ==================== -->
+  <main class="center-panel flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 overflow-y-auto" id="centerContent"><!-- JS --></div>
+  </main>
+
+  <!-- ==================== RIGHT PANEL ==================== -->
+  <aside class="right-panel bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto" style="width:288px;height:100%;">
+    <div id="rightPanel"><!-- JS --></div>
+  </aside>
+
+</div><!-- end flex -->
+
+<!-- ============================================================ -->
+<!-- MOBILE HOME PANEL (hidden on desktop via sm:hidden)          -->
+<!-- ============================================================ -->
+<div id="mobileHomePanel" class="sm:hidden hidden flex-col overflow-y-auto bg-gray-50"
+     style="min-height: calc(100vh - 48px - 49px);">
+  <!-- Content rendered by renderMobileHome() -->
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
+
+<!-- ============================================================ -->
+<!-- COMMAND PALETTE (⌘K)                                         -->
+<!-- ============================================================ -->
+<div id="cmdPaletteOverlay"
+  onclick="closeCommandPalette()"
+  class="hidden fixed inset-0 z-50 flex justify-center"
+  style="background:rgba(0,0,0,0.2);backdrop-filter:blur(2px);padding-top:12vh">
+  <div id="cmdPalettePanel"
+    onclick="event.stopPropagation()"
+    class="cmd-panel bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden self-start"
+    style="max-width:560px;width:calc(100% - 32px)">
+    <div id="cmdPaletteContent"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MOBILE — FAB BUTTON (hidden on desktop via sm:hidden)        -->
+<!-- ============================================================ -->
+<button id="fabBtn" onclick="openFabSheet('capture')"
+        class="sm:hidden fixed bg-gray-900 text-white rounded-full shadow-lg z-40
+               flex items-center justify-center"
+        style="width:52px;height:52px;bottom:calc(49px + env(safe-area-inset-bottom) + 16px);right:16px;">
+  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+  </svg>
+</button>
+
+<!-- ============================================================ -->
+<!-- MOBILE — FAB SHEET (hidden on desktop via sm:hidden)         -->
+<!-- ============================================================ -->
+<!-- FAB Sheet Backdrop -->
+<div id="fabBackdrop" class="sm:hidden hidden fixed inset-0 z-40" onclick="closeFabSheet()"></div>
+
+<!-- FAB Sheet -->
+<div id="fabSheet" class="sm:hidden hidden fixed left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 border-t border-gray-200"
+     style="bottom:49px; padding-bottom: env(safe-area-inset-bottom);">
+  <!-- Drag handle -->
+  <div class="flex justify-center pt-3 pb-2">
+    <div class="w-8 h-1 bg-gray-200 rounded-full"></div>
+  </div>
+  <!-- Mode toggle -->
+  <div class="flex gap-1 mx-4 mb-3 p-1 bg-gray-100 rounded-lg">
+    <button id="fabModeCapture" onclick="setFabMode('capture')"
+            class="flex-1 py-1.5 rounded-md text-gray-700 font-medium bg-white shadow-sm"
+            style="font-size:13px">Add Action</button>
+    <button id="fabModeAI" onclick="setFabMode('ai')"
+            class="flex-1 py-1.5 rounded-md text-gray-500 font-medium"
+            style="font-size:13px">Ask AI</button>
+  </div>
+  <!-- Input -->
+  <div class="mx-4 mb-3">
+    <!-- font-size:16px required — prevents iOS Safari auto-zoom on focus -->
+    <input type="text" id="fabInput" placeholder="Capture an action…"
+           class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-300"
+           style="font-size:16px"
+           onkeydown="handleFabInput(event)">
+  </div>
+  <!-- Capture mode: outcome picker -->
+  <div id="fabOutcomePicker" class="mx-4 mb-4">
+    <select id="fabOutcomeSelect" class="w-full bg-gray-50 border border-gray-200 rounded-lg text-gray-600 focus:outline-none"
+            style="font-size:14px;padding:10px 12px;">
+      <option value="">— leave unassigned —</option>
+    </select>
+  </div>
+  <!-- AI mode: submit button -->
+  <div id="fabAISubmit" class="hidden mx-4 mb-3">
+    <button onclick="submitFabAI()"
+            class="w-full bg-gray-900 text-white rounded-xl py-3 font-medium"
+            style="font-size:15px">Ask Claude</button>
+  </div>
+  <!-- AI response area -->
+  <div id="fabAIResponse" class="hidden mx-4 mb-4 leading-relaxed text-gray-700" style="font-size:14px;max-height:200px;overflow-y:auto"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MOBILE — BOTTOM TAB BAR (hidden on desktop via sm:hidden)    -->
+<!-- ============================================================ -->
+<nav id="mobileTabBar" class="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40"
+     style="height:49px; padding-bottom: env(safe-area-inset-bottom);">
+  <div class="flex h-full">
+    <!-- Home -->
+    <button class="mobile-tab flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400"
+            data-tab="home" onclick="setMobileTab('home')">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <span style="font-size:10px">Home</span>
+    </button>
+    <!-- Outcomes -->
+    <button class="mobile-tab flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 mobile-tab-active"
+            data-tab="outcomes" onclick="setMobileTab('outcomes')">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      <span style="font-size:10px">Outcomes</span>
+    </button>
+    <!-- Inbox -->
+    <button class="mobile-tab flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 relative"
+            data-tab="inbox" onclick="setMobileTab('inbox')">
+      <div class="relative">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/>
+        </svg>
+        <span id="mobileInboxBadge" class="hidden absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-500 rounded-full text-white items-center justify-center" style="font-size:8px;line-height:1"></span>
+      </div>
+      <span style="font-size:10px">Inbox</span>
+    </button>
+    <!-- AI -->
+    <button class="mobile-tab flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400"
+            data-tab="ai" onclick="openFabSheet('ai')">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+      </svg>
+      <span style="font-size:10px">AI</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+
+// ============================================================
+// FEATURE FLAGS
+// ============================================================
+
+// Phase 1.4 is shipped — AI mode is wired directly.
+// Set to false to hide AI tab until 1.4 ships.
+const FEATURES = { aiPalette: true }
+
+// ============================================================
+// DATA (loaded from API)
+// ============================================================
+
+let OUTCOMES = []
+let PROJECTS = []
+let INBOX_ITEMS = []
+let OUTCOME_STATS = {}   // { [outcomeId]: stats from /api/outcomes/:id/stats }
+let PROJECT_INTEL = {}   // { [projectId]: intel from /api/projects/:id/intelligence }
+let ARCHIVED_OUTCOMES = []
+let TODAY_STATS = { outcomes_archived_today: 0, actions_completed_today: 0 }
+
+// ============================================================
+// STATE
+// ============================================================
+
+let currentPhase = 1
+let selectedId   = null
+let isFocusMode  = false
+let selectedOutcomeResult = null  // 'hit' | 'miss' | null — reset on every phase change
+
+// ============================================================
+// DATA NORMALISATION
+// ============================================================
+
+function normalizeOutcome(o) {
+  let daysLeft = null
+  let deadlineDisplay = '—'
+  if (o.deadline) {
+    // Parse as local date to avoid UTC offset issues
+    const [y, m, d] = o.deadline.split('-').map(Number)
+    const dl  = new Date(y, m - 1, d)
+    const now = new Date(); now.setHours(0, 0, 0, 0)
+    daysLeft = Math.max(0, Math.ceil((dl - now) / 86400000))
+    deadlineDisplay = dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+  const actions = (o.actions || []).map(normalizeAction)
+  return {
+    ...o,
+    daysLeft,
+    deadlineISO:   o.deadline     || null,   // original ISO string for context injection
+    deadline:      deadlineDisplay,
+    estimatedTime: actions.reduce((s, a) => s + a.time, 0),
+    project:       o.project_name  || 'Unknown Project',
+    projectColor:  o.project_color || '#818cf8',
+    actions,
+  }
+}
+
+function normalizeAction(a) {
+  return {
+    ...a,
+    time:      a.time_estimate || 0,
+    energy:    a.energy_type   || 'light',
+    done:      !!a.done,
+    blocked:   !!a.blocked,
+    blockedBy: a.blocked_by    || '',
+  }
+}
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+
+async function loadData() {
+  try {
+    const [outRes, projRes] = await Promise.all([
+      fetch('/api/outcomes?status=active'),
+      fetch('/api/projects'),
+    ])
+    const outData  = await outRes.json()
+    const projData = await projRes.json()
+
+    OUTCOMES = (outData.data  || []).map(normalizeOutcome)
+    PROJECTS = (projData.data || [])
+
+    // Validate selectedId still exists
+    if (selectedId !== null && !OUTCOMES.find(o => o.id === selectedId)) {
+      selectedId = OUTCOMES.length > 0 ? OUTCOMES[0].id : null
+    }
+
+    // Fetch intelligence for all projects (non-blocking)
+    for (const p of PROJECTS) fetchProjectIntelligence(p.id)
+
+    // Refresh quick capture outcome picker
+    populateQuickCaptureOutcomes()
+  } catch (err) {
+    console.error('Failed to load data:', err)
+    showToast('Failed to load data from server', 'warning')
+  }
+}
+
+async function loadInboxData() {
+  try {
+    const res = await fetch('/api/inbox')
+    const data = await res.json()
+    INBOX_ITEMS = data.items || []
+    updateInboxBadge()
+  } catch (err) {
+    console.error('Failed to load inbox:', err)
+  }
+}
+
+async function loadArchivedOutcomes() {
+  try {
+    const res = await fetch('/api/outcomes/archived?limit=5')
+    const data = await res.json()
+    ARCHIVED_OUTCOMES = data.data || []
+  } catch (err) {
+    console.error('Failed to load archived outcomes:', err)
+  }
+}
+
+async function loadTodayStats() {
+  try {
+    const res = await fetch('/api/outcomes/stats/today')
+    const data = await res.json()
+    if (data.success) TODAY_STATS = data.data
+  } catch (err) {
+    console.error('Failed to load today stats:', err)
+  }
+}
+
+function updateInboxBadge() {
+  const badge = document.getElementById('inboxBadge')
+  if (!badge) return
+  const count = INBOX_ITEMS.filter(i => i.status === 'pending').length
+  if (count > 0) {
+    badge.textContent = count > 9 ? '9+' : String(count)
+    badge.classList.remove('hidden')
+    badge.classList.add('flex')
+  } else {
+    badge.classList.add('hidden')
+    badge.classList.remove('flex')
+  }
+
+  // §11 — Mirror badge count on mobile Inbox tab
+  const mobileBadge = document.getElementById('mobileInboxBadge')
+  if (mobileBadge) {
+    if (count > 0) {
+      mobileBadge.textContent = count > 9 ? '9+' : String(count)
+      mobileBadge.classList.remove('hidden')
+      mobileBadge.classList.add('flex')
+    } else {
+      mobileBadge.classList.add('hidden')
+      mobileBadge.classList.remove('flex')
+    }
+  }
+}
+
+function populateQuickCaptureOutcomes() {
+  const sel = document.getElementById('quickCaptureOutcome')
+  if (!sel) return
+  const current = sel.value
+  sel.innerHTML = '<option value="">— leave unassigned —</option>'
+  for (const o of OUTCOMES) {
+    const opt = document.createElement('option')
+    opt.value = o.id
+    opt.textContent = o.title.length > 38 ? o.title.slice(0, 38) + '…' : o.title
+    sel.appendChild(opt)
+  }
+  if (current) sel.value = current
+}
+
+async function fetchOutcomeStats(outcomeId) {
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}/stats`)
+    const data = await res.json()
+    if (data.success) OUTCOME_STATS[outcomeId] = data.data
+  } catch (err) {
+    console.error('Failed to fetch outcome stats:', err)
+  }
+}
+
+async function fetchProjectIntelligence(projectId) {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/intelligence`)
+    const data = await res.json()
+    if (data.success) PROJECT_INTEL[projectId] = data.data
+  } catch (err) {
+    console.error('Failed to fetch project intelligence:', err)
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+async function init() {
+  await Promise.all([loadData(), loadInboxData(), loadArchivedOutcomes(), loadTodayStats()])
+  renderAll()
+}
+
+function renderAll() {
+  updateDate()
+  renderPhaseIndicator()
+  renderSidebarStats()
+  renderSidebarOutcomes()
+  renderSidebarProjects()
+  renderRecentlyClosed()
+  renderCenter()
+  renderRightPanel()
+}
+
+function updateDate() {
+  const el = document.getElementById('todayDate')
+  if (el) el.textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'short', day: 'numeric'
+  })
+}
+
+// ============================================================
+// PHASE MANAGEMENT
+// ============================================================
+
+function setPhase(n) {
+  selectedOutcomeResult = null
+  currentPhase = n
+  if (n === 2 && !selectedId && OUTCOMES.length > 0) selectedId = OUTCOMES[0].id
+  renderPhaseIndicator()
+  renderSidebarOutcomes()
+  renderCenter()
+  renderRightPanel()
+}
+
+async function openInboxView() {
+  currentPhase = 4
+  await loadInboxData()
+  renderPhaseIndicator()
+  renderCenter()
+  renderRightPanel()
+}
+
+async function selectOutcome(id) {
+  selectedId   = id
+  currentPhase = 2
+  renderPhaseIndicator()
+  renderSidebarOutcomes()
+  renderCenter()
+  renderRightPanel()
+  // Fetch real stats, then re-render right panel with accurate data
+  await fetchOutcomeStats(id)
+  renderRightPanel()
+}
+
+// ============================================================
+// PHASE INDICATOR
+// ============================================================
+
+function renderPhaseIndicator() {
+  if (currentPhase === 4) {
+    document.getElementById('phaseIndicator').innerHTML = `
+      <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-blue-600 bg-blue-50 font-medium" style="font-size:11px">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/>
+        </svg>
+        Inbox
+      </span>
+      <div class="w-5 h-px bg-gray-200 mx-0.5"></div>
+      <button onclick="setPhase(1)" class="phase-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-gray-400 hover:bg-gray-50 font-medium cursor-pointer" style="font-size:11px">Back to Outcomes</button>`
+    return
+  }
+
+  const steps = [
+    { n: 1, label: 'Define Outcome' },
+    { n: 2, label: 'Break Into Actions' },
+    { n: 3, label: 'Complete & Close' },
+  ]
+
+  document.getElementById('phaseIndicator').innerHTML = steps.map((s, i) => {
+    const state = s.n < currentPhase ? 'done' : s.n === currentPhase ? 'active' : 'idle'
+
+    let dot
+    if (state === 'done') {
+      dot = `<span class="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+        <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+        </svg>
+      </span>`
+    } else if (state === 'active') {
+      dot = `<span class="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0" style="font-size:9px">${s.n}</span>`
+    } else {
+      dot = `<span class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 font-medium shrink-0" style="font-size:9px">${s.n}</span>`
+    }
+
+    let cls = 'phase-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium cursor-pointer '
+    if (state === 'done')   cls += 'text-emerald-600 hover:bg-emerald-50'
+    else if (state === 'active') cls += 'text-blue-600 bg-blue-50'
+    else cls += 'text-gray-400 hover:bg-gray-50'
+
+    const connector = i < 2 ? `<div class="w-5 h-px bg-gray-200 mx-0.5 shrink-0"></div>` : ''
+
+    return `<button class="${cls}" onclick="setPhase(${s.n})" style="font-size:11px">
+      ${dot}
+      <span>${s.label}</span>
+    </button>${connector}`
+  }).join('')
+}
+
+// ============================================================
+// SIDEBAR RENDERING
+// ============================================================
+
+function renderSidebarStats() {
+  const total  = OUTCOMES.length
+  const done   = OUTCOMES.filter(o => getProgress(o) === 100).length
+  const active = total - done
+
+  document.getElementById('progressCount').textContent = `${done} / ${total}`
+
+  // Progress bars — one bar per outcome coloured by completion state
+  document.getElementById('progressBars').innerHTML = OUTCOMES.map(o => {
+    const pct = getProgress(o)
+    const col = pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'
+    return `<div class="h-1.5 flex-1 rounded-full ${col}"></div>`
+  }).join('') || '<div class="h-1.5 flex-1 rounded-full bg-gray-100"></div>'
+
+  document.getElementById('progressLegend').innerHTML =
+    `<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>${done} done</span>
+     <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>${active} active</span>`
+
+  document.getElementById('sidebarMetrics').innerHTML = `
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2.5" style="font-size:10px">Today's Metrics</div>
+    <div class="grid grid-cols-2 gap-2">
+      <div class="bg-gray-50 rounded-lg p-2.5">
+        <div class="text-gray-400 mb-0.5" style="font-size:10px">Closed today</div>
+        <div class="font-semibold text-gray-800 text-sm">${TODAY_STATS.outcomes_archived_today}</div>
+        <div class="text-emerald-500" style="font-size:10px">outcomes</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-2.5">
+        <div class="text-gray-400 mb-0.5" style="font-size:10px">Actions done</div>
+        <div class="font-semibold text-gray-800 text-sm">${TODAY_STATS.actions_completed_today}</div>
+        <div class="text-blue-400" style="font-size:10px">today</div>
+      </div>
+    </div>`
+}
+
+function renderSidebarOutcomes() {
+  document.getElementById('sidebarOutcomes').innerHTML = OUTCOMES.length === 0
+    ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No active outcomes</div>`
+    : OUTCOMES.map(o => {
+        const pct  = getProgress(o)
+        const risk = getRisk(o)
+        const sel  = o.id === selectedId && currentPhase === 2
+        return `<div class="sidebar-outcome flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer ${sel ? 'bg-blue-50' : ''}" onclick="selectOutcome(${o.id})">
+          <svg class="shrink-0" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+          <div class="flex-1 min-w-0">
+            <div class="truncate ${sel ? 'text-blue-700 font-medium' : 'text-gray-700'}" style="font-size:11px">${o.title}</div>
+            <div class="flex items-center gap-1 mt-0.5">
+              <div class="h-1 flex-1 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'}" style="width:${pct}%"></div>
+              </div>
+              <span class="text-gray-400 shrink-0" style="font-size:9px">${pct}%</span>
+            </div>
+          </div>
+          ${risk === 'high' ? '<div class="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0"></div>' : risk === 'medium' ? '<div class="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0"></div>' : ''}
+        </div>`
+      }).join('')
+}
+
+function renderSidebarProjects() {
+  document.getElementById('sidebarProjects').innerHTML = PROJECTS.length === 0
+    ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No projects yet</div>`
+    : PROJECTS.map(p => {
+        const outcomeCount = OUTCOMES.filter(o => o.project_id === p.id).length
+        return `<div class="project-row flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer">
+          <div class="w-2 h-2 rounded-full shrink-0" style="background:${p.color || '#818cf8'}"></div>
+          <span class="flex-1 text-gray-700" style="font-size:11px">${p.name}</span>
+          <span class="text-gray-400" style="font-size:10px">${outcomeCount}</span>
+        </div>`
+      }).join('')
+}
+
+function renderRecentlyClosed() {
+  const el = document.getElementById('sidebarRecentlyClosed')
+  if (!el) return
+  if (ARCHIVED_OUTCOMES.length === 0) {
+    el.innerHTML = `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">Nothing closed yet</div>`
+    return
+  }
+  el.innerHTML = ARCHIVED_OUTCOMES.map(o => {
+    const timeStr = o.total_estimated_time ? fmt(o.total_estimated_time) : null
+    let dateStr = '—'
+    if (o.archived_at) {
+      const d = new Date(o.archived_at)
+      dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }
+    const meta = [dateStr, timeStr].filter(Boolean).join(' · ')
+    return `<div class="flex items-start gap-2 px-2 py-1.5 rounded-md cursor-pointer sidebar-outcome">
+      <svg class="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+      </svg>
+      <div>
+        <div class="text-gray-600 leading-snug" style="font-size:11px">${o.title}</div>
+        <div class="text-gray-400" style="font-size:10px">${meta}</div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getOutcome(id) { return OUTCOMES.find(o => o.id === id) }
+
+function getProgress(o) {
+  const total = o.actions.reduce((s, a) => s + a.time, 0)
+  const done  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  if (!total) return 0
+  return Math.round((done / total) * 100)
+}
+
+function getRisk(o) {
+  if (o.daysLeft <= 2)  return 'high'
+  if (o.daysLeft <= 5)  return 'medium'
+  return 'low'
+}
+
+function fmt(min) {
+  if (min < 60) return `${min}m`
+  const h = Math.floor(min / 60), m = min % 60
+  return m ? `${h}h ${m}m` : `${h}h`
+}
+
+function priorityBadge(p) {
+  const map = {
+    critical: ['bg-red-50 text-red-600 border border-red-100',    'Critical'],
+    high:     ['bg-orange-50 text-orange-600 border border-orange-100', 'High'],
+    medium:   ['bg-gray-50 text-gray-500 border border-gray-200',  'Medium'],
+  }
+  const [cls, label] = map[p] || map.medium
+  return `<span class="${cls} font-medium px-2 py-0.5 rounded-full" style="font-size:10px">${label}</span>`
+}
+
+function deadlineBadge(o) {
+  const r = getRisk(o)
+  if (r === 'high')   return `<span class="bg-red-50 text-red-600 border border-red-100 font-medium px-2 py-0.5 rounded-full" style="font-size:10px">Due ${o.deadline} — At Risk</span>`
+  if (r === 'medium') return `<span class="bg-amber-50 text-amber-600 border border-amber-100 font-medium px-2 py-0.5 rounded-full" style="font-size:10px">Due ${o.deadline} — Approaching</span>`
+  return `<span class="bg-gray-50 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-full" style="font-size:10px">Due ${o.deadline}</span>`
+}
+
+// ============================================================
+// CENTER PANEL ROUTING
+// ============================================================
+
+function renderCenter() {
+  const el = document.getElementById('centerContent')
+  if      (currentPhase === 1) el.innerHTML = renderPhase1()
+  else if (currentPhase === 2) el.innerHTML = renderPhase2()
+  else if (currentPhase === 4) el.innerHTML = renderInbox()
+  else                          el.innerHTML = renderPhase3()
+
+  // Attach checkbox listeners
+  el.querySelectorAll('.action-check').forEach(cb => {
+    cb.addEventListener('change', function () {
+      toggleAction(parseInt(this.dataset.oid), parseInt(this.dataset.aid), this.checked)
+    })
+  })
+}
+
+// ============================================================
+// PHASE 1 — Define Outcome
+// ============================================================
+
+function renderPhase1() {
+  const cards = OUTCOMES.map(o => {
+    const pct  = getProgress(o)
+    const risk = getRisk(o)
+    const borderCls = risk === 'high' ? 'border-red-200' : risk === 'medium' ? 'border-amber-200' : 'border-gray-200'
+    return `<div class="outcome-card bg-white rounded-xl border ${borderCls} p-5" onclick="selectOutcome(${o.id})">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+            <span class="text-gray-400" style="font-size:10px">${o.project}</span>
+            <span class="text-gray-200 mx-0.5">·</span>
+            <span class="text-gray-400" style="font-size:10px">${o.impact}</span>
+          </div>
+          <div class="font-semibold text-gray-900 leading-snug" style="font-size:14px">${o.title}</div>
+          <div class="text-gray-500 mt-1 leading-relaxed" style="font-size:11px">${o.description}</div>
+        </div>
+        <div class="shrink-0 flex flex-col items-end gap-1.5">
+          <button
+            onclick="openCommandPaletteForOutcome(${o.id}); event.stopPropagation()"
+            class="text-gray-300 hover:text-purple-500 hover:bg-purple-50 rounded-md px-1.5 py-0.5 transition-colors"
+            title="Ask Claude to break this into actions"
+            style="font-size:15px;line-height:1">✦</button>
+          ${priorityBadge(o.priority)}
+          ${deadlineBadge(o)}
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="flex items-center gap-3 mb-3">
+        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full prog-bar ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+        </div>
+        <span class="font-semibold text-gray-600 shrink-0" style="font-size:11px">${pct}%</span>
+      </div>
+
+      <!-- Meta row -->
+      <div class="flex items-center gap-3 text-gray-400" style="font-size:10px">
+        <span class="flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>${fmt(o.estimatedTime)} total
+        </span>
+        <span class="flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
+          </svg>${o.actions.length} actions
+        </span>
+        <span>${o.actions.filter(a => a.done).length} / ${o.actions.length} done</span>
+        <span class="ml-auto text-blue-500 font-medium">Start executing →</span>
+      </div>
+    </div>`
+  }).join('')
+
+  return `<div class="p-6 fade-in">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="font-semibold text-gray-900 text-sm">Active Outcomes</div>
+        <div class="text-gray-400 mt-0.5" style="font-size:11px">Select an outcome to begin executing on it</div>
+      </div>
+      <button
+        class="flex items-center gap-1.5 font-medium text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors"
+        style="font-size:11px"
+        onclick="handleNewOutcome()"
+      >
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Outcome
+      </button>
+    </div>
+
+    <div class="flex items-center gap-2 mb-4 text-gray-400" style="font-size:10px">
+      <div class="flex gap-1">
+        <div class="w-2 h-2 bg-emerald-400 rounded-full"></div>
+        <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+        <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
+      </div>
+      Recommended: 1–3 active outcomes at a time. You currently have ${OUTCOMES.length}.
+    </div>
+
+    ${OUTCOMES.length === 0 ? `<div class="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
+      <div class="text-gray-400 text-sm mb-3">No active outcomes yet</div>
+      <div class="text-gray-300" style="font-size:11px">Use Quick Capture on the left to create your first outcome</div>
+    </div>` : ''}
+
+    <div class="space-y-4">${cards}</div>
+  </div>`
+}
+
+// ============================================================
+// PHASE 2 — Break Into Actions
+// ============================================================
+
+function renderPhase2() {
+  const o = getOutcome(selectedId)
+  if (!o) return renderPhase1()
+
+  const pct       = getProgress(o)
+  const totalTime = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const remTime   = totalTime - doneTime
+
+  const actionRows = o.actions.map((a, i) => {
+    const isBlocked  = a.blocked && !a.done
+    const rowOpacity = a.done ? 'opacity-50' : ''
+    const deepActive  = a.energy === 'deep'
+    const lightActive = a.energy !== 'deep'
+    return `<div class="action-row flex items-start gap-3 px-3 py-2 ${rowOpacity}">
+      <input
+        type="checkbox"
+        class="action-check mt-1 shrink-0"
+        ${a.done ? 'checked' : ''}
+        ${isBlocked ? `disabled title="Blocked: ${a.blockedBy}"` : ''}
+        data-oid="${o.id}"
+        data-aid="${a.id}"
+      >
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-2">
+          <span
+            class="${a.done ? 'line-through text-gray-400' : 'text-gray-800 cursor-pointer hover:text-blue-600 transition-colors'} leading-snug"
+            style="font-size:12px"
+            onclick="${a.done ? '' : `startEditActionTitle(${a.id}, this)`}"
+          >${escHtml(a.title)}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <!-- Energy toggle -->
+            <div class="flex rounded overflow-hidden border border-gray-200" style="font-size:10px">
+              <button
+                class="${deepActive ? 'bg-blue-500 text-white' : 'text-gray-400 bg-white hover:bg-gray-50'} px-1.5 py-0.5 font-medium transition-colors"
+                onclick="saveActionField(${a.id}, {energy_type:'deep'})"
+                title="Deep work">Deep</button>
+              <button
+                class="${lightActive ? 'bg-violet-500 text-white' : 'text-gray-400 bg-white hover:bg-gray-50'} px-1.5 py-0.5 font-medium transition-colors border-l border-gray-200"
+                onclick="saveActionField(${a.id}, {energy_type:'light'})"
+                title="Light work">Light</button>
+            </div>
+            <!-- Time estimate -->
+            <span
+              class="text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-md cursor-pointer hover:bg-blue-50 hover:text-blue-500 transition-colors"
+              style="font-size:10px"
+              data-minutes="${a.time}"
+              onclick="startEditActionTime(${a.id}, this)"
+              title="Click to edit time estimate"
+            >${fmt(a.time)}</span>
+          </div>
+        </div>
+        <!-- Blocked row -->
+        <div class="flex items-center gap-2 mt-1">
+          <label class="flex items-center gap-1 cursor-pointer" style="font-size:10px">
+            <input
+              type="checkbox"
+              class="rounded"
+              style="width:11px;height:11px"
+              ${a.blocked ? 'checked' : ''}
+              onchange="toggleActionBlocked(${a.id}, this)"
+            >
+            <span class="text-gray-400">Blocked</span>
+          </label>
+          <div id="blockedReason-${a.id}" class="${a.blocked ? '' : 'hidden'} flex items-center gap-1">
+            <input
+              type="text"
+              value="${escHtml(a.blockedBy)}"
+              placeholder="waiting on…"
+              class="border border-gray-200 rounded px-1.5 py-0.5 text-gray-600 focus:outline-none focus:border-blue-300"
+              style="font-size:10px;min-width:100px"
+              onblur="if(this.value !== '${escHtml(a.blockedBy)}') saveActionField(${a.id}, {blocked_by: this.value})"
+              onkeydown="if(event.key==='Enter') this.blur()"
+            >
+          </div>
+        </div>
+      </div>
+    </div>`
+  }).join('')
+
+  const completionBanner = pct === 100 ? `<div class="mx-4 mt-4">
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+      <div>
+        <div class="font-semibold text-emerald-800" style="font-size:12px">All actions complete</div>
+        <div class="text-emerald-600 mt-0.5" style="font-size:11px">Ready to close this outcome.</div>
+      </div>
+      <button class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors" style="font-size:11px" onclick="setPhase(3)">
+        Complete &amp; Close →
+      </button>
+    </div>
+  </div>` : ''
+
+  return `<div class="fade-in">
+    <!-- Sticky outcome header -->
+    <div class="bg-white border-b border-gray-200 px-6 pt-5 pb-4 sticky top-0 z-10">
+      <div class="flex items-start justify-between gap-4 mb-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1.5">
+            <button class="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors" style="font-size:10px" onclick="setPhase(1)">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>Outcomes
+            </button>
+            <span class="text-gray-200">/</span>
+            <span class="text-gray-400" style="font-size:10px">${escHtml(o.project_name || o.project)}</span>
+          </div>
+          <!-- Title (editable) -->
+          <div class="group flex items-center gap-1.5 mb-1">
+            <span
+              class="font-semibold text-gray-900 leading-tight cursor-pointer hover:text-gray-700 transition-colors"
+              style="font-size:15px"
+              onclick="startEditOutcomeField(${o.id}, 'title', this, 'text')"
+              title="Click to edit title"
+            >${escHtml(o.title)}</span>
+            <span class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-opacity select-none" style="font-size:12px" onclick="startEditOutcomeField(${o.id}, 'title', this.previousElementSibling, 'text')">✎</span>
+          </div>
+          <!-- Impact (editable) -->
+          <div class="group flex items-center gap-1.5 mb-0.5">
+            <span
+              class="${o.impact ? 'text-gray-500' : 'text-gray-300 italic'} cursor-pointer hover:text-gray-600 transition-colors"
+              style="font-size:11px"
+              onclick="startEditOutcomeField(${o.id}, 'impact', this, 'text')"
+              title="Click to edit impact"
+            >${escHtml(o.impact) || 'Add impact statement…'}</span>
+            <span class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-opacity select-none" style="font-size:10px" onclick="startEditOutcomeField(${o.id}, 'impact', this.previousElementSibling, 'text')">✎</span>
+          </div>
+          <!-- Description (editable) -->
+          <div class="group flex items-start gap-1.5">
+            <span
+              class="${o.description ? 'text-gray-500' : 'text-gray-300 italic'} cursor-pointer hover:text-gray-600 transition-colors leading-relaxed"
+              style="font-size:11px"
+              onclick="startEditOutcomeField(${o.id}, 'description', this, 'textarea')"
+              title="Click to edit description"
+            >${escHtml(o.description) || 'Add description…'}</span>
+            <span class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-opacity shrink-0 select-none" style="font-size:10px;margin-top:1px" onclick="startEditOutcomeField(${o.id}, 'description', this.previousElementSibling, 'textarea')">✎</span>
+          </div>
+        </div>
+        <!-- Priority + Deadline (editable) -->
+        <div class="flex flex-col items-end gap-2 shrink-0">
+          <!-- Priority select (styled) -->
+          <div class="group flex items-center gap-1">
+            <span class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-opacity select-none" style="font-size:10px" onclick="startEditOutcomeField(${o.id}, 'priority', this.nextElementSibling, 'select')">✎</span>
+            <span
+              class="${o.priority==='high'?'bg-red-50 text-red-600 border-red-100':o.priority==='medium'?'bg-amber-50 text-amber-600 border-amber-100':'bg-gray-50 text-gray-500 border-gray-200'} border font-medium px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
+              style="font-size:10px"
+              onclick="startEditOutcomeField(${o.id}, 'priority', this, 'select')"
+              title="Click to change priority"
+            >${escHtml(o.priority ? o.priority.charAt(0).toUpperCase()+o.priority.slice(1) : 'Medium')}</span>
+          </div>
+          <!-- Deadline (editable) -->
+          <div class="group flex items-center gap-1">
+            <span class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-opacity select-none" style="font-size:10px" onclick="startEditOutcomeField(${o.id}, 'deadline', this.nextElementSibling, 'date')">✎</span>
+            <span
+              class="bg-gray-50 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
+              style="font-size:10px"
+              data-iso="${o.deadlineISO || ''}"
+              onclick="startEditOutcomeField(${o.id}, 'deadline', this, 'date')"
+              title="Click to change deadline"
+            >${o.deadlineISO ? 'Due ' + escHtml(o.deadline) : 'No deadline'}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Progress -->
+      <div class="flex items-center gap-3">
+        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full prog-bar ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+        </div>
+        <span class="font-semibold text-gray-500 shrink-0" style="font-size:11px">${pct}% · ${fmt(remTime)} left</span>
+      </div>
+    </div>
+
+    <!-- Actions list -->
+    <div class="px-2 pt-3 pb-2">
+      <div class="flex items-center justify-between mb-1 px-3">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Actions</div>
+        <div class="text-gray-400" style="font-size:10px">${o.actions.filter(a => a.done).length} / ${o.actions.length} complete</div>
+      </div>
+
+      <div class="space-y-0.5" id="actionsList">${actionRows}</div>
+
+      <!-- Add action inline -->
+      <div class="mt-2 px-3">
+        <div class="flex items-center gap-2.5 text-gray-400 group cursor-text" onclick="document.getElementById('addActionInput').focus()">
+          <div class="w-[15px] h-[15px] border border-dashed border-gray-300 rounded flex items-center justify-center shrink-0 group-hover:border-gray-400 transition-colors">
+            <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <input
+            id="addActionInput"
+            type="text"
+            placeholder="Add an action…"
+            class="flex-1 bg-transparent border-none focus:outline-none text-gray-700 placeholder-gray-400 add-action-input"
+            style="font-size:12px"
+            onkeydown="handleAddAction(event, ${o.id})"
+          >
+        </div>
+      </div>
+    </div>
+
+    ${completionBanner}
+  </div>`
+}
+
+// ============================================================
+// PHASE 3 — Complete & Close
+// ============================================================
+
+function renderPhase3() {
+  const o = getOutcome(selectedId) || OUTCOMES[0]
+  const pct       = getProgress(o)
+  const totalTime = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const done      = o.actions.filter(a => a.done).length
+
+  const now     = new Date()
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+  return `<div class="p-6 fade-in max-w-xl mx-auto">
+
+    <!-- Completion card -->
+    <div class="bg-white border border-emerald-200 rounded-2xl p-6 mb-5 completion-glow">
+      <div class="flex items-start gap-4 mb-5">
+        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-emerald-600 font-semibold uppercase tracking-wider mb-1" style="font-size:10px">Outcome Complete</div>
+          <div class="font-semibold text-gray-900 leading-tight" style="font-size:15px">${o.title}</div>
+          <div class="text-gray-400 mt-0.5" style="font-size:11px">${dateStr} at ${timeStr}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+        <div class="text-center">
+          <div class="text-gray-400 mb-1" style="font-size:10px">Actions</div>
+          <div class="font-semibold text-gray-800 text-sm">${done} / ${o.actions.length}</div>
+          <div class="text-emerald-500 mt-0.5" style="font-size:10px">completed</div>
+        </div>
+        <div class="text-center border-x border-gray-100">
+          <div class="text-gray-400 mb-1" style="font-size:10px">Estimated</div>
+          <div class="font-semibold text-gray-800 text-sm">${fmt(totalTime)}</div>
+          <div class="text-gray-400 mt-0.5" style="font-size:10px">planned</div>
+        </div>
+        <div class="text-center">
+          <div class="text-gray-400 mb-1" style="font-size:10px">Progress</div>
+          <div class="font-semibold text-sm ${pct >= 100 ? 'text-emerald-600' : 'text-amber-600'}">${pct}%</div>
+          <div class="text-gray-400 mt-0.5" style="font-size:10px">complete</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result toggle — required -->
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px;letter-spacing:.06em">Did this outcome succeed?</div>
+      <div class="flex gap-3 mb-4">
+        <button
+          id="resultHit"
+          onclick="selectResult('hit')"
+          class="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 font-semibold transition-all hover:border-emerald-300 hover:text-emerald-600"
+          style="font-size:13px">
+          Hit it ✓
+        </button>
+        <button
+          id="resultMiss"
+          onclick="selectResult('miss')"
+          class="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 font-semibold transition-all hover:border-gray-400"
+          style="font-size:13px">
+          Didn't land
+        </button>
+      </div>
+      <!-- Result note — optional, subtle -->
+      <input
+        id="resultNote"
+        type="text"
+        placeholder="What was the actual result? e.g. '4 meetings booked', 'deck approved at 2x valuation'"
+        class="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-gray-600 placeholder-gray-300 focus:outline-none focus:border-gray-200"
+        style="font-size:11px">
+    </div>
+
+    <!-- Reflection -->
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="font-semibold text-gray-700 mb-4" style="font-size:11px">Quick Reflection</div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-gray-500 font-medium block mb-1.5" style="font-size:10px">What worked well?</label>
+          <textarea id="reflectWorked" rows="2" class="reflect-area w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2.5" style="font-size:11px" placeholder="The QA process caught edge cases early…"></textarea>
+        </div>
+        <div>
+          <label class="text-gray-500 font-medium block mb-1.5" style="font-size:10px">What slipped or could improve?</label>
+          <textarea id="reflectSlipped" rows="2" class="reflect-area w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2.5" style="font-size:11px" placeholder="Marketing coordination took longer than expected…"></textarea>
+        </div>
+        <div>
+          <label class="text-gray-500 font-medium block mb-1.5" style="font-size:10px">Reusable insight for next time?</label>
+          <textarea id="reflectInsight" rows="2" class="reflect-area w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2.5" style="font-size:11px" placeholder="Buffer 30% more time for cross-team coordination…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="flex gap-3">
+      <button
+        id="archiveBtn"
+        disabled
+        onclick="archiveOutcome()"
+        class="flex-1 bg-gray-900 text-white font-semibold py-2.5 rounded-xl transition-colors opacity-40 cursor-not-allowed"
+        style="font-size:11px">
+        Archive Outcome
+      </button>
+      <button class="border border-gray-200 text-gray-600 font-medium py-2.5 px-4 rounded-xl hover:bg-gray-50 transition-colors" style="font-size:11px" onclick="setPhase(2)">
+        Back
+      </button>
+    </div>
+  </div>`
+}
+
+// ============================================================
+// INBOX VIEW
+// ============================================================
+
+function renderInbox() {
+  const pending = INBOX_ITEMS.filter(i => i.status === 'pending')
+
+  if (pending.length === 0) {
+    return `<div class="p-8 fade-in flex flex-col items-center justify-center" style="min-height:300px">
+      <svg class="w-10 h-10 text-gray-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/>
+      </svg>
+      <div class="text-gray-400 font-medium mb-1" style="font-size:13px">Inbox is clear</div>
+      <div class="text-gray-300" style="font-size:11px">Pull from Slack or check back later</div>
+    </div>`
+  }
+
+  const outcomeOptions = OUTCOMES.map(o =>
+    `<option value="${o.id}">${o.title.length > 40 ? o.title.slice(0,40)+'…' : o.title}</option>`
+  ).join('')
+
+  const projectOptions = PROJECTS.map(p =>
+    `<option value="${p.id}">${p.name}</option>`
+  ).join('')
+
+  const cards = pending.map(item => {
+    const isOutcome = item.classification === 'outcome'
+    const isAction  = item.classification === 'action'
+    const isUnknown = !isOutcome && !isAction
+
+    const badgeCls = isOutcome
+      ? 'bg-purple-100 text-purple-700'
+      : isAction
+        ? 'bg-blue-100 text-blue-700'
+        : 'bg-gray-100 text-gray-500'
+    const badgeLabel = isOutcome ? 'Outcome' : isAction ? 'Action' : 'Unknown'
+
+    const pickerHtml = isOutcome
+      ? `<div class="mt-3 space-y-1.5">
+           <div class="text-gray-500 font-medium" style="font-size:10px">To approve, fill in:</div>
+           <select id="inbox-proj-${item.id}" class="w-full border border-gray-200 rounded-lg text-gray-700 bg-white focus:outline-none focus:border-blue-300" style="font-size:11px;padding:5px 8px;">
+             <option value="">— select project —</option>
+             ${projectOptions}
+           </select>
+           <input type="date" id="inbox-deadline-${item.id}" class="w-full border border-gray-200 rounded-lg text-gray-700 bg-white focus:outline-none focus:border-blue-300" style="font-size:11px;padding:5px 8px;" placeholder="Deadline">
+           <select id="inbox-priority-${item.id}" class="w-full border border-gray-200 rounded-lg text-gray-700 bg-white focus:outline-none focus:border-blue-300" style="font-size:11px;padding:5px 8px;">
+             <option value="medium">Priority: Medium</option>
+             <option value="high">Priority: High</option>
+             <option value="low">Priority: Low</option>
+           </select>
+         </div>`
+      : `<div class="mt-3">
+           <div class="text-gray-500 font-medium mb-1" style="font-size:10px">Assign to outcome (optional):</div>
+           <select id="inbox-outcome-${item.id}" class="w-full border border-gray-200 rounded-lg text-gray-700 bg-white focus:outline-none focus:border-blue-300" style="font-size:11px;padding:5px 8px;">
+             <option value="">— leave unassigned —</option>
+             ${outcomeOptions}
+           </select>
+         </div>`
+
+    return `<div class="bg-white border border-gray-200 rounded-xl p-4 mb-3 fade-in">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="inline-flex px-2 py-0.5 rounded-full font-semibold ${badgeCls}" style="font-size:10px">${badgeLabel}</span>
+            <span class="text-gray-300" style="font-size:10px">${item.source_metadata?.channel_name || item.source_type || ''}</span>
+          </div>
+          <div class="font-medium text-gray-900 leading-snug" style="font-size:13px">${item.title}</div>
+          ${item.ai_reasoning ? `<div class="text-gray-400 mt-1 leading-relaxed" style="font-size:10px">✦ ${item.ai_reasoning}</div>` : ''}
+        </div>
+      </div>
+      ${pickerHtml}
+      <div class="flex items-center gap-2 mt-3">
+        <button onclick="approveInboxItem(${item.id}, '${item.classification}')"
+          class="flex-1 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors text-center"
+          style="font-size:11px;padding:6px 0">
+          Approve
+        </button>
+        <button onclick="dismissInboxItem(${item.id})"
+          class="border border-gray-200 text-gray-500 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          style="font-size:11px;padding:6px 14px">
+          Dismiss
+        </button>
+      </div>
+    </div>`
+  }).join('')
+
+  return `<div class="p-5 fade-in max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="font-semibold text-gray-900" style="font-size:15px">Inbox</div>
+        <div class="text-gray-400" style="font-size:11px">${pending.length} item${pending.length !== 1 ? 's' : ''} to review</div>
+      </div>
+      <button onclick="triggerTriageProcess()" class="flex items-center gap-1.5 bg-blue-50 text-blue-600 font-medium rounded-lg hover:bg-blue-100 transition-colors" style="font-size:11px;padding:6px 12px">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Pull &amp; Process
+      </button>
+    </div>
+    ${cards}
+  </div>`
+}
+
+// ============================================================
+// RIGHT PANEL
+// ============================================================
+
+function renderRightPanel() {
+  const p = document.getElementById('rightPanel')
+  if      (currentPhase === 1) p.innerHTML = renderRightP1()
+  else if (currentPhase === 2) p.innerHTML = renderRightP2()
+  else if (currentPhase === 4) p.innerHTML = renderRightInbox()
+  else                          p.innerHTML = renderRightP3()
+}
+
+function renderRightInbox() {
+  const total    = INBOX_ITEMS.length
+  const pending  = INBOX_ITEMS.filter(i => i.status === 'pending').length
+  const approved = INBOX_ITEMS.filter(i => i.status === 'approved').length
+  const outcomes = INBOX_ITEMS.filter(i => i.classification === 'outcome').length
+  const actions  = INBOX_ITEMS.filter(i => i.classification === 'action').length
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Inbox Stats</div>
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-gray-600" style="font-size:11px">Pending</span>
+        <span class="font-semibold text-gray-900" style="font-size:11px">${pending}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-gray-600" style="font-size:11px">Approved</span>
+        <span class="font-semibold text-gray-900" style="font-size:11px">${approved}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-gray-600" style="font-size:11px">Outcomes found</span>
+        <span class="font-semibold text-purple-600" style="font-size:11px">${outcomes}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-gray-600" style="font-size:11px">Actions found</span>
+        <span class="font-semibold text-blue-600" style="font-size:11px">${actions}</span>
+      </div>
+    </div>
+  </div>`
+}
+
+function renderRightP1() {
+  // Aggregate intelligence across all projects from server, fall back to local computation
+  const intelValues = Object.values(PROJECT_INTEL)
+  const hasIntel = intelValues.length > 0
+
+  const totalTime = hasIntel
+    ? intelValues.reduce((s, i) => s + i.total_queued_time, 0)
+    : OUTCOMES.reduce((s, o) => s + o.estimatedTime, 0)
+
+  const deepTime = hasIntel
+    ? intelValues.reduce((s, i) => s + Math.round(i.deep_split * i.total_queued_time), 0)
+    : OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.energy === 'deep').reduce((sa, a) => sa + a.time, 0), 0)
+  const lightTime = hasIntel
+    ? intelValues.reduce((s, i) => s + Math.round(i.light_split * i.total_queued_time), 0)
+    : OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.energy === 'light').reduce((sa, a) => sa + a.time, 0), 0)
+  const total   = deepTime + lightTime || 1
+  const deepPct = Math.round(deepTime / total * 100)
+
+  // Merge deadline_risks from all projects (server-computed, sorted by urgency)
+  const serverRisks = hasIntel
+    ? intelValues.flatMap(i => i.deadline_risks)
+    : []
+
+  // Build risk rows: prefer server risk label, fall back to local getRisk for outcomes without a deadline
+  const riskRows = OUTCOMES.map(o => {
+    const sr  = serverRisks.find(r => r.outcome_id === o.id)
+    const risk = sr ? sr.risk : (o.daysLeft !== null ? getRisk(o) : null)
+    const daysLabel = sr ? `${sr.days_left}d remaining` : (o.daysLeft !== null ? `${o.daysLeft}d remaining` : 'No deadline')
+    const dot  = risk === 'critical' ? 'bg-red-500' : risk === 'high' ? 'bg-red-400' : risk === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'
+    return { o, risk, daysLabel, dot }
+  })
+  // Sort: critical → high → medium → low → null
+  const rOrder = { critical: 0, high: 1, medium: 2, low: 3 }
+  riskRows.sort((a, b) => (rOrder[a.risk] ?? 4) - (rOrder[b.risk] ?? 4))
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Workspace Overview</div>
+
+    <div class="space-y-2 mb-4">
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div class="text-gray-600" style="font-size:11px">Active Outcomes</div>
+        <div class="font-semibold text-gray-900 text-sm">${OUTCOMES.length}</div>
+      </div>
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div class="text-gray-600" style="font-size:11px">Total Work Queued</div>
+        <div class="font-semibold text-gray-900 text-sm">${fmt(totalTime)}</div>
+      </div>
+    </div>
+
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Work Type Split</div>
+    <div class="bg-gray-50 rounded-xl p-3 mb-4">
+      <div class="flex h-2 rounded-full overflow-hidden mb-2">
+        <div class="bg-blue-400 rounded-l-full" style="width:${deepPct}%"></div>
+        <div class="bg-violet-400 rounded-r-full flex-1"></div>
+      </div>
+      <div class="flex items-center gap-4" style="font-size:10px">
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span><span class="text-gray-500">Deep ${fmt(deepTime)}</span></span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-violet-400 rounded-full"></span><span class="text-gray-500">Light ${fmt(lightTime)}</span></span>
+      </div>
+    </div>
+
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Deadline Risk</div>
+    <div class="space-y-2">
+      ${riskRows.map(({ o, dot, daysLabel }) => `
+        <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" onclick="selectOutcome('${o.id}')">
+          <div class="w-1.5 h-1.5 ${dot} rounded-full shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <div class="text-gray-700 truncate" style="font-size:11px">${o.title}</div>
+            <div class="text-gray-400" style="font-size:10px">${daysLabel}</div>
+          </div>
+          <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>`).join('')}
+    </div>
+  </div>`
+}
+
+function renderRightP2() {
+  const o = getOutcome(selectedId)
+  if (!o) return ''
+
+  const stats = OUTCOME_STATS[o.id]
+
+  // Prefer server-computed stats; fall back to local calculation
+  const pct       = stats ? Math.round(stats.progress * 100) : getProgress(o)
+  const totalTime = stats ? stats.total_time  : o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = stats ? stats.done_time   : o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const remTime   = stats ? stats.remaining_time : (totalTime - doneTime)
+  const deepTime  = stats ? stats.deep_time   : o.actions.filter(a => a.energy === 'deep').reduce((s, a) => s + a.time, 0)
+  const lightTime = stats ? stats.light_time  : o.actions.filter(a => a.energy === 'light').reduce((s, a) => s + a.time, 0)
+  const blocked   = stats ? stats.blocked_count : o.actions.filter(a => a.blocked && !a.done).length
+  const avail     = o.actions.filter(a => !a.done && !a.blocked)
+  const todayTime = avail.reduce((s, a) => s + a.time, 0)
+  const total     = deepTime + lightTime || 1
+  const deepPct   = Math.round(deepTime / total * 100)
+
+  // Use server-computed deadline risk when available (smarter: based on work remaining vs. days)
+  const risk = stats?.deadline_risk ?? (o.daysLeft !== null ? getRisk(o) : null)
+  const daysLeft = stats?.days_left ?? o.daysLeft
+  const mpd = stats?.minutes_per_day_needed
+
+  // SVG ring
+  const r   = 28
+  const c   = 2 * Math.PI * r
+  const off = c * (1 - pct / 100)
+  const strokeColor = pct >= 100 ? '#10B981' : '#3B82F6'
+
+  const riskBg    = risk === 'critical' ? 'bg-red-50 border-red-200'
+                  : risk === 'high'     ? 'bg-red-50 border-red-100'
+                  : risk === 'medium'   ? 'bg-amber-50 border-amber-100'
+                  : 'bg-gray-50 border-gray-100'
+  const riskText  = risk === 'critical' ? 'text-red-700'
+                  : risk === 'high'     ? 'text-red-700'
+                  : risk === 'medium'   ? 'text-amber-700'
+                  : 'text-gray-700'
+  const riskSub   = risk === 'critical' ? 'text-red-500'
+                  : risk === 'high'     ? 'text-red-500'
+                  : risk === 'medium'   ? 'text-amber-500'
+                  : 'text-gray-400'
+  const riskLabel = risk === 'critical' ? 'Critical'
+                  : risk === 'high'     ? 'High Risk'
+                  : risk === 'medium'   ? 'Approaching'
+                  : risk === 'low'      ? 'On Track'
+                  : 'No Deadline'
+  const riskMsg = !risk || risk === 'low'
+    ? `Good pacing. ${fmt(remTime)} left to schedule.`
+    : risk === 'medium'
+    ? (mpd ? `${fmt(Math.round(mpd))}/day needed. ${fmt(remTime)} remaining.` : `${fmt(remTime)} of work with ${daysLeft}d remaining.`)
+    : risk === 'high'
+    ? (mpd ? `${fmt(Math.round(mpd))}/day needed vs 4h capacity. Tighten up.` : 'Deadline approaching fast. Reprioritize.')
+    : (daysLeft === 0 ? 'Deadline passed. Complete or reschedule.' : `${fmt(Math.round(mpd || remTime))}/day needed — exceeds daily capacity.`)
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Execution Intelligence</div>
+
+    <!-- Ring + title -->
+    <div class="bg-gray-50 rounded-xl p-4 mb-3 flex items-center gap-4">
+      <div class="shrink-0 relative" style="width:64px;height:64px">
+        <svg width="64" height="64" viewBox="0 0 64 64" style="transform:rotate(-90deg)">
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="#E5E7EB" stroke-width="5"/>
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="${strokeColor}" stroke-width="5"
+            stroke-linecap="round"
+            stroke-dasharray="${c.toFixed(1)}"
+            stroke-dashoffset="${off.toFixed(1)}"
+          />
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span class="font-bold text-gray-800" style="font-size:13px">${pct}%</span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-gray-800 leading-tight" style="font-size:11px">${o.title}</div>
+        <div class="text-gray-400 mt-0.5" style="font-size:10px">${o.actions.filter(a => a.done).length} of ${o.actions.length} actions done</div>
+      </div>
+    </div>
+
+    <!-- Time breakdown -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Time Breakdown</div>
+    <div class="space-y-1.5 mb-3">
+      <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+        <div class="text-gray-500" style="font-size:11px">Total Estimated</div>
+        <div class="font-semibold text-gray-800" style="font-size:11px">${fmt(totalTime)}</div>
+      </div>
+      <div class="flex items-center justify-between p-2.5 bg-emerald-50 rounded-lg">
+        <div class="text-emerald-600" style="font-size:11px">Completed</div>
+        <div class="font-semibold text-emerald-700" style="font-size:11px">${fmt(doneTime)}</div>
+      </div>
+      <div class="flex items-center justify-between p-2.5 bg-blue-50 rounded-lg">
+        <div class="text-blue-600" style="font-size:11px">Remaining</div>
+        <div class="font-semibold text-blue-700" style="font-size:11px">${fmt(remTime)}</div>
+      </div>
+    </div>
+
+    <!-- Deep / Light -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Work Type</div>
+    <div class="bg-gray-50 rounded-xl p-3 mb-3">
+      <div class="flex h-2 rounded-full overflow-hidden mb-2">
+        <div class="bg-blue-400 rounded-l-full" style="width:${deepPct}%"></div>
+        <div class="bg-violet-400 rounded-r-full flex-1"></div>
+      </div>
+      <div class="flex items-center gap-4" style="font-size:10px">
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span><span class="text-gray-500">Deep ${fmt(deepTime)}</span></span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-violet-400 rounded-full"></span><span class="text-gray-500">Light ${fmt(lightTime)}</span></span>
+      </div>
+    </div>
+
+    <!-- Deadline risk -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Deadline Risk</div>
+    <div class="p-3 rounded-xl border mb-3 ${riskBg}">
+      <div class="flex items-center justify-between mb-1">
+        <div class="font-medium ${riskText}" style="font-size:11px">${riskLabel}</div>
+        <div class="${riskSub}" style="font-size:10px">${daysLeft !== null ? `${daysLeft}d left` : '—'}</div>
+      </div>
+      <div class="${riskSub}" style="font-size:10px">${riskMsg}</div>
+    </div>
+
+    ${blocked > 0 ? `
+    <!-- Dependency warnings -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Dependency Warnings</div>
+    <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-3">
+      <div class="flex items-center gap-1.5 text-amber-700 font-medium mb-1" style="font-size:11px">
+        <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        ${blocked} action${blocked > 1 ? 's' : ''} blocked
+      </div>
+      <div class="text-amber-600" style="font-size:10px">Complete unblocked actions first to unlock the chain.</div>
+    </div>
+    ` : ''}
+
+    <!-- Today's plan -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Available Today</div>
+    <div class="bg-gray-50 rounded-xl p-3">
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-gray-600" style="font-size:11px">Actionable now</div>
+        <div class="font-semibold text-gray-800" style="font-size:11px">${fmt(todayTime)}</div>
+      </div>
+      <div class="text-gray-400" style="font-size:10px">${avail.length} action${avail.length !== 1 ? 's' : ''} ready to start</div>
+    </div>
+  </div>`
+}
+
+function renderRightP3() {
+  const o = getOutcome(selectedId) || OUTCOMES[0]
+  const totalTime = o.actions.reduce((s, a) => s + a.time, 0)
+  const doneTime  = o.actions.filter(a => a.done).reduce((s, a) => s + a.time, 0)
+  const done      = o.actions.filter(a => a.done).length
+
+  return `<div class="p-4">
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Completion Summary</div>
+
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+      <div class="flex items-center gap-2 text-emerald-700 font-semibold mb-3" style="font-size:12px">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>Closed Loop
+      </div>
+      <div class="space-y-2" style="font-size:11px">
+        <div class="flex justify-between">
+          <span class="text-emerald-600">Status</span>
+          <span class="text-emerald-800 font-medium">Complete</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-emerald-600">Actions done</span>
+          <span class="text-emerald-800 font-medium">${done} / ${o.actions.length}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-emerald-600">Time logged</span>
+          <span class="text-emerald-800 font-medium">${fmt(doneTime)} / ${fmt(totalTime)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-gray-400 text-center leading-relaxed px-1" style="font-size:10px">
+      Archive this outcome to add it to your completion history and unlock velocity insights.
+    </div>
+  </div>`
+}
+
+// ============================================================
+// TOGGLE ACTION
+// ============================================================
+
+async function toggleAction(oid, aid, checked) {
+  const o = getOutcome(oid)
+  if (!o) return
+  const a = o.actions.find(x => x.id === aid)
+  if (!a) return
+
+  // Optimistic update
+  a.done = checked
+  renderSidebarOutcomes()
+  renderCenter()
+  renderRightPanel()
+
+  try {
+    const res = await fetch(`/api/actions/${aid}/toggle`, { method: 'PATCH' })
+    if (!res.ok) throw new Error('toggle failed')
+    // Sync from server (updates done_at etc.)
+    await loadData()
+    if (oid) await fetchOutcomeStats(oid)
+    renderAll()
+    const pct = OUTCOME_STATS[oid] ? Math.round(OUTCOME_STATS[oid].progress * 100) : getProgress(getOutcome(oid) || o)
+    if (checked && pct === 100) {
+      showToast('All actions complete · Ready to close this outcome', 'success')
+    } else if (checked) {
+      showToast(`"${a.title}" marked complete`, 'info')
+    }
+  } catch (err) {
+    // Revert
+    a.done = !checked
+    renderSidebarOutcomes()
+    renderCenter()
+    renderRightPanel()
+    showToast('Failed to update action', 'warning')
+  }
+}
+
+// ============================================================
+// INBOX ACTIONS
+// ============================================================
+
+async function approveInboxItem(id, classification) {
+  try {
+    let body = {}
+    if (classification === 'outcome') {
+      const projectId  = document.getElementById(`inbox-proj-${id}`)?.value
+      const deadline   = document.getElementById(`inbox-deadline-${id}`)?.value
+      const priority   = document.getElementById(`inbox-priority-${id}`)?.value || 'medium'
+      if (!projectId) { showToast('Select a project before approving', 'warning'); return }
+      body = { project_id: parseInt(projectId), deadline: deadline || undefined, priority }
+    } else {
+      const outcomeId = document.getElementById(`inbox-outcome-${id}`)?.value
+      body = { outcome_id: outcomeId ? parseInt(outcomeId) : null }
+    }
+
+    const res = await fetch(`/api/inbox/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error('approve failed')
+    await Promise.all([loadData(), loadInboxData()])
+    renderCenter()
+    renderRightPanel()
+    updateInboxBadge()
+    showToast('Approved and created', 'success')
+  } catch (err) {
+    showToast('Failed to approve item', 'warning')
+  }
+}
+
+async function dismissInboxItem(id) {
+  try {
+    const res = await fetch(`/api/inbox/${id}/dismiss`, { method: 'POST' })
+    if (!res.ok) throw new Error('dismiss failed')
+    await loadInboxData()
+    renderCenter()
+    renderRightPanel()
+    updateInboxBadge()
+    showToast('Item dismissed', 'info')
+  } catch (err) {
+    showToast('Failed to dismiss item', 'warning')
+  }
+}
+
+async function triggerTriageProcess() {
+  showToast('Pulling & classifying…', 'info')
+  try {
+    const res = await fetch('/api/triage/process', { method: 'POST' })
+    if (!res.ok) throw new Error('process failed')
+    const data = await res.json()
+    await loadInboxData()
+    renderCenter()
+    renderRightPanel()
+    updateInboxBadge()
+    showToast(`${data.classified || 0} new items classified`, 'success')
+  } catch (err) {
+    showToast('Failed to process triage', 'warning')
+  }
+}
+
+// ============================================================
+// QUICK CAPTURE
+// ============================================================
+
+async function handleQuickCapture(e) {
+  if (e.key !== 'Enter') return
+  const v = e.target.value.trim()
+  if (!v) return
+
+  e.target.value = ''
+
+  const outcomeSelect = document.getElementById('quickCaptureOutcome')
+  const outcomeId = outcomeSelect?.value ? parseInt(outcomeSelect.value) : null
+
+  try {
+    let url, body
+    if (outcomeId) {
+      url  = `/api/outcomes/${outcomeId}/actions`
+      body = { title: v, energy_type: 'light', time_estimate: 30 }
+    } else {
+      url  = '/api/actions'
+      body = { title: v, energy_type: 'light', time_estimate: 30 }
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error('create failed')
+    await loadData()
+    if (outcomeId) {
+      selectedId = outcomeId
+      setPhase(2)
+    }
+    renderCenter()
+    renderRightPanel()
+    showToast(outcomeId ? 'Action captured' : 'Action captured (unassigned)', 'success')
+  } catch (err) {
+    showToast('Failed to capture action', 'warning')
+  }
+}
+
+// ============================================================
+// ADD ACTION
+// ============================================================
+
+async function handleAddAction(e, oid) {
+  if (e.key !== 'Enter') return
+  const v = e.target.value.trim()
+  if (!v) return
+
+  e.target.value = ''
+
+  try {
+    const res = await fetch(`/api/outcomes/${oid}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: v, energy_type: 'light', time_estimate: 30 }),
+    })
+    if (!res.ok) throw new Error('add failed')
+    await loadData()
+    if (selectedId) await fetchOutcomeStats(selectedId)
+    renderCenter()
+    renderRightPanel()
+    renderSidebarOutcomes()
+    renderSidebarStats()
+    showToast('Action added', 'info')
+    setTimeout(() => { const i = document.getElementById('addActionInput'); if (i) i.focus() }, 60)
+  } catch (err) {
+    showToast('Failed to add action', 'warning')
+  }
+}
+
+// ============================================================
+// FOCUS MODE
+// ============================================================
+
+function toggleFocus() {
+  isFocusMode = !isFocusMode
+  const track  = document.getElementById('focusTrack')
+  const thumb  = document.getElementById('focusThumb')
+  const status = document.getElementById('focusStatus')
+  const label  = document.getElementById('focusLabel')
+
+  if (isFocusMode) {
+    track.style.backgroundColor = '#3B82F6'
+    thumb.style.transform = 'translateX(12px)'
+    status.textContent = 'Focus mode · Notifications paused'
+    status.className = 'text-blue-500 mt-0.5'
+    label.textContent = 'Focus'
+    label.style.color = '#3B82F6'
+    showToast('Focus mode on · Stay the course', 'info')
+  } else {
+    track.style.backgroundColor = ''
+    thumb.style.transform = ''
+    status.textContent = 'Normal mode · All areas active'
+    status.className = 'text-gray-400 mt-0.5'
+    label.textContent = 'Focus'
+    label.style.color = ''
+  }
+}
+
+// ============================================================
+// ARCHIVE OUTCOME
+// ============================================================
+
+async function archiveOutcome() {
+  if (!selectedId) return
+  try {
+    const what_worked         = document.getElementById('reflectWorked')?.value.trim()  || ''
+    const what_slipped        = document.getElementById('reflectSlipped')?.value.trim() || ''
+    const reusable_insight    = document.getElementById('reflectInsight')?.value.trim() || ''
+    const outcome_result      = selectedOutcomeResult
+    const outcome_result_note = document.getElementById('resultNote')?.value.trim() || ''
+
+    if (!outcome_result) {
+      showToast("Select 'Hit it' or 'Didn\u2019t land' before archiving", 'warning')
+      return
+    }
+
+    const res = await fetch(`/api/outcomes/${selectedId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ what_worked, what_slipped, reusable_insight, outcome_result, outcome_result_note }),
+    })
+    if (!res.ok) throw new Error('complete failed')
+
+    // Archive succeeded — toast immediately before reload
+    showToast('Outcome closed · Well done.', 'success')
+
+    // Reload separately — failures here don't mask the archive success
+    selectedId            = null
+    currentPhase          = 1
+    selectedOutcomeResult = null
+    try {
+      await Promise.all([loadData(), loadArchivedOutcomes(), loadTodayStats()])
+      if (OUTCOMES.length > 0) selectedId = OUTCOMES[0].id
+    } catch (reloadErr) {
+      console.warn('Reload after archive failed:', reloadErr)
+    }
+    renderAll()
+
+  } catch (err) {
+    showToast('Failed to archive outcome', 'warning')
+  }
+}
+
+// ============================================================
+// NEW OUTCOME
+// ============================================================
+
+function handleNewOutcome() {
+  showToast('Use Quick Capture on the left to add an action', 'info')
+  document.getElementById('quickCaptureInput')?.focus()
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer')
+  const el = document.createElement('div')
+  const styles = {
+    info:    'bg-gray-900 text-white',
+    success: 'bg-emerald-600 text-white',
+    warning: 'bg-amber-500 text-white',
+  }
+  const icons = {
+    info:    `<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    success: `<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`,
+    warning: `<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+  }
+  el.className = `toast flex items-center gap-2 ${styles[type] || styles.info} px-4 py-2.5 rounded-xl shadow-lg font-medium pointer-events-auto`
+  el.style.fontSize = '11px'
+  el.innerHTML = `${icons[type] || icons.info}<span>${msg}</span>`
+  container.appendChild(el)
+  setTimeout(() => el.remove(), 4200)
+}
+
+// ============================================================
+// PHASE 3 RESULT TOGGLE
+// ============================================================
+
+function selectResult(value) {
+  selectedOutcomeResult = value
+
+  const hitBtn     = document.getElementById('resultHit')
+  const missBtn    = document.getElementById('resultMiss')
+  const archiveBtn = document.getElementById('archiveBtn')
+
+  if (value === 'hit') {
+    hitBtn.classList.add('bg-emerald-500', 'border-emerald-500', 'text-white')
+    hitBtn.classList.remove('border-gray-200', 'text-gray-500')
+    missBtn.classList.remove('bg-gray-700', 'border-gray-700', 'text-white')
+    missBtn.classList.add('border-gray-200', 'text-gray-500')
+  } else {
+    missBtn.classList.add('bg-gray-700', 'border-gray-700', 'text-white')
+    missBtn.classList.remove('border-gray-200', 'text-gray-500')
+    hitBtn.classList.remove('bg-emerald-500', 'border-emerald-500', 'text-white')
+    hitBtn.classList.add('border-gray-200', 'text-gray-500')
+  }
+
+  if (archiveBtn) {
+    archiveBtn.disabled = false
+    archiveBtn.classList.remove('opacity-40', 'cursor-not-allowed')
+  }
+}
+
+// ============================================================
+// INLINE EDITING — OUTCOMES
+// ============================================================
+
+function showInlineSaved() {
+  const el = document.createElement('span')
+  el.textContent = 'Saved ✓'
+  el.style.cssText = 'position:fixed;top:14px;right:20px;font-size:10px;font-weight:600;color:#10B981;pointer-events:none;z-index:9999;animation:toastIn 0.2s ease'
+  document.body.appendChild(el)
+  setTimeout(() => el.remove(), 1500)
+}
+
+async function saveOutcomeField(id, field, value) {
+  try {
+    const payload = { [field]: value === '' ? null : value }
+    const res = await fetch(`/api/outcomes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) return
+
+    const outcome = OUTCOMES.find(o => o.id === id)
+    if (outcome) {
+      if (field === 'deadline') {
+        if (value) {
+          const [y, m, d] = value.split('-').map(Number)
+          const dl  = new Date(y, m - 1, d)
+          const now = new Date(); now.setHours(0, 0, 0, 0)
+          outcome.daysLeft    = Math.max(0, Math.ceil((dl - now) / 86400000))
+          outcome.deadline    = dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          outcome.deadlineISO = value
+        } else {
+          outcome.daysLeft    = null
+          outcome.deadline    = '—'
+          outcome.deadlineISO = null
+        }
+      } else {
+        outcome[field] = value
+      }
+    }
+    showInlineSaved()
+    renderAll()
+  } catch (err) {
+    console.error('Failed to save outcome field:', err)
+  }
+}
+
+function startEditOutcomeField(outcomeId, field, spanEl, type) {
+  if (spanEl.dataset.editing) return
+  spanEl.dataset.editing = '1'
+
+  const currentVal = field === 'deadline'
+    ? (spanEl.dataset.iso || '')
+    : (spanEl.dataset.raw != null ? spanEl.dataset.raw : spanEl.textContent.trim())
+
+  let input
+
+  if (type === 'date') {
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'display:flex;align-items:center;gap:4px'
+    const di = document.createElement('input')
+    di.type = 'date'
+    di.value = currentVal
+    di.className = 'border border-blue-300 rounded px-1 py-0.5 focus:outline-none'
+    di.style.fontSize = '10px'
+    const clr = document.createElement('button')
+    clr.textContent = '✕ Clear'
+    clr.className = 'text-gray-400 hover:text-red-400 transition-colors'
+    clr.style.fontSize = '10px'
+    clr.type = 'button'
+    const parent = spanEl.parentNode
+    const restore = () => { spanEl.dataset.editing = ''; parent.replaceChild(spanEl, wrap) }
+    clr.onclick = async () => { restore(); await saveOutcomeField(outcomeId, 'deadline', null) }
+    di.addEventListener('blur', async () => {
+      const val = di.value || null
+      restore()
+      await saveOutcomeField(outcomeId, 'deadline', val)
+    })
+    di.addEventListener('keydown', e => {
+      if (e.key === 'Escape') restore()
+    })
+    wrap.appendChild(di)
+    wrap.appendChild(clr)
+    parent.replaceChild(wrap, spanEl)
+    di.focus()
+    return
+  }
+
+  if (type === 'select') {
+    input = document.createElement('select')
+    input.className = 'border border-blue-300 rounded px-1 py-0.5 focus:outline-none'
+    input.style.fontSize = '10px'
+    ;['high', 'medium', 'low'].forEach(v => {
+      const opt = document.createElement('option')
+      opt.value = v
+      opt.textContent = v.charAt(0).toUpperCase() + v.slice(1)
+      opt.selected = v === currentVal.toLowerCase()
+      input.appendChild(opt)
+    })
+  } else if (type === 'textarea') {
+    input = document.createElement('textarea')
+    input.rows = 2
+    input.value = currentVal.replace(/^Add .*$/, '') // clear placeholder text
+    input.className = 'w-full text-gray-700 bg-white border border-blue-300 rounded-lg px-2 py-1 focus:outline-none resize-none'
+    input.style.fontSize = '11px'
+  } else {
+    input = document.createElement('input')
+    input.type = 'text'
+    // clear placeholder-like values
+    input.value = /^Add /.test(currentVal) ? '' : currentVal
+    input.className = 'text-gray-700 bg-white border border-blue-300 rounded px-1.5 py-0.5 focus:outline-none'
+    input.style.minWidth = '120px'
+    input.style.fontSize = spanEl.style.fontSize || '11px'
+    input.style.width = '100%'
+  }
+
+  const parent = spanEl.parentNode
+  parent.replaceChild(input, spanEl)
+  input.focus()
+  if (input.select) input.select()
+
+  const restore = () => { spanEl.dataset.editing = ''; parent.replaceChild(spanEl, input) }
+
+  if (type === 'select') {
+    input.addEventListener('change', async () => {
+      const val = input.value
+      restore()
+      await saveOutcomeField(outcomeId, field, val)
+    })
+    input.addEventListener('blur', restore)
+    input.addEventListener('keydown', e => { if (e.key === 'Escape') restore() })
+  } else {
+    const save = async () => {
+      const val = input.value.trim()
+      restore()
+      if (val !== currentVal) await saveOutcomeField(outcomeId, field, val || null)
+    }
+    input.addEventListener('blur', save)
+    if (type !== 'textarea') {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur() }
+        if (e.key === 'Escape') restore()
+      })
+    } else {
+      input.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); restore() } })
+    }
+  }
+}
+
+// ============================================================
+// INLINE EDITING — ACTIONS
+// ============================================================
+
+async function saveActionField(id, fields) {
+  try {
+    const res = await fetch(`/api/actions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    })
+    if (!res.ok) return
+
+    for (const outcome of OUTCOMES) {
+      const action = (outcome.actions || []).find(a => a.id === id)
+      if (action) {
+        Object.assign(action, fields)
+        if ('energy_type' in fields) action.energy    = fields.energy_type || 'light'
+        if ('time_estimate' in fields) action.time    = fields.time_estimate || 0
+        if ('blocked_by' in fields) action.blockedBy  = fields.blocked_by || ''
+        if ('blocked' in fields) action.blocked       = !!fields.blocked
+        if ('title' in fields) action.title           = fields.title
+        break
+      }
+    }
+    renderAll()
+  } catch (err) {
+    console.error('Failed to save action field:', err)
+  }
+}
+
+function startEditActionTitle(actionId, spanEl) {
+  if (spanEl.dataset.editing) return
+  spanEl.dataset.editing = '1'
+  const current = spanEl.textContent.trim()
+
+  const input = document.createElement('input')
+  input.type = 'text'
+  input.value = current
+  input.className = 'flex-1 bg-white border border-blue-300 rounded px-1.5 py-0.5 focus:outline-none text-gray-800'
+  input.style.fontSize = '12px'
+  input.style.minWidth = '0'
+  input.style.width = '100%'
+
+  const parent = spanEl.parentNode
+  parent.replaceChild(input, spanEl)
+  input.focus()
+  input.select()
+
+  const save = async () => {
+    const newTitle = input.value.trim()
+    spanEl.dataset.editing = ''
+    parent.replaceChild(spanEl, input)
+    if (newTitle && newTitle !== current) await saveActionField(actionId, { title: newTitle })
+  }
+
+  input.addEventListener('blur', save)
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur() }
+    if (e.key === 'Escape') { spanEl.dataset.editing = ''; parent.replaceChild(spanEl, input) }
+  })
+}
+
+function startEditActionTime(actionId, spanEl) {
+  if (spanEl.dataset.editing) return
+  spanEl.dataset.editing = '1'
+  const currentMinutes = parseInt(spanEl.dataset.minutes) || 0
+
+  const input = document.createElement('input')
+  input.type = 'number'
+  input.min = '1'
+  input.value = currentMinutes || ''
+  input.placeholder = 'min'
+  input.className = 'w-14 bg-white border border-blue-300 rounded px-1 py-0.5 text-center focus:outline-none'
+  input.style.fontSize = '10px'
+
+  const parent = spanEl.parentNode
+  parent.replaceChild(input, spanEl)
+  input.focus()
+  input.select()
+
+  const save = async () => {
+    const val = parseInt(input.value) || null
+    spanEl.dataset.editing = ''
+    parent.replaceChild(spanEl, input)
+    if (val !== currentMinutes) await saveActionField(actionId, { time_estimate: val })
+  }
+
+  input.addEventListener('blur', save)
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur() }
+    if (e.key === 'Escape') { spanEl.dataset.editing = ''; parent.replaceChild(spanEl, input) }
+  })
+}
+
+function toggleActionBlocked(actionId, checkboxEl) {
+  const blocked = checkboxEl.checked
+  const reasonWrap = document.getElementById(`blockedReason-${actionId}`)
+  if (reasonWrap) {
+    if (blocked) reasonWrap.classList.remove('hidden')
+    else         reasonWrap.classList.add('hidden')
+  }
+  saveActionField(actionId, { blocked: blocked ? 1 : 0, blocked_by: blocked ? null : null })
+}
+
+// ============================================================
+// COMMAND PALETTE (⌘K)
+// ============================================================
+
+let cmdContext  = null
+let cmdToolData = null
+
+// HTML-escape helper
+function escHtml(s) {
+  if (s == null) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function buildContext(overrideOutcome) {
+  const outcome = overrideOutcome || (selectedId && currentPhase === 2 ? getOutcome(selectedId) : null)
+  const currentProject = outcome
+    ? PROJECTS.find(p => p.id === outcome.project_id) || null
+    : (PROJECTS.length > 0 ? PROJECTS[0] : null)
+  const stats = outcome ? OUTCOME_STATS[outcome.id] : null
+
+  return {
+    current_project: currentProject
+      ? { id: currentProject.id, name: currentProject.name }
+      : null,
+    selected_outcome: outcome ? {
+      id:            outcome.id,
+      title:         outcome.title,
+      deadline:      outcome.deadlineISO || null,
+      deadline_risk: stats ? stats.deadline_risk : null,
+      actions:       outcome.actions.map(a => ({
+        id:            a.id,
+        title:         a.title,
+        time_estimate: a.time,
+        energy_type:   a.energy,
+        done:          a.done,
+      })),
+    } : null,
+    active_outcomes: OUTCOMES.map(o => {
+      const s    = OUTCOME_STATS[o.id]
+      const proj = PROJECTS.find(p => p.id === o.project_id)
+      return {
+        id:                 o.id,
+        title:              o.title,
+        project_name:       proj ? proj.name : (o.project || 'Unknown'),
+        deadline:           o.deadlineISO || null,
+        deadline_risk:      s ? s.deadline_risk : null,
+        total_actions:      o.actions.length,
+        completed_actions:  o.actions.filter(a => a.done).length,
+      }
+    }),
+    projects:    PROJECTS.map(p => ({ id: p.id, name: p.name })),
+    today_stats: TODAY_STATS,
+  }
+}
+
+function openCommandPalette(presetOutcome, presetText) {
+  presetOutcome = presetOutcome || null
+  presetText    = presetText    || ''
+  cmdContext    = buildContext(presetOutcome)
+  cmdToolData   = null
+  document.getElementById('cmdPaletteOverlay').classList.remove('hidden')
+  renderCmdInput(presetText)
+  setTimeout(() => { const i = document.getElementById('cmdInput'); if (i) i.focus() }, 30)
+}
+
+function openCommandPaletteForOutcome(outcomeId) {
+  openCommandPalette(getOutcome(outcomeId), 'Break this outcome into actions')
+}
+
+function closeCommandPalette() {
+  document.getElementById('cmdPaletteOverlay').classList.add('hidden')
+  cmdContext  = null
+  cmdToolData = null
+}
+
+function renderCmdInput(presetText) {
+  presetText = presetText || ''
+  const outcome = cmdContext && cmdContext.selected_outcome ? cmdContext.selected_outcome : null
+
+  const contextBadge = outcome
+    ? `<div class="px-4 py-2 bg-purple-50 border-b border-purple-100 flex items-center gap-2">
+         <span class="text-purple-300" style="font-size:11px">↳</span>
+         <span class="text-purple-600 font-medium" style="font-size:10px">Context: ${escHtml(outcome.title)}</span>
+       </div>`
+    : ''
+
+  const suggestions = [
+    { text: 'Break this outcome into actions',  show: !!outcome },
+    { text: 'What should I prioritize today?',  show: true },
+    { text: 'Push all deadlines back 2 weeks',  show: OUTCOMES.length > 0 },
+    { text: 'Convert my notes into outcomes',   show: true },
+  ].filter(s => s.show)
+
+  const suggestHtml = suggestions.map(s =>
+    `<button onclick="setCmdText('${s.text.replace(/'/g, "\\'")}'); document.getElementById('cmdInput').focus()"
+       class="px-2 py-1 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-lg transition-colors"
+       style="font-size:10px;white-space:nowrap">${s.text}</button>`
+  ).join('')
+
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center gap-3 px-4 py-4">
+       <span style="font-size:18px;color:#A78BFA;line-height:1">✦</span>
+       <input id="cmdInput" type="text"
+         placeholder="Ask Claude anything…"
+         class="flex-1 border-none focus:outline-none text-gray-800 placeholder-gray-300"
+         style="font-size:14px;background:transparent"
+         onkeydown="handleCmdKeydown(event)">
+     </div>
+     ${contextBadge}
+     <div class="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between gap-3">
+       <div class="flex gap-1.5 flex-wrap">${suggestHtml}</div>
+       <button onclick="submitCommandPalette()"
+         class="flex items-center gap-1 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors shrink-0"
+         style="font-size:11px;padding:6px 12px">
+         Ask Claude
+       </button>
+     </div>`
+
+  const inp = document.getElementById('cmdInput')
+  if (inp && presetText) inp.value = presetText
+}
+
+function setCmdText(text) {
+  const inp = document.getElementById('cmdInput')
+  if (inp) { inp.value = text; inp.focus() }
+}
+
+function handleCmdKeydown(e) {
+  if (e.key === 'Enter')  { e.preventDefault(); submitCommandPalette() }
+  if (e.key === 'Escape') { closeCommandPalette() }
+}
+
+function renderCmdLoading() {
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center justify-center gap-3 px-4 py-8">
+       <div style="width:16px;height:16px;border:2px solid #E5E7EB;border-top-color:#6B7280;border-radius:50%;animation:spin 0.7s linear infinite"></div>
+       <span class="text-gray-500" style="font-size:12px">Claude is thinking…</span>
+     </div>`
+}
+
+async function submitCommandPalette() {
+  const inp     = document.getElementById('cmdInput')
+  const message = inp ? inp.value.trim() : ''
+  if (!message) return
+
+  renderCmdLoading()
+
+  try {
+    const res = await fetch('/api/chat', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ message, context: cmdContext, mode: 'tools' }),
+    })
+    if (!res.ok) throw new Error(`API error ${res.status}`)
+    const data = await res.json()
+    if (!data.success) throw new Error(data.error || 'Unknown error')
+
+    const result = data.data
+    if (result.type === 'tool') {
+      cmdToolData = result.tool_input
+      if      (result.tool_name === 'break_into_actions')    renderCmdBreak(result.tool_input.actions)
+      else if (result.tool_name === 'brain_dump_to_outcomes') renderCmdDump(result.tool_input.outcomes)
+      else if (result.tool_name === 'bulk_reschedule')        renderCmdReschedule(result.tool_input.updates)
+      else if (result.tool_name === 'prioritize_today')       renderCmdPrioritize(result.tool_input)
+      else renderCmdMessage('Claude responded with an unexpected action. Please try again.')
+    } else {
+      renderCmdMessage(result.content || '')
+    }
+  } catch (err) {
+    renderCmdMessage('Something went wrong: ' + err.message, true)
+  }
+}
+
+// ---- Plain message / prioritize_today results ----
+
+function renderCmdMessage(text, isError) {
+  const safeText = escHtml(text).replace(/\n/g, '<br>')
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+       <span style="color:#A78BFA">✦</span>
+       <span class="text-gray-500 font-medium" style="font-size:11px">Claude</span>
+     </div>
+     <div class="px-4 py-4 leading-relaxed" style="font-size:12px;color:${isError ? '#DC2626' : '#374151'};max-height:380px;overflow-y:auto">${safeText}</div>
+     <div class="px-4 pb-4 flex items-center justify-between border-t border-gray-50 pt-3">
+       <button onclick="renderCmdInput()" class="text-gray-400 hover:text-gray-600 font-medium transition-colors" style="font-size:11px">Ask again</button>
+       <button onclick="closeCommandPalette()" class="text-gray-400 hover:text-gray-600 font-medium transition-colors" style="font-size:11px">Close</button>
+     </div>`
+}
+
+function renderCmdPrioritize(input) {
+  const topList = (input.top_outcomes || []).map((t, i) =>
+    `<div class="flex items-start gap-2.5 py-2 ${i < (input.top_outcomes.length - 1) ? 'border-b border-gray-50' : ''}">
+       <span class="font-bold text-blue-400 shrink-0" style="font-size:11px;min-width:18px">${i + 1}.</span>
+       <span class="text-gray-700" style="font-size:12px">${escHtml(t)}</span>
+     </div>`
+  ).join('')
+
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+       <span style="color:#A78BFA">✦</span>
+       <span class="text-gray-500 font-medium" style="font-size:11px">Today's Priority</span>
+     </div>
+     <div class="px-4 py-4" style="max-height:400px;overflow-y:auto">
+       <div class="font-semibold text-gray-800 mb-3 leading-snug" style="font-size:13px">${escHtml(input.recommendation || '')}</div>
+       ${topList ? `<div class="mb-3">${topList}</div>` : ''}
+       ${input.reasoning ? `<div class="text-gray-400 leading-relaxed mt-2" style="font-size:11px">${escHtml(input.reasoning)}</div>` : ''}
+     </div>
+     <div class="px-4 pb-4 flex items-center justify-between border-t border-gray-100 pt-3">
+       <button onclick="renderCmdInput()" class="text-gray-400 hover:text-gray-600 font-medium transition-colors" style="font-size:11px">Ask again</button>
+       <button onclick="closeCommandPalette()" class="text-gray-400 hover:text-gray-600 font-medium transition-colors" style="font-size:11px">Done</button>
+     </div>`
+}
+
+// ---- break_into_actions preview ----
+
+function renderCmdBreak(actions) {
+  if (!actions || !actions.length) {
+    renderCmdMessage('No actions were suggested. Try rephrasing your request.')
+    return
+  }
+
+  const rows = actions.map((a, i) => {
+    const energy     = a.energy_type || 'light'
+    const energyBg   = energy === 'deep' ? '#EFF6FF' : '#F5F3FF'
+    const energyCol  = energy === 'deep' ? '#1D4ED8' : '#7C3AED'
+    const energyLbl  = energy === 'deep' ? 'Deep'    : 'Light'
+    return `<div class="flex items-start gap-3 p-3 border-b border-gray-50" id="brow-${i}">
+      <input type="checkbox" checked id="bacc-${i}" class="action-check mt-0.5 shrink-0" onchange="toggleBRow(${i})">
+      <div class="flex-1 min-w-0">
+        <input type="text" value="${escHtml(a.title || '')}" id="btit-${i}"
+          class="w-full border-none bg-transparent focus:outline-none text-gray-800 mb-1"
+          style="font-size:12px">
+        <div class="flex items-center gap-2">
+          <input type="number" value="${a.time_estimate || ''}" id="btim-${i}"
+            placeholder="min" min="1" max="480"
+            class="border border-gray-200 rounded px-1.5 py-0.5 text-gray-500 focus:outline-none focus:border-blue-300"
+            style="font-size:10px;width:52px">
+          <span class="text-gray-300" style="font-size:10px">min</span>
+          <button onclick="toggleBEnergy(${i})" id="beng-${i}" data-energy="${energy}"
+            class="px-1.5 py-0.5 rounded-md font-medium transition-colors"
+            style="font-size:10px;background:${energyBg};color:${energyCol}">${energyLbl}</button>
+        </div>
+      </div>
+    </div>`
+  }).join('')
+
+  const outcomeId = cmdContext && cmdContext.selected_outcome ? cmdContext.selected_outcome.id : null
+
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+       <span style="color:#A78BFA">✦</span>
+       <span class="text-gray-500 font-medium" style="font-size:11px">Suggested Actions</span>
+       <span class="ml-auto text-gray-300" style="font-size:10px">${actions.length} suggested · accept/edit/reject</span>
+     </div>
+     <div style="max-height:360px;overflow-y:auto">${rows}</div>
+     <div class="px-4 py-3 flex items-center gap-2.5 border-t border-gray-100">
+       <button onclick="createAcceptedActions(${outcomeId})" id="bCreateBtn"
+         class="flex-1 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+         style="font-size:11px;padding:8px 0">
+         Create Accepted Actions
+       </button>
+       <button onclick="closeCommandPalette()"
+         class="border border-gray-200 text-gray-500 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+         style="font-size:11px;padding:8px 14px">Cancel</button>
+     </div>`
+}
+
+function toggleBRow(i) {
+  const row = document.getElementById('brow-' + i)
+  const cb  = document.getElementById('bacc-' + i)
+  if (row) row.style.opacity = cb && cb.checked ? '1' : '0.35'
+}
+
+function toggleBEnergy(i) {
+  const btn = document.getElementById('beng-' + i)
+  if (!btn) return
+  const next       = btn.dataset.energy === 'deep' ? 'light' : 'deep'
+  btn.dataset.energy  = next
+  btn.textContent     = next === 'deep' ? 'Deep' : 'Light'
+  btn.style.background = next === 'deep' ? '#EFF6FF' : '#F5F3FF'
+  btn.style.color      = next === 'deep' ? '#1D4ED8' : '#7C3AED'
+}
+
+async function createAcceptedActions(outcomeId) {
+  const toCreate = []
+  let i = 0
+  while (document.getElementById('bacc-' + i)) {
+    const cb = document.getElementById('bacc-' + i)
+    if (cb && cb.checked) {
+      const title  = (document.getElementById('btit-' + i) || {}).value
+      const timeV  = (document.getElementById('btim-' + i) || {}).value
+      const energy = ((document.getElementById('beng-' + i) || {}).dataset || {}).energy || 'light'
+      if (title && title.trim()) {
+        toCreate.push({ title: title.trim(), time_estimate: timeV ? parseInt(timeV) : null, energy_type: energy })
+      }
+    }
+    i++
+  }
+
+  if (!toCreate.length) { showToast('No actions selected', 'warning'); return }
+
+  const btn = document.getElementById('bCreateBtn')
+  if (btn) { btn.textContent = 'Creating…'; btn.disabled = true }
+
+  try {
+    const url = outcomeId ? `/api/outcomes/${outcomeId}/actions` : '/api/actions'
+    for (const action of toCreate) {
+      const r = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(action),
+      })
+      if (!r.ok) throw new Error('Create failed')
+    }
+    closeCommandPalette()
+    await loadData()
+    if (outcomeId) {
+      selectedId   = outcomeId
+      currentPhase = 2
+      await fetchOutcomeStats(outcomeId)
+    }
+    renderAll()
+    showToast(`${toCreate.length} action${toCreate.length !== 1 ? 's' : ''} created`, 'success')
+  } catch (err) {
+    showToast('Failed to create some actions', 'warning')
+    if (btn) { btn.textContent = 'Create Accepted Actions'; btn.disabled = false }
+  }
+}
+
+// ---- brain_dump_to_outcomes preview ----
+
+function renderCmdDump(outcomes) {
+  if (!outcomes || !outcomes.length) {
+    renderCmdMessage('No outcomes could be extracted. Try providing more detailed notes.')
+    return
+  }
+
+  const projectOptions = PROJECTS.map(p =>
+    `<option value="${p.id}">${escHtml(p.name)}</option>`
+  ).join('')
+
+  const rows = outcomes.map((o, i) => {
+    const noMatch = !PROJECTS.find(p => p.name.toLowerCase() === (o.project_name || '').toLowerCase())
+
+    const actHtml = (o.actions || []).map(a => {
+      const ec = a.energy_type === 'deep' ? 'bg-blue-50 text-blue-600' : 'bg-violet-50 text-violet-600'
+      return `<div class="flex items-center gap-1.5 py-0.5" style="font-size:10px;color:#6B7280">
+        <span style="color:#D1D5DB">→</span>
+        <span>${escHtml(a.title)}</span>
+        ${a.energy_type ? `<span class="px-1 rounded ${ec}">${a.energy_type === 'deep' ? 'Deep' : 'Light'}</span>` : ''}
+        ${a.time_estimate ? `<span style="color:#9CA3AF">${a.time_estimate}m</span>` : ''}
+      </div>`
+    }).join('')
+
+    return `<div class="p-3 border-b border-gray-50">
+      <div class="flex items-start gap-2.5">
+        <input type="checkbox" checked id="dacc-${i}" class="action-check mt-0.5 shrink-0">
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-gray-800 mb-1.5" style="font-size:12px">${escHtml(o.title || 'Untitled')}</div>
+          <div class="flex items-center gap-2 flex-wrap mb-1.5">
+            <select id="dprj-${i}" class="border border-gray-200 rounded-lg text-gray-600 bg-white focus:outline-none focus:border-blue-300" style="font-size:10px;padding:2px 6px">
+              <option value="">— select project —</option>
+              ${projectOptions}
+            </select>
+            ${noMatch && o.project_name ? `<span class="text-amber-500" style="font-size:10px">No match for "${escHtml(o.project_name)}"</span>` : ''}
+            ${o.deadline ? `<input type="date" id="ddl-${i}" value="${o.deadline}" class="border border-gray-200 rounded-lg text-gray-500 focus:outline-none focus:border-blue-300" style="font-size:10px;padding:2px 6px">` : ''}
+            ${o.priority ? `<span class="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500" style="font-size:10px">${escHtml(o.priority)}</span>` : ''}
+          </div>
+          ${actHtml ? `<div class="pl-2 border-l-2 border-gray-100">${actHtml}</div>` : ''}
+        </div>
+      </div>
+    </div>`
+  }).join('')
+
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+       <span style="color:#A78BFA">✦</span>
+       <span class="text-gray-500 font-medium" style="font-size:11px">Extracted Outcomes</span>
+       <span class="ml-auto text-gray-300" style="font-size:10px">${outcomes.length} found</span>
+     </div>
+     <div style="max-height:400px;overflow-y:auto">${rows}</div>
+     <div class="px-4 py-3 flex items-center gap-2.5 border-t border-gray-100">
+       <button onclick="createDumpOutcomes()" id="dCreateBtn"
+         class="flex-1 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+         style="font-size:11px;padding:8px 0">
+         Create Selected
+       </button>
+       <button onclick="closeCommandPalette()"
+         class="border border-gray-200 text-gray-500 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+         style="font-size:11px;padding:8px 14px">Cancel</button>
+     </div>`
+
+  // Pre-select matched projects after render
+  setTimeout(() => {
+    outcomes.forEach((o, i) => {
+      const match = PROJECTS.find(p => p.name.toLowerCase() === (o.project_name || '').toLowerCase())
+      if (match) {
+        const sel = document.getElementById('dprj-' + i)
+        if (sel) sel.value = match.id
+      }
+    })
+  }, 0)
+}
+
+async function createDumpOutcomes() {
+  if (!cmdToolData || !cmdToolData.outcomes) return
+  const outcomes = cmdToolData.outcomes
+  let created = 0, skipped = 0
+
+  const btn = document.getElementById('dCreateBtn')
+  if (btn) { btn.textContent = 'Creating…'; btn.disabled = true }
+
+  for (let i = 0; i < outcomes.length; i++) {
+    const cb = document.getElementById('dacc-' + i)
+    if (!cb || !cb.checked) continue
+
+    const projectId = (document.getElementById('dprj-' + i) || {}).value
+    if (!projectId) { skipped++; continue }
+
+    const dlInput = document.getElementById('ddl-' + i)
+    const deadline = dlInput ? (dlInput.value || null) : null
+
+    try {
+      const oRes = await fetch('/api/outcomes', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          project_id: parseInt(projectId),
+          title:      outcomes[i].title || 'Untitled',
+          deadline,
+          priority:   outcomes[i].priority || 'medium',
+        }),
+      })
+      if (!oRes.ok) throw new Error('Outcome create failed')
+      const oData     = await oRes.json()
+      const newOutId  = oData.data.id
+
+      for (const a of (outcomes[i].actions || [])) {
+        await fetch(`/api/outcomes/${newOutId}/actions`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ title: a.title, time_estimate: a.time_estimate || null, energy_type: a.energy_type || 'light' }),
+        })
+      }
+      created++
+    } catch (err) {
+      skipped++
+    }
+  }
+
+  closeCommandPalette()
+  await loadData()
+  renderAll()
+  showToast(
+    skipped > 0
+      ? `${created} created, ${skipped} skipped (no project selected)`
+      : `${created} outcome${created !== 1 ? 's' : ''} created`,
+    skipped > 0 ? 'warning' : 'success'
+  )
+}
+
+// ---- bulk_reschedule preview ----
+
+function renderCmdReschedule(updates) {
+  if (!updates || !updates.length) {
+    renderCmdMessage('No deadline updates were found. Try specifying which project or outcomes to reschedule.')
+    return
+  }
+
+  const rows = updates.map((u, i) =>
+    `<div class="flex items-center gap-3 p-3 border-b border-gray-50">
+       <input type="checkbox" checked id="racc-${i}" class="action-check shrink-0">
+       <div class="flex-1 min-w-0">
+         <div class="text-gray-700 font-medium mb-0.5" style="font-size:11px">${escHtml(u.title)}</div>
+         <div class="flex items-center gap-2" style="font-size:10px">
+           <span class="text-gray-400">${u.current_deadline ? escHtml(u.current_deadline) : 'no deadline'}</span>
+           <span class="text-gray-300">→</span>
+           <span class="text-blue-600 font-medium">${escHtml(u.new_deadline)}</span>
+         </div>
+       </div>
+     </div>`
+  ).join('')
+
+  document.getElementById('cmdPaletteContent').innerHTML =
+    `<div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+       <span style="color:#A78BFA">✦</span>
+       <span class="text-gray-500 font-medium" style="font-size:11px">Deadline Preview</span>
+       <span class="ml-auto text-gray-300" style="font-size:10px">${updates.length} outcome${updates.length !== 1 ? 's' : ''} affected</span>
+     </div>
+     <div style="max-height:360px;overflow-y:auto">${rows}</div>
+     <div class="px-4 py-3 flex items-center gap-2.5 border-t border-gray-100">
+       <button onclick="applyRescheduleChanges()" id="rApplyBtn"
+         class="flex-1 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+         style="font-size:11px;padding:8px 0">
+         Apply Changes
+       </button>
+       <button onclick="closeCommandPalette()"
+         class="border border-gray-200 text-gray-500 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+         style="font-size:11px;padding:8px 14px">Cancel</button>
+     </div>`
+}
+
+async function applyRescheduleChanges() {
+  if (!cmdToolData || !cmdToolData.updates) return
+  const updates = cmdToolData.updates
+  let applied = 0
+
+  const btn = document.getElementById('rApplyBtn')
+  if (btn) { btn.textContent = 'Applying…'; btn.disabled = true }
+
+  for (let i = 0; i < updates.length; i++) {
+    const cb = document.getElementById('racc-' + i)
+    if (!cb || !cb.checked) continue
+    try {
+      const r = await fetch(`/api/outcomes/${updates[i].outcome_id}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ deadline: updates[i].new_deadline }),
+      })
+      if (!r.ok) throw new Error('Update failed')
+      applied++
+    } catch (err) {
+      console.error('Failed to reschedule outcome', updates[i].outcome_id, err)
+    }
+  }
+
+  closeCommandPalette()
+  await loadData()
+  renderAll()
+  showToast(
+    applied > 0
+      ? `${applied} deadline${applied !== 1 ? 's' : ''} updated`
+      : 'No changes applied',
+    applied > 0 ? 'success' : 'warning'
+  )
+}
+
+// ============================================================
+// KEYBOARD
+// ============================================================
+
+document.addEventListener('keydown', e => {
+  // ⌘1–4 / Ctrl+1–4 — phase switching
+  if ((e.metaKey || e.ctrlKey) && ['1','2','3','4'].includes(e.key)) {
+    e.preventDefault()
+    if (e.key === '4') { openInboxView(); return }
+    setPhase(parseInt(e.key))
+    return
+  }
+
+  // ⌘K / Ctrl+K — toggle command palette
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    const overlay = document.getElementById('cmdPaletteOverlay')
+    if (overlay && !overlay.classList.contains('hidden')) {
+      closeCommandPalette()
+    } else {
+      openCommandPalette()
+    }
+    return
+  }
+
+  // ESC — close command palette if open
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('cmdPaletteOverlay')
+    if (overlay && !overlay.classList.contains('hidden')) {
+      closeCommandPalette()
+    }
+  }
+})
+
+// ============================================================
+// MOBILE — TAB BAR NAVIGATION
+// ============================================================
+
+function setMobileTab(tab) {
+  // Update active tab styling
+  document.querySelectorAll('.mobile-tab').forEach(btn => {
+    btn.classList.toggle('mobile-tab-active', btn.dataset.tab === tab)
+  })
+
+  if (tab === 'home') {
+    currentPhase = 0   // Home is mobile-only; other render fns guard against phase 0
+    renderMobileHome()
+    document.getElementById('mobileHomePanel').classList.remove('hidden')
+    document.getElementById('centerContent').closest('main').classList.add('hidden')
+  } else {
+    document.getElementById('mobileHomePanel')?.classList.add('hidden')
+    document.getElementById('centerContent').closest('main').classList.remove('hidden')
+    if (tab === 'outcomes') setPhase(1)
+    if (tab === 'inbox')    openInboxView()
+    // 'ai' is handled by openFabSheet() directly — no phase switch needed
+  }
+}
+
+// ============================================================
+// MOBILE — HOME PANEL
+// ============================================================
+
+function renderMobileHome() {
+  const panel = document.getElementById('mobileHomePanel')
+  if (!panel) return
+
+  const total = OUTCOMES.length
+  const done  = OUTCOMES.filter(o => getProgress(o) === 100).length
+
+  // Progress bars
+  const barsHtml = OUTCOMES.map(o => {
+    const pct = getProgress(o)
+    return `<div class="h-2 flex-1 rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'}"></div>`
+  }).join('') || '<div class="h-2 flex-1 rounded-full bg-gray-100"></div>'
+
+  // Active outcomes list
+  const outcomesHtml = OUTCOMES.length === 0
+    ? `<div class="text-gray-400 py-2" style="font-size:13px">No active outcomes</div>`
+    : OUTCOMES.map(o => {
+        const pct  = getProgress(o)
+        const risk = getRisk(o)
+        return `<div class="flex items-center gap-3 py-3 border-b border-gray-100 cursor-pointer sidebar-outcome"
+                     onclick="setMobileTab('outcomes'); selectOutcome(${o.id})">
+          <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="${o.projectColor}"/></svg>
+          <div class="flex-1 min-w-0">
+            <div class="text-gray-800 font-medium truncate" style="font-size:14px">${o.title}</div>
+            <div class="flex items-center gap-2 mt-1">
+              <div class="h-1.5 flex-1 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'}" style="width:${pct}%"></div>
+              </div>
+              <span class="text-gray-400 shrink-0" style="font-size:11px">${pct}%</span>
+            </div>
+          </div>
+          ${risk === 'high' ? '<div class="w-2 h-2 bg-red-400 rounded-full shrink-0"></div>' : risk === 'medium' ? '<div class="w-2 h-2 bg-amber-400 rounded-full shrink-0"></div>' : ''}
+        </div>`
+      }).join('')
+
+  // Projects list
+  const projectsHtml = PROJECTS.length === 0
+    ? `<div class="text-gray-400 py-2" style="font-size:13px">No projects yet</div>`
+    : PROJECTS.map(p => {
+        const count = OUTCOMES.filter(o => o.project_id === p.id).length
+        return `<div class="project-row flex items-center gap-3 py-2.5 border-b border-gray-100">
+          <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${p.color || '#818cf8'}"></div>
+          <span class="flex-1 text-gray-700" style="font-size:14px">${p.name}</span>
+          <span class="text-gray-400" style="font-size:12px">${count}</span>
+        </div>`
+      }).join('')
+
+  // Recently closed
+  const recentHtml = ARCHIVED_OUTCOMES.length === 0
+    ? `<div class="text-gray-400 py-2" style="font-size:13px">Nothing closed yet</div>`
+    : ARCHIVED_OUTCOMES.slice(0, 3).map(o => {
+        let dateStr = '—'
+        if (o.archived_at) {
+          const d = new Date(o.archived_at)
+          dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        }
+        return `<div class="flex items-center gap-3 py-2.5 border-b border-gray-100">
+          <svg class="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+          <div class="flex-1 min-w-0">
+            <div class="text-gray-600 truncate" style="font-size:13px">${o.title}</div>
+            <div class="text-gray-400" style="font-size:11px">${dateStr}</div>
+          </div>
+        </div>`
+      }).join('')
+
+  // Outcome options for picker
+  const outcomeOptions = OUTCOMES.map(o =>
+    `<option value="${o.id}">${o.title.length > 38 ? o.title.slice(0, 38) + '…' : o.title}</option>`
+  ).join('')
+
+  panel.innerHTML = `
+    <!-- Date + metrics summary -->
+    <div class="bg-white border-b border-gray-200 px-4 py-4">
+      <div class="font-semibold text-gray-900 text-base mb-1">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
+      <div class="flex items-center gap-4 text-gray-400" style="font-size:12px">
+        <span>${done} / ${total} outcomes on track</span>
+        <span>${TODAY_STATS.actions_completed_today} actions done today</span>
+      </div>
+    </div>
+
+    <!-- Quick Capture -->
+    <div class="bg-white border-b border-gray-200 px-4 py-4">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:11px">Quick Capture</div>
+      <div class="capture-wrap flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-2">
+        <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        <!-- font-size:16px required — prevents iOS Safari auto-zoom on focus -->
+        <input type="text" id="mobileQuickCaptureInput"
+               placeholder="Capture an action…"
+               class="flex-1 bg-transparent text-gray-700 placeholder-gray-400 border-none focus:outline-none"
+               style="font-size:16px"
+               onkeydown="handleMobileQuickCapture(event)">
+      </div>
+      <select id="mobileQuickCaptureOutcome"
+              class="w-full bg-gray-50 border border-gray-200 rounded-lg text-gray-500 focus:outline-none"
+              style="font-size:14px;padding:8px 10px;">
+        <option value="">— leave unassigned —</option>
+        ${outcomeOptions}
+      </select>
+      <div class="text-gray-300 mt-1.5 ml-0.5" style="font-size:11px">Press Enter to add as action</div>
+    </div>
+
+    <!-- Progress bars -->
+    <div class="bg-white border-b border-gray-200 px-4 py-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:11px">Outcomes Today</div>
+        <span class="font-semibold text-gray-600" style="font-size:11px">${done} / ${total}</span>
+      </div>
+      <div class="flex gap-1.5">${barsHtml}</div>
+    </div>
+
+    <!-- Active outcomes -->
+    <div class="bg-white border-b border-gray-200 px-4 py-4">
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:11px">Active</div>
+        <button class="text-blue-500 font-medium transition-colors" style="font-size:12px" onclick="setMobileTab('outcomes')">View all</button>
+      </div>
+      ${outcomesHtml}
+    </div>
+
+    <!-- Projects -->
+    <div class="bg-white border-b border-gray-200 px-4 py-4">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:11px">Projects</div>
+      ${projectsHtml}
+    </div>
+
+    <!-- Recently Closed -->
+    <div class="bg-white border-b border-gray-200 px-4 py-4">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:11px">Recently Closed</div>
+      ${recentHtml}
+    </div>
+
+    <!-- Today's Metrics -->
+    <div class="bg-white px-4 py-4">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:11px">Today's Metrics</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-gray-50 rounded-xl p-3">
+          <div class="text-gray-400 mb-0.5" style="font-size:11px">Closed today</div>
+          <div class="font-semibold text-gray-800 text-lg">${TODAY_STATS.outcomes_archived_today}</div>
+          <div class="text-emerald-500" style="font-size:11px">outcomes</div>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+          <div class="text-gray-400 mb-0.5" style="font-size:11px">Actions done</div>
+          <div class="font-semibold text-gray-800 text-lg">${TODAY_STATS.actions_completed_today}</div>
+          <div class="text-blue-400" style="font-size:11px">today</div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+async function handleMobileQuickCapture(e) {
+  if (e.key !== 'Enter') return
+  const v = e.target.value.trim()
+  if (!v) return
+  e.target.value = ''
+
+  const outcomeSelect = document.getElementById('mobileQuickCaptureOutcome')
+  const outcomeId = outcomeSelect?.value ? parseInt(outcomeSelect.value) : null
+
+  try {
+    const url  = outcomeId ? `/api/outcomes/${outcomeId}/actions` : '/api/actions'
+    const body = { title: v, energy_type: 'light', time_estimate: 30 }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error('create failed')
+    await loadData()
+    showToast(outcomeId ? 'Action captured' : 'Action captured (unassigned)', 'success')
+    renderMobileHome()
+  } catch (err) {
+    showToast('Failed to capture action', 'warning')
+  }
+}
+
+// ============================================================
+// MOBILE — FAB SHEET
+// ============================================================
+
+let fabMode = 'capture'
+
+function openFabSheet(mode) {
+  mode = mode || 'capture'
+  setFabMode(mode)
+  document.getElementById('fabSheet').classList.remove('hidden')
+  document.getElementById('fabBackdrop').classList.remove('hidden')
+  populateFabOutcomePicker()
+  // Clear previous AI response
+  const resp = document.getElementById('fabAIResponse')
+  if (resp) { resp.innerHTML = ''; resp.classList.add('hidden') }
+  setTimeout(() => { const i = document.getElementById('fabInput'); if (i) i.focus() }, 50)
+}
+
+function closeFabSheet() {
+  document.getElementById('fabSheet').classList.add('hidden')
+  document.getElementById('fabBackdrop').classList.add('hidden')
+  const inp = document.getElementById('fabInput')
+  if (inp) inp.value = ''
+  const resp = document.getElementById('fabAIResponse')
+  if (resp) { resp.innerHTML = ''; resp.classList.add('hidden') }
+}
+
+function setFabMode(mode) {
+  fabMode = mode
+  const isCapture = mode === 'capture'
+  document.getElementById('fabModeCapture').className = isCapture
+    ? 'flex-1 py-1.5 rounded-md text-gray-700 font-medium bg-white shadow-sm'
+    : 'flex-1 py-1.5 rounded-md text-gray-500 font-medium'
+  document.getElementById('fabModeAI').className = isCapture
+    ? 'flex-1 py-1.5 rounded-md text-gray-500 font-medium'
+    : 'flex-1 py-1.5 rounded-md text-gray-700 font-medium bg-white shadow-sm'
+  document.getElementById('fabOutcomePicker').classList.toggle('hidden', !isCapture)
+  document.getElementById('fabAISubmit').classList.toggle('hidden', isCapture)
+  const inp = document.getElementById('fabInput')
+  if (inp) inp.placeholder = isCapture ? 'Capture an action…' : 'Ask Claude anything…'
+}
+
+function handleFabInput(e) {
+  if (e.key !== 'Enter') return
+  if (fabMode === 'capture') submitFabCapture()
+  if (fabMode === 'ai')      submitFabAI()
+}
+
+function populateFabOutcomePicker() {
+  const sel = document.getElementById('fabOutcomeSelect')
+  if (!sel) return
+  sel.innerHTML = '<option value="">— leave unassigned —</option>'
+  for (const o of OUTCOMES) {
+    const opt = document.createElement('option')
+    opt.value = o.id
+    opt.textContent = o.title.length > 38 ? o.title.slice(0, 38) + '…' : o.title
+    sel.appendChild(opt)
+  }
+}
+
+async function submitFabCapture() {
+  const input  = document.getElementById('fabInput')
+  const title  = input ? input.value.trim() : ''
+  if (!title) return
+
+  const outcomeSelect = document.getElementById('fabOutcomeSelect')
+  const outcomeId     = outcomeSelect?.value ? parseInt(outcomeSelect.value) : null
+  const url           = outcomeId ? `/api/outcomes/${outcomeId}/actions` : '/api/actions'
+
+  try {
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ title, energy_type: 'light', time_estimate: 30 }),
+    })
+    if (!res.ok) throw new Error('create failed')
+    closeFabSheet()
+    await loadData()
+    if (outcomeId) {
+      selectedId = outcomeId
+      setMobileTab('outcomes')
+    } else if (currentPhase === 0) {
+      renderMobileHome()
+    }
+    renderSidebarOutcomes()
+    renderSidebarStats()
+    showToast(outcomeId ? 'Action captured' : 'Action captured (unassigned)', 'success')
+  } catch (err) {
+    showToast('Failed to capture action', 'warning')
+  }
+}
+
+async function submitFabAI() {
+  if (!FEATURES.aiPalette) {
+    showToast('AI palette coming soon', 'info')
+    return
+  }
+
+  const input   = document.getElementById('fabInput')
+  const message = input ? input.value.trim() : ''
+  if (!message) return
+
+  const responseEl = document.getElementById('fabAIResponse')
+  responseEl.innerHTML = '<div class="text-gray-400" style="font-size:13px">Thinking…</div>'
+  responseEl.classList.remove('hidden')
+
+  try {
+    cmdContext = buildContext(null)
+    const res = await fetch('/api/chat', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ message, context: cmdContext, mode: 'tools' }),
+    })
+    if (!res.ok) throw new Error(`API error ${res.status}`)
+    const data = await res.json()
+    if (!data.success) throw new Error(data.error || 'Unknown error')
+
+    const result = data.data
+    if (result.type === 'message') {
+      // Plain text response — render inline in sheet
+      responseEl.innerHTML = escHtml(result.content || '').replace(/\n/g, '<br>')
+    } else {
+      // Tool response — close sheet and open full command palette review UI
+      closeFabSheet()
+      cmdToolData = result.tool_input
+      document.getElementById('cmdPaletteOverlay').classList.remove('hidden')
+      if      (result.tool_name === 'break_into_actions')     renderCmdBreak(result.tool_input.actions)
+      else if (result.tool_name === 'brain_dump_to_outcomes')  renderCmdDump(result.tool_input.outcomes)
+      else if (result.tool_name === 'bulk_reschedule')         renderCmdReschedule(result.tool_input.updates)
+      else if (result.tool_name === 'prioritize_today')        renderCmdPrioritize(result.tool_input)
+      else renderCmdMessage('Claude responded with an unexpected action. Please try again.')
+    }
+  } catch (err) {
+    responseEl.innerHTML = `<div class="text-red-500" style="font-size:13px">Something went wrong: ${escHtml(err.message)}</div>`
+  }
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+
+init().catch(err => console.error('Boot error:', err))
+
+</script>
+</body>
+</html>

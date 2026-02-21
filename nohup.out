@@ -1,0 +1,52 @@
+🔑 Initializing Anthropic client...
+API Key present: true
+✅ Projects table initialized
+✅ Outcomes table initialized
+✅ Actions table initialized
+🔧 Starting Waypoint server...
+Environment: development
+Port: 3000
+🚀 Waypoint server running on http://localhost:3000
+📁 Serving static files from: /Users/joetancula/Desktop/waypoint/public
+🔌 API endpoints available at: http://localhost:3000/api
+✅ Server started successfully
+💬 POST /api/chat
+📨 Claude Service: Sending message to API
+Message length: 57
+Conversation history length: 0
+💬 POST /api/chat
+📨 Claude Service: Sending message to API
+Message length: 57
+Conversation history length: 0
+💬 POST /api/chat
+📨 Claude Service: Sending message to API
+Message length: 57
+Conversation history length: 0
+✅ Received response from Claude API
+Stop reason: end_turn
+✅ Received response from Claude API
+Stop reason: end_turn
+✅ Received response from Claude API
+Stop reason: end_turn
+🔑 Initializing Anthropic client...
+API Key present: true
+✅ Projects table initialized
+✅ Outcomes table initialized
+✅ Reflections table initialized
+✅ Actions table initialized
+✅ Inbox Phase 1.2 columns ready
+✅ slack_schedule table initialized
+📅 Scheduler: found 0 schedule(s)
+🔧 Starting Waypoint server...
+Environment: development
+Port: 3000
+🚀 Waypoint server running on http://localhost:3000
+📁 Serving static files from: /Users/joetancula/Desktop/waypoint/public
+🔌 API endpoints available at: http://localhost:3000/api
+✅ Server started successfully
+💬 POST /api/chat
+📨 Claude Service: Sending message to API
+Message length: 31
+Conversation history length: 0
+✅ Received response from Claude API
+Stop reason: end_turn
