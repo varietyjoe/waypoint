@@ -542,4 +542,76 @@ router.get('/dms', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/slack/waypoint-command
+ * Handles the /waypoint slash command from Slack.
+ *
+ * SLACK SLASH COMMAND SETUP
+ * In your Slack app manifest or App Dashboard:
+ *   1. Go to Features → Slash Commands → Create New Command
+ *   2. Command: /waypoint
+ *   3. Request URL: https://your-domain.com/api/slack/waypoint-command
+ *   4. Short description: Capture anything to Waypoint inbox
+ *   5. Usage hint: [any text]
+ * Slack sends a POST with form-urlencoded body: token, command, text, user_id, channel_name
+ * Respond within 3 seconds — this JSON response IS the ephemeral reply shown in Slack.
+ */
+router.post('/waypoint-command', async (req, res) => {
+    try {
+        const { text, user_id, channel_name, user_name } = req.body;
+
+        const rawText = (text || '').trim();
+        if (!rawText) {
+            return res.json({
+                response_type: 'ephemeral',
+                text: 'Usage: `/waypoint [your note or task]`',
+            });
+        }
+
+        await inbox.addToInbox({
+            title: rawText.length > 120 ? rawText.slice(0, 117) + '\u2026' : rawText,
+            description: null,
+            source_type: 'slack_command',
+            source_url: null,
+            source_metadata: {
+                slack_user_id: user_id || null,
+                slack_user_name: user_name || null,
+                channel_name: channel_name || null,
+                raw_text: rawText,
+            },
+        });
+
+        console.log(`[Waypoint Cmd] Captured from Slack by ${user_name || user_id}: "${rawText.slice(0, 60)}"`);
+
+        return res.json({
+            response_type: 'ephemeral',
+            text: 'Added to your Waypoint inbox. \u2713',
+        });
+    } catch (err) {
+        console.error('[Waypoint Cmd] Error:', err.message);
+        return res.status(200).json({
+            response_type: 'ephemeral',
+            text: 'Something went wrong. Try again.',
+        });
+    }
+});
+
+/**
+ * sendSlackDM — Phase 3.1
+ * Send a plain-text DM to a Slack user via their user ID.
+ * Uses the stored OAuth user token from the database.
+ *
+ * @param {string} userId - Slack user ID (e.g. 'U012AB3CD')
+ * @param {string} text   - Plain text message to send
+ * @returns {Promise<boolean>}
+ */
+async function sendSlackDM(userId, text) {
+  const token = await oauthTokens.getToken('slack');
+  if (!token) {
+    throw new Error('[Briefings] sendSlackDM: No Slack token stored — connect Slack first');
+  }
+  return slackClient.postMessage(token.access_token, userId, text);
+}
+
 module.exports = router;
+module.exports.sendSlackDM = sendSlackDM;

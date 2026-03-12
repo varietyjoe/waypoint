@@ -16,6 +16,25 @@ function initOutcomesTable() {
             updated_at TEXT DEFAULT (datetime('now'))
         )
     `);
+    // Phase 3.3 — add outcome_tags column for pattern memory
+    const outcomeCols = db.pragma('table_info(outcomes)').map(c => c.name);
+    if (!outcomeCols.includes('outcome_tags')) {
+        db.exec('ALTER TABLE outcomes ADD COLUMN outcome_tags TEXT');
+    }
+
+    // Phase 5.1 — activation columns
+    if (!outcomeCols.includes('is_active')) {
+        db.exec('ALTER TABLE outcomes ADD COLUMN is_active INTEGER DEFAULT 0');
+    }
+    if (!outcomeCols.includes('activation_note')) {
+        db.exec('ALTER TABLE outcomes ADD COLUMN activation_note TEXT');
+    }
+
+    // Rich text notes column
+    if (!outcomeCols.includes('notes')) {
+        db.exec('ALTER TABLE outcomes ADD COLUMN notes TEXT');
+    }
+
     console.log('✅ Outcomes table initialized');
 }
 
@@ -60,7 +79,7 @@ function updateOutcome(id, updates) {
     const outcome = getOutcomeById(id);
     if (!outcome) throw new Error(`Outcome ${id} not found`);
 
-    const allowed = ['title', 'description', 'deadline', 'priority', 'impact', 'status'];
+    const allowed = ['title', 'description', 'deadline', 'priority', 'impact', 'status', 'is_active', 'activation_note', 'notes'];
     const fields = Object.keys(updates).filter(k => allowed.includes(k));
     if (fields.length === 0) throw new Error('No valid fields to update');
 
@@ -82,7 +101,8 @@ function archiveOutcome(id) {
     if (!outcome) throw new Error(`Outcome ${id} not found`);
     db.prepare(`
         UPDATE outcomes
-        SET status = 'archived', archived_at = datetime('now'), updated_at = datetime('now')
+        SET status = 'archived', archived_at = datetime('now'), updated_at = datetime('now'),
+            is_active = 0
         WHERE id = ?
     `).run(id);
     return getOutcomeById(id);
@@ -134,6 +154,7 @@ function completeOutcome(id, actionsData, reflectionData = {}, resultData = {}) 
         SET status = 'archived',
             archived_at = datetime('now'),
             updated_at = datetime('now'),
+            is_active = 0,
             completed_actions_count = ?,
             total_actions_count = ?,
             total_estimated_time = ?,
@@ -171,6 +192,38 @@ function getReflectionByOutcome(outcomeId) {
     `).get(outcomeId) || null;
 }
 
+function getStreakDays() {
+    // Get all distinct days that had at least one archived outcome, ordered DESC
+    const rows = db.prepare(`
+        SELECT DISTINCT DATE(archived_at) as day
+        FROM outcomes
+        WHERE archived_at IS NOT NULL
+        ORDER BY day DESC
+    `).all();
+
+    if (rows.length === 0) return 0;
+
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < rows.length; i++) {
+        const rowDate = new Date(rows[i].day);
+        rowDate.setHours(0, 0, 0, 0);
+
+        const expectedDate = new Date(today);
+        expectedDate.setDate(today.getDate() - i);
+
+        if (rowDate.getTime() === expectedDate.getTime()) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+
+    return streak;
+}
+
 function getTodayStats() {
     const outcomesArchivedToday = db.prepare(`
         SELECT COUNT(*) as count FROM outcomes
@@ -182,7 +235,11 @@ function getTodayStats() {
         WHERE done = 1 AND date(done_at) = date('now', 'localtime')
     `).get().count;
 
-    return { outcomes_archived_today: outcomesArchivedToday, actions_completed_today: actionsCompletedToday };
+    return {
+        outcomes_archived_today: outcomesArchivedToday,
+        actions_completed_today: actionsCompletedToday,
+        streak_days: getStreakDays(),
+    };
 }
 
 module.exports = {
@@ -198,4 +255,5 @@ module.exports = {
     getArchivedOutcomes,
     getReflectionByOutcome,
     getTodayStats,
+    getStreakDays,
 };

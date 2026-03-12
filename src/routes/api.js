@@ -8,9 +8,27 @@ const inboxDb       = require('../database/inbox');
 const projectsDb    = require('../database/projects');
 const outcomesDb    = require('../database/outcomes');
 const actionsDb     = require('../database/actions');
-const scheduleDb    = require('../database/slack-schedule');
+const scheduleDb      = require('../database/slack-schedule');
+const focusSessionsDb = require('../database/focus-sessions');
+const userContextDb   = require('../database/user-context');
+const libraryDb       = require('../database/library');
+const patternsDb      = require('../database/patterns');
+const { computePatterns } = require('../services/pattern-engine');
 const claudeService = require('../services/claude');
 const scheduler     = require('../services/scheduler');
+const calendarDb    = require('../database/calendar');
+const googleCalendar = require('../services/google-calendar');
+const prefDb = require('../database/user-preferences');
+const briefingsService = require('../services/briefings');
+const { sendSlackDM } = require('./slack');
+const dependenciesDb = require('../database/dependencies');
+const sharesDb = require('../database/shares');
+const advisorDb = require('../database/advisor');
+const advisorService = require('../services/advisor');
+const dailyEntriesDb = require('../database/daily-entries');
+const hubspotClient = require('../integrations/hubspot-client');
+const { formatSalesPulse } = require('../utils/sales-pulse-formatter');
+const { assembleContext, formatContextForPrompt } = require('../services/context-assembler');
 
 // Initialize tables on startup
 projectsDb.initProjectsTable();
@@ -18,7 +36,53 @@ outcomesDb.initOutcomesTable();
 outcomesDb.initReflectionsTable();
 actionsDb.initActionsTable();
 inboxDb.initInboxMigrations();
+focusSessionsDb.initFocusSessionsTable();
+userContextDb.initUserContextTable();
 scheduler.init();
+calendarDb.initCalendarTables();
+prefDb.initUserPreferences();
+libraryDb.initLibraryMigrations();
+patternsDb.initPatternTables();
+dependenciesDb.initDependenciesTable();
+sharesDb.initSharesTable();
+advisorDb.initAdvisorTables();
+dailyEntriesDb.initDailyEntriesTable();
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+/**
+ * Strip quoted reply content from an email body.
+ * Removes lines starting with ">" and "On [date] ... wrote:" blocks.
+ */
+function stripEmailQuotes(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const cleaned = [];
+    for (const line of lines) {
+        const trimmed = line.trim();
+        // Stop at quoted reply block markers
+        if (/^On .+wrote:$/i.test(trimmed)) break;
+        if (trimmed.startsWith('>')) continue;
+        cleaned.push(line);
+    }
+    return cleaned.join('\n').trim();
+}
+
+// Tiny-task classifier (Phase 5.0)
+const TINY_VERBS = new Set([
+  'call','text','email','book','pay','buy','send','check','review',
+  'schedule','confirm','cancel','sign','reply','fill','drop','pick',
+  'order','ask','remind','print','read',
+]);
+
+function classifyAction(title) {
+  if (!title || title.length >= 60) return 'standard';
+  if (title.includes('!tiny')) return 'tiny';
+  const firstWord = title.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '');
+  return TINY_VERBS.has(firstWord) ? 'tiny' : 'standard';
+}
 
 // ============================================================
 // OUTCOMES
@@ -69,6 +133,113 @@ router.get('/outcomes/stats/today', (req, res, next) => {
     try {
         const stats = outcomesDb.getTodayStats();
         res.json({ success: true, data: stats });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * GET /api/outcomes/recently-closed
+ * Returns the 3 most recently archived outcomes with archived_at.
+ * Alias for /api/outcomes/archived?limit=3, kept explicit for clarity.
+ * NOTE: This route MUST remain before GET /api/outcomes/:id to avoid param capture.
+ */
+router.get('/outcomes/recently-closed', (req, res, next) => {
+    try {
+        const outcomes = outcomesDb.getArchivedOutcomes(3);
+        res.json({ success: true, count: outcomes.length, data: outcomes });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ─── OUTCOME DEPENDENCIES (Phase 4.1) ─────────────────────────────────────
+
+/**
+ * GET /api/outcomes/critical-path
+ * Returns all outcomes with unresolved active upstream dependencies, sorted by depth.
+ * MUST be registered before GET /api/outcomes/:id to avoid route capture.
+ */
+router.get('/outcomes/critical-path', (req, res, next) => {
+    try {
+        const path = dependenciesDb.getCriticalPath();
+        res.json({ success: true, count: path.length, data: path });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * GET /api/outcomes/:id/dependencies
+ * Returns outcomes that this outcome depends on (upstream blockers).
+ */
+router.get('/outcomes/:id/dependencies', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        const deps = dependenciesDb.getDependencies(outcomeId);
+        res.json({ success: true, count: deps.length, data: deps });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * GET /api/outcomes/:id/dependents
+ * Returns outcomes that depend on this one (downstream — this one is blocking them).
+ */
+router.get('/outcomes/:id/dependents', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        const dependents = dependenciesDb.getDependents(outcomeId);
+        res.json({ success: true, count: dependents.length, data: dependents });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * POST /api/outcomes/:id/dependencies
+ * Body: { depends_on_outcome_id }
+ * Adds a dependency: this outcome depends on depends_on_outcome_id.
+ * Returns 400 if the dependency would create a cycle.
+ */
+router.post('/outcomes/:id/dependencies', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        const { depends_on_outcome_id } = req.body;
+
+        if (!depends_on_outcome_id) {
+            return res.status(400).json({ success: false, error: 'depends_on_outcome_id is required' });
+        }
+
+        const dependsOnId = parseInt(depends_on_outcome_id);
+
+        if (outcomeId === dependsOnId) {
+            return res.status(400).json({ success: false, error: 'An outcome cannot depend on itself' });
+        }
+
+        if (dependenciesDb.hasCycle(outcomeId, dependsOnId)) {
+            return res.status(400).json({ success: false, error: 'This dependency would create a circular chain' });
+        }
+
+        dependenciesDb.addDependency(outcomeId, dependsOnId);
+        const deps = dependenciesDb.getDependencies(outcomeId);
+        res.json({ success: true, data: deps });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * DELETE /api/outcomes/:id/dependencies/:depId
+ * Removes the dependency: this outcome no longer depends on depId.
+ */
+router.delete('/outcomes/:id/dependencies/:depId', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        const depId     = parseInt(req.params.depId);
+        dependenciesDb.removeDependency(outcomeId, depId);
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
@@ -152,7 +323,7 @@ router.post('/outcomes/:id/archive', (req, res, next) => {
  * Archives the outcome, stores a completion stats snapshot, and optionally saves a reflection.
  * Body: { what_worked?, what_slipped?, reusable_insight?, outcome_result (required), outcome_result_note? }
  */
-router.post('/outcomes/:id/complete', (req, res, next) => {
+router.post('/outcomes/:id/complete', async (req, res, next) => {
     try {
         const outcomeId = parseInt(req.params.id);
         const outcome = outcomesDb.getOutcomeById(outcomeId);
@@ -170,7 +341,30 @@ router.post('/outcomes/:id/complete', (req, res, next) => {
             { what_worked, what_slipped, reusable_insight },
             { outcome_result, outcome_result_note: outcome_result_note || null }
         );
-        res.json({ success: true, message: 'Outcome completed and archived', data: result });
+
+        // Phase 4.2 — generate Claude summary synchronously before responding
+        let outcomeSummary = null;
+        try {
+            outcomeSummary = await claudeService.generateOutcomeSummary(
+                outcome.title,
+                outcome_result,
+                outcome_result_note || null
+            );
+        } catch (summaryErr) {
+            console.warn('[Phase 4.2] Summary generation failed:', summaryErr.message);
+        }
+
+        res.json({ success: true, message: 'Outcome completed and archived', data: { ...result, outcome_summary: outcomeSummary } });
+
+        // Phase 3.3 — fire-and-forget: auto-tag outcome + trigger pattern recompute
+        claudeService.autoTagOutcome(outcome.title, outcome_result_note || '')
+            .then(tags => {
+                return require('../database/index').prepare('UPDATE outcomes SET outcome_tags = ? WHERE id = ?')
+                    .run(JSON.stringify(tags), outcomeId);
+            })
+            .then(() => computePatterns())
+            .catch(e => console.error('[Patterns] Archive compute failed:', e.message));
+
     } catch (err) {
         next(err);
     }
@@ -262,6 +456,60 @@ router.get('/outcomes/:id/stats', (req, res, next) => {
 });
 
 // ============================================================
+// OUTCOME SHARES
+// ============================================================
+
+/**
+ * POST /api/outcomes/:id/share
+ * Creates (or re-creates) a shareable link for this outcome.
+ * Returns { share_url }
+ */
+router.post('/outcomes/:id/share', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        const outcome = outcomesDb.getOutcomeById(outcomeId);
+        if (!outcome) return res.status(404).json({ success: false, error: 'Outcome not found' });
+
+        const share = sharesDb.createShare(outcomeId);
+        const shareUrl = `${req.protocol}://${req.get('host')}/s/${share.share_token}`;
+        res.json({ success: true, data: { share_url: shareUrl, share_token: share.share_token, created_at: share.created_at } });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * DELETE /api/outcomes/:id/share
+ * Revokes the active share for this outcome.
+ */
+router.delete('/outcomes/:id/share', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        sharesDb.revokeShare(outcomeId);
+        res.json({ success: true, message: 'Share revoked' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * GET /api/outcomes/:id/share
+ * Returns the current active share for this outcome, or null.
+ */
+router.get('/outcomes/:id/share', (req, res, next) => {
+    try {
+        const outcomeId = parseInt(req.params.id);
+        const share = sharesDb.getShareByOutcome(outcomeId);
+        if (!share) return res.json({ success: true, data: null });
+
+        const shareUrl = `${req.protocol}://${req.get('host')}/s/${share.share_token}`;
+        res.json({ success: true, data: { share_url: shareUrl, share_token: share.share_token, created_at: share.created_at } });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============================================================
 // ACTIONS
 // ============================================================
 
@@ -285,9 +533,16 @@ router.get('/actions/unassigned', (req, res, next) => {
  */
 router.post('/actions', (req, res, next) => {
     try {
-        const { title, time_estimate, energy_type } = req.body;
+        const { title, time_estimate, energy_type, action_type } = req.body;
         if (!title) return res.status(400).json({ success: false, error: 'title is required' });
-        const action = actionsDb.createAction(null, { title, time_estimate, energy_type });
+        // Auto-classify unassigned actions if action_type not explicitly provided
+        const resolvedType = action_type || classifyAction(title);
+        const action = actionsDb.createAction(null, {
+            title,
+            time_estimate: time_estimate || 30,
+            energy_type: energy_type || 'light',
+            action_type: resolvedType,
+        });
         res.status(201).json({ success: true, message: 'Action created', data: action });
     } catch (err) {
         next(err);
@@ -324,6 +579,19 @@ router.post('/outcomes/:id/actions', (req, res, next) => {
 
         const action = actionsDb.createAction(outcomeId, { title, time_estimate, energy_type, blocked, blocked_by, position });
         res.status(201).json({ success: true, message: 'Action created', data: action });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * POST /api/actions/:id/snooze — snooze an unassigned action for 1 day
+ */
+router.post('/actions/:id/snooze', (req, res, next) => {
+    try {
+        const id = parseInt(req.params.id);
+        const action = actionsDb.snoozeAction(id);
+        res.json({ success: true, data: action });
     } catch (err) {
         next(err);
     }
@@ -614,6 +882,93 @@ router.get('/inbox/stats', async (req, res, next) => {
     }
 });
 
+// GET /api/inbox/inbound-email-address — expose configured inbound email address
+router.get('/inbox/inbound-email-address', (req, res) => {
+    res.json({ success: true, address: process.env.INBOUND_EMAIL_ADDRESS || null });
+});
+
+/**
+ * POST /api/inbox
+ * Create a new inbox item directly (used by voice note and other capture vectors).
+ * Body: { title, source_type, source_metadata?, description? }
+ */
+router.post('/inbox', async (req, res, next) => {
+    try {
+        const { title, source_type, source_metadata, description } = req.body;
+        if (!title) return res.status(400).json({ success: false, error: 'title is required' });
+        const item = await inboxDb.addToInbox({
+            title: title.length > 120 ? title.slice(0, 117) + '\u2026' : title,
+            description: description || null,
+            source_type: source_type || 'manual',
+            source_url: null,
+            source_metadata: source_metadata || {},
+        });
+        res.status(201).json({ success: true, data: item });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * POST /api/inbox/email-inbound
+ * Inbound email webhook — receives parsed email payloads from Postmark/Mailgun/SendGrid.
+ *
+ * EMAIL SERVICE SETUP
+ *   Postmark Inbound: Dashboard → Servers → Inbound → set webhook to:
+ *     https://your-domain.com/api/inbox/email-inbound
+ *   Mailgun: Routes → Create Route → action: forward to this URL
+ *   SendGrid Inbound Parse: Settings → Inbound Parse → add hostname + URL
+ *
+ * Expected payload fields (varies by provider — normalize below):
+ *   Postmark: { Subject, TextBody, HtmlBody, From, FromFull: { Email, Name } }
+ *   Mailgun:  { subject, body-plain, body-html, sender, from }
+ *   SendGrid: { subject, text, html, from }
+ */
+router.post('/inbox/email-inbound', async (req, res, next) => {
+    try {
+        const body = req.body;
+
+        // Normalize across providers
+        const subject  = body.Subject || body.subject || '(no subject)';
+        const textBody = body.TextBody || body['body-plain'] || body.text || '';
+        const htmlBody = body.HtmlBody || body['body-html'] || body.html || '';
+        const from     = body.From || body.sender || body.from || '';
+        const fromName = (body.FromFull && body.FromFull.Name) || from.split('<')[0].trim() || from;
+        const fromEmailMatch = from.match(/<(.+?)>/);
+        const fromEmail = (body.FromFull && body.FromFull.Email) || (fromEmailMatch && fromEmailMatch[1]) || from;
+
+        // Prefer plain text; strip HTML tags as fallback
+        let rawText = textBody || htmlBody.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+        // Strip quoted replies: lines starting with ">" or "On ... wrote:" blocks
+        rawText = stripEmailQuotes(rawText);
+
+        if (!rawText && !subject) {
+            return res.status(400).json({ success: false, error: 'Empty email body' });
+        }
+
+        const title = subject.replace(/^(Fwd?:|Re:)\s*/i, '').trim() || rawText.slice(0, 80);
+
+        await inboxDb.addToInbox({
+            title: title.length > 120 ? title.slice(0, 117) + '\u2026' : title,
+            description: rawText.slice(0, 500) || null,
+            source_type: 'email_forward',
+            source_url: null,
+            source_metadata: {
+                from_name: fromName,
+                from_email: fromEmail,
+                subject: subject,
+                raw_text: rawText.slice(0, 2000),
+            },
+        });
+
+        console.log(`[Email Inbound] Captured from ${fromEmail}: "${title.slice(0, 60)}"`);
+        res.json({ success: true });
+    } catch (err) {
+        next(err);
+    }
+});
+
 router.get('/inbox/:id', async (req, res, next) => {
     try {
         const item = await inboxDb.getInboxItemById(parseInt(req.params.id));
@@ -710,6 +1065,186 @@ router.delete('/inbox/:id', async (req, res, next) => {
     }
 });
 
+// POST /api/inbox/triage-batch — batch triage selected inbox items with Claude
+router.post('/inbox/triage-batch', async (req, res, next) => {
+    try {
+        const { itemIds } = req.body;
+        if (!Array.isArray(itemIds) || itemIds.length === 0) {
+            return res.status(400).json({ success: false, error: 'itemIds array required' });
+        }
+
+        // Fetch the inbox items (getInboxItemById is async)
+        const items = (await Promise.all(itemIds.map(id => inboxDb.getInboxItemById(id)))).filter(Boolean);
+        if (items.length === 0) {
+            return res.status(404).json({ success: false, error: 'No valid inbox items found' });
+        }
+
+        let contextSnapshot = userContextDb.getContextSnapshot();
+
+        // Phase 3.3 — inject action_count + completion_rate patterns into triage context
+        try {
+            const { globalReady } = patternsDb.checkReadiness();
+            if (globalReady) {
+                const actionCountPatterns = patternsDb.getRelevantPatterns({ pattern_types: ['action_count', 'completion_rate'] });
+                if (actionCountPatterns.length > 0) {
+                    contextSnapshot = (contextSnapshot || '') + '\n\nRelevant patterns:\n' +
+                        actionCountPatterns.map(p => `- ${p.observation}`).join('\n');
+                }
+            }
+        } catch (_) {}
+
+        // Phase 4.1 — best-effort: note active outcome titles for semantic blocker suggestion
+        try {
+            const activeOutcomes = outcomesDb.getAllOutcomes({ status: 'active' });
+            if (activeOutcomes.length > 0) {
+                const outcomeTitles = activeOutcomes.map(o => `"${o.title}"`).join(', ');
+                contextSnapshot = (contextSnapshot || '') +
+                    `\n\nExisting active outcomes: ${outcomeTitles}. ` +
+                    `If a new outcome from triage appears to depend on one of these being completed first, ` +
+                    `note it in the cluster's description field.`;
+            }
+        } catch (_) {}
+
+        const result = await claudeService.batchTriageInbox(items, contextSnapshot);
+
+        // Map source_item_indices back to actual item IDs for the frontend
+        const clustersWithIds = (result.clusters || []).map(cluster => ({
+            ...cluster,
+            source_item_ids: (cluster.source_item_indices || []).map(i => items[i - 1]?.id).filter(Boolean),
+        }));
+
+        res.json({ success: true, data: { clusters: clustersWithIds, questions: result.questions || [] } });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============================================================
+// USER CONTEXT MEMORY
+// ============================================================
+
+// GET /api/context — all context entries
+router.get('/context', (req, res, next) => {
+  try {
+    const entries = userContextDb.getAllContext();
+    res.json({ success: true, count: entries.length, data: entries });
+  } catch (err) { next(err); }
+});
+
+// POST /api/context — add a context entry
+router.post('/context', (req, res, next) => {
+  try {
+    const { key, value, category, source, source_action_id, source_outcome_id } = req.body;
+    if (!key || !value) return res.status(400).json({ success: false, error: 'key and value required' });
+    const entry = userContextDb.upsertContext(key, value, category, source, source_action_id, source_outcome_id);
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/context/:id — update value or category
+router.put('/context/:id', (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { value, category } = req.body;
+    if (!value) return res.status(400).json({ success: false, error: 'value required' });
+    const entry = userContextDb.updateContext(id, value, category);
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/context/:id — remove an entry
+router.delete('/context/:id', (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    userContextDb.deleteContext(id);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+
+// ============================================================
+// LIBRARY (Phase 3.2)
+// ============================================================
+
+// GET /api/library — all entries with optional filters
+router.get('/library', (req, res, next) => {
+  try {
+    const { tag, q } = req.query;
+    const entries = libraryDb.getAllLibraryEntries({ tag, q });
+    res.json({ success: true, count: entries.length, data: entries });
+  } catch (err) { next(err); }
+});
+
+// GET /api/library/search — full-text search
+router.get('/library/search', (req, res, next) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ success: true, data: [] });
+    const results = libraryDb.searchLibrary(q);
+    res.json({ success: true, data: results });
+  } catch (err) { next(err); }
+});
+
+// GET /api/library/:id — single entry
+router.get('/library/:id', (req, res, next) => {
+  try {
+    const entry = libraryDb.getLibraryEntry(Number(req.params.id));
+    if (!entry) return res.status(404).json({ success: false, error: 'Not found' });
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
+// POST /api/library — save new entry (auto-tags via Claude)
+router.post('/library', async (req, res, next) => {
+  try {
+    const { value, source } = req.body;
+    if (!value) return res.status(400).json({ success: false, error: 'value required' });
+
+    const { tags, suggested_title } = await claudeService.autoTagLibraryEntry(value);
+    const entry = libraryDb.saveLibraryEntry({
+      key: suggested_title || value.slice(0, 60),
+      value,
+      title: suggested_title,
+      tags,
+      source: source || 'manual',
+    });
+    res.json({ success: true, data: { entry, suggested_title, tags } });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/library/:id — update title or tags
+router.put('/library/:id', (req, res, next) => {
+  try {
+    const { title, tags } = req.body;
+    const entry = libraryDb.updateLibraryEntry(Number(req.params.id), { title, tags });
+    if (!entry) return res.status(404).json({ success: false, error: 'Not found' });
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/library/:id
+router.delete('/library/:id', (req, res, next) => {
+  try {
+    libraryDb.deleteLibraryEntry(Number(req.params.id));
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// ============================================================
+// MOBILE CONTEXT
+// ============================================================
+
+router.get('/mobile/context', (req, res, next) => {
+    console.log('📱 GET /api/mobile/context');
+    try {
+        const ctx = assembleContext();
+        res.json({ success: true, data: ctx });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // ============================================================
 // CLAUDE CHAT
 // ============================================================
@@ -722,11 +1257,48 @@ router.post('/chat', async (req, res, next) => {
 
         // Phase 1.4: tool-mode request from command palette
         if (mode === 'tools') {
+            // Phase 3.3 — inject pattern context into AI Breakdown
+            const enrichedContext = context || {};
+            try {
+                const { globalReady } = patternsDb.checkReadiness();
+                if (globalReady) {
+                    const patterns = patternsDb.getRelevantPatterns({ pattern_types: ['time_accuracy', 'completion_rate', 'action_count'] });
+                    if (patterns.length > 0) {
+                        enrichedContext._patternContext = '\n\nRelevant patterns from this user\'s history (based on real data):\n' +
+                            patterns.map(p => `- ${p.observation} (based on ${p.sample_size} outcomes)`).join('\n') +
+                            '\n\nIf any pattern is directly applicable to this outcome, mention it naturally before generating actions.';
+                    }
+                }
+            } catch (_) {}
+            // Phase 4.1 — inject dependency context into AI Breakdown
+            // context.selected_outcome.id is provided by the frontend when breaking down an outcome
+            try {
+                const outcomeId = context?.selected_outcome?.id;
+                if (outcomeId) {
+                    const deps = dependenciesDb.getDependencies(outcomeId);
+                    const activeDeps = deps.filter(d => d.status === 'active');
+                    if (activeDeps.length > 0) {
+                        const depNames = activeDeps.map(d => `"${d.title}"`).join(', ');
+                        enrichedContext._dependencyContext =
+                            `\n\nDependency notice: This outcome depends on ${depNames}, which ${activeDeps.length === 1 ? 'is' : 'are'} still active and in progress. ` +
+                            `Only generate actions for what CAN be done while waiting. ` +
+                            `Include a "Follow up on ${activeDeps[0].title}" action as one of the generated actions.`;
+                    }
+                }
+            } catch (_) {}
             const result = await claudeService.sendWithTools(
                 [{ role: 'user', content: message }],
-                context || {}
+                enrichedContext
             );
             return res.json({ success: true, data: result });
+        }
+
+        // Mobile mode: inject full context snapshot into system prompt
+        if (mode === 'mobile') {
+            const ctx = assembleContext();
+            const contextSnapshot = formatContextForPrompt(ctx);
+            const response = await claudeService.sendMessage(message, conversationHistory || [], preview, contextSnapshot);
+            return res.json({ success: true, response: response.text, actions: response.actions || [] });
         }
 
         // Existing behaviour: plain chat (used by triage pipeline etc.)
@@ -1079,6 +1651,275 @@ router.post('/import/plan', async (req, res, next) => {
 });
 
 // ============================================================
+// FOCUS MODE
+// ============================================================
+
+function buildFocusSystemPrompt(action, outcome, relevantSessionBlocks = '') {
+  const today = new Date().toISOString().split('T')[0];
+  const timeStr = action.time_estimate ? `${action.time_estimate} minutes` : 'not set';
+
+  let prompt = `You are a focused work co-pilot. The user is actively working on this task right now. Be direct, brief, and useful. Ask one question at a time if you need clarification.
+
+If the user mentions a task or estimates time for something you don't have in context, ask them to confirm the duration, then tell them you've noted it. Keep the question to one sentence.
+
+## Current task
+Action: ${action.title}
+Time estimate: ${timeStr}
+Today's date: ${today}`;
+
+  if (outcome) {
+    prompt += `\nPart of outcome: ${outcome.title}`;
+    if (outcome.description) prompt += `\nOutcome description: ${outcome.description}`;
+  }
+
+  // Phase 2.2 — inject user context snapshot
+  const contextSnapshot = userContextDb.getContextSnapshot();
+  if (contextSnapshot) {
+    prompt += `\n\n${contextSnapshot}`;
+  }
+
+  // Phase 2.5 — inject relevant past session blocks
+  if (relevantSessionBlocks) {
+    prompt += `\n\n${relevantSessionBlocks}`;
+  }
+
+  return prompt;
+}
+
+// GET /api/focus/sessions/summary?outcomeId=X — total focused seconds per action for an outcome
+router.get('/focus/sessions/summary', (req, res, next) => {
+  try {
+    const { outcomeId } = req.query;
+    if (!outcomeId) return res.status(400).json({ success: false, error: 'outcomeId required' });
+
+    const rows = focusSessionsDb.getFocusSummaryForOutcome(parseInt(outcomeId));
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/focus/sessions/relevant — retrieve relevant past sessions for Focus Mode context
+router.get('/focus/sessions/relevant', async (req, res, next) => {
+  try {
+    const { actionId, outcomeId } = req.query;
+    if (!actionId || !outcomeId) {
+      return res.status(400).json({ success: false, error: 'actionId and outcomeId required' });
+    }
+
+    const sessions = focusSessionsDb.getRelevantSessions(parseInt(actionId), parseInt(outcomeId));
+
+    // Summarize long sessions and cache the summary
+    const TOKEN_THRESHOLD = 2000; // approx characters
+    const enriched = await Promise.all(sessions.map(async (session) => {
+      let conversation = [];
+      try { conversation = JSON.parse(session.conversation || '[]'); } catch {}
+
+      const rawText = conversation.map(m => m.content).join(' ');
+
+      if (rawText.length < TOKEN_THRESHOLD) {
+        // Short enough — return as-is
+        return { ...session, conversation };
+      }
+
+      // Long session — use cached summary or generate one
+      if (!session.summary) {
+        const summary = await claudeService.summarizeFocusSession(conversation);
+        focusSessionsDb.updateSessionSummary(session.id, summary);
+        return { ...session, conversation: [], summary };
+      }
+
+      return { ...session, conversation: [], summary: session.summary };
+    }));
+
+    res.json({ success: true, data: enriched });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/focus/sessions — start a focus session
+router.post('/focus/sessions', (req, res, next) => {
+  try {
+    const { actionId, outcomeId } = req.body;
+    const session = focusSessionsDb.createSession(actionId || null, outcomeId || null);
+    res.json({ success: true, data: session });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/focus/sessions/:id — end a focus session
+router.put('/focus/sessions/:id', (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { ended_at, duration_seconds, conversation } = req.body;
+    const conv = typeof conversation === 'string' ? conversation : JSON.stringify(conversation || []);
+    const session = focusSessionsDb.endSession(id, ended_at, duration_seconds, conv);
+    res.json({ success: true, data: session });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/focus/message — stream a Claude response
+router.post('/focus/message', async (req, res, next) => {
+  try {
+    const { actionId, message, history = [] } = req.body;
+    if (!message) return res.status(400).json({ success: false, error: 'message required' });
+
+    const action = actionsDb.getActionById(actionId);
+    if (!action) return res.status(404).json({ success: false, error: 'Action not found' });
+
+    const outcome = action.outcome_id ? outcomesDb.getOutcomeById(action.outcome_id) : null;
+
+    // Phase 2.5 — inject relevant past session blocks into system prompt
+    let relevantSessionBlocks = '';
+    try {
+      if (action.outcome_id) {
+        const sessions = focusSessionsDb.getRelevantSessions(action.id, action.outcome_id);
+        if (sessions.length > 0) {
+          const blocks = await Promise.all(sessions.slice(0, 3).map(async (session) => {
+            let conversation = [];
+            try { conversation = JSON.parse(session.conversation || '[]'); } catch {}
+            const rawText = conversation.map(m => m.content).join(' ');
+            const dateStr = new Date(session.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+            if (rawText.length < 2000) {
+              const formatted = conversation.map(m => `${m.role === 'user' ? 'You' : 'Claude'}: ${m.content}`).join('\n');
+              return `[Session — ${dateStr}]\n${formatted}`;
+            }
+
+            // Use cached summary or generate
+            let summary = session.summary;
+            if (!summary) {
+              summary = await claudeService.summarizeFocusSession(conversation);
+              focusSessionsDb.updateSessionSummary(session.id, summary);
+            }
+            return `[Session — ${dateStr}]\n${summary}`;
+          }));
+
+          relevantSessionBlocks = `## Past sessions on related work:\n${blocks.join('\n\n')}`;
+        }
+      }
+    } catch (_) {}
+
+    // Phase 3.2 — inject relevant Library entries (additive, does not replace session summaries)
+    let libraryContext = '';
+    try {
+      const outcomeId = action.outcome_id || 0;
+      const relevantEntries = libraryDb.getRelevantLibraryEntries(outcomeId, []);
+      if (relevantEntries.length > 0) {
+        libraryContext = '\n\nRelevant past work from your Library:\n' +
+          relevantEntries.map(e => '[' + (e.title || e.key) + ']:\n' + e.value).join('\n\n---\n\n');
+      }
+    } catch (_) {}
+
+    // Phase 3.3 — inject time accuracy patterns (additive after Library context)
+    let patternContext = '';
+    try {
+      const { globalReady } = patternsDb.checkReadiness();
+      if (globalReady) {
+        const timePatterns = patternsDb.getRelevantPatterns({ pattern_types: ['time_accuracy'] });
+        if (timePatterns.length > 0) {
+          patternContext = '\n\nTime estimation patterns for this user:\n' +
+            timePatterns.map(p => `- ${p.observation}`).join('\n');
+        }
+      }
+    } catch (_) {}
+
+    const systemPrompt = buildFocusSystemPrompt(action, outcome, relevantSessionBlocks + libraryContext + patternContext);
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    for await (const chunk of claudeService.streamFocusMessage(systemPrompt, history, message)) {
+      res.write(chunk);
+    }
+    res.end();
+  } catch (err) {
+    if (!res.headersSent) {
+      next(err);
+    } else {
+      console.error('Stream error after headers sent:', err.message);
+      res.end();
+    }
+  }
+});
+
+// POST /api/focus/extract-context — extract and save context clues from a focus message
+router.post('/focus/extract-context', async (req, res, next) => {
+  try {
+    const { message, actionId, outcomeId } = req.body;
+    if (!message) return res.json({ success: true, updates: [] });
+
+    const existing = userContextDb.getAllContext();
+    const existingKeys = existing.map(c => c.key);
+
+    const updates = await claudeService.extractContextUpdates(message, existingKeys);
+
+    const saved = [];
+    for (const u of updates) {
+      if (!u.key || !u.value) continue;
+      userContextDb.upsertContext(u.key, u.value, u.category || 'context', 'focus_mode', actionId || null, outcomeId || null);
+      saved.push({ key: u.key, value: u.value });
+    }
+
+    res.json({ success: true, updates: saved });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================
+// EXECUTION ANALYTICS (Phase 3.3)
+// ============================================================
+
+router.get('/analytics', (req, res, next) => {
+  try {
+    const db = require('../database/index');
+
+    const totalClosed = db.prepare(`SELECT COUNT(*) as c FROM outcomes WHERE status = 'archived'`).get().c;
+    const withResult = db.prepare(`SELECT COUNT(*) as c FROM outcomes WHERE status = 'archived' AND outcome_result IS NOT NULL`).get().c;
+    const hitCount = db.prepare(`SELECT COUNT(*) as c FROM outcomes WHERE status = 'archived' AND outcome_result = 'hit'`).get().c;
+    const resultsRate = withResult > 0 ? { rate_pct: Math.round((hitCount / withResult) * 100), with_data: withResult } : null;
+
+    // Completion rate (archived vs total created in last 90 days)
+    const recentTotal = db.prepare(`SELECT COUNT(*) as c FROM outcomes WHERE created_at > datetime('now', '-90 days')`).get().c;
+    const recentClosed = db.prepare(`SELECT COUNT(*) as c FROM outcomes WHERE status = 'archived' AND created_at > datetime('now', '-90 days')`).get().c;
+    const completionRate = recentTotal > 0 ? Math.round((recentClosed / recentTotal) * 100) : null;
+
+    // Estimate accuracy from patterns table
+    const accPattern = db.prepare(`SELECT data_json FROM pattern_observations WHERE pattern_type = 'time_accuracy' LIMIT 1`).get();
+    const estimateAccuracy = accPattern ? JSON.parse(accPattern.data_json) : null;
+
+    // By category from pattern_observations
+    const catPatterns = db.prepare(`SELECT category, data_json FROM pattern_observations WHERE pattern_type = 'completion_rate'`).all();
+    const byCategory = catPatterns.map(p => {
+      const data = JSON.parse(p.data_json);
+      return { category: p.category, rate: data.rate_pct };
+    }).sort((a, b) => b.rate - a.rate);
+
+    // Current week streak (outcomes archived this week)
+    const currentStreak = db.prepare(`
+      SELECT COUNT(*) as c FROM outcomes
+      WHERE status = 'archived' AND archived_at > datetime('now', '-7 days')
+    `).get().c;
+
+    res.json({ success: true, data: { totalClosed, completionRate, resultsRate, estimateAccuracy, byCategory, currentStreak } });
+  } catch (err) { next(err); }
+});
+
+router.get('/patterns', (req, res, next) => {
+  try {
+    const patterns = patternsDb.getAllPatterns();
+    res.json({ success: true, data: patterns });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
 // API INFO
 // ============================================================
 
@@ -1136,6 +1977,332 @@ router.get('/', (req, res) => {
             chat: ['POST /api/chat'],
         }
     });
+});
+
+
+// ============================================================
+// CALENDAR — Phase 3.0
+// ============================================================
+
+// GET /api/calendar/connect — redirect to Google OAuth
+router.get('/calendar/connect', (req, res) => {
+  res.redirect(googleCalendar.getAuthUrl());
+});
+
+// GET /api/calendar/callback — handle OAuth callback
+router.get('/calendar/callback', async (req, res, next) => {
+  try {
+    const { code } = req.query;
+    if (!code) return res.status(400).send('Missing code');
+    await googleCalendar.handleCallback(code);
+    res.redirect('/?calendar=connected');
+  } catch (err) { next(err); }
+});
+
+// GET /api/calendar/status — check connection status
+router.get('/calendar/status', (req, res) => {
+  res.json({ success: true, data: { connected: googleCalendar.isConnected() } });
+});
+
+// GET /api/calendar/today — fetch + store today's events, return events + open windows
+router.get('/calendar/today', async (req, res, next) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const events = await googleCalendar.getEventsForDate(today);
+    calendarDb.upsertCalendarEvents(events);
+    const windows = googleCalendar.getOpenWindows(events);
+    res.json({ success: true, data: { events, windows, date: today } });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// TODAY PLAN — Phase 3.0
+// ============================================================
+
+// POST /api/today/propose — Claude generates committed day proposal
+router.post('/today/propose', async (req, res, next) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Fetch calendar data (try live, fall back to stored)
+    let calendarEvents = [];
+    let windows = [];
+    try {
+      calendarEvents = await googleCalendar.getEventsForDate(today);
+      calendarDb.upsertCalendarEvents(calendarEvents);
+      windows = googleCalendar.getOpenWindows(calendarEvents);
+    } catch (calErr) {
+      // Calendar not connected — use stored events or empty windows
+      calendarEvents = calendarDb.getEventsForDate(today);
+      windows = googleCalendar.getOpenWindows(calendarEvents);
+    }
+
+    // Fetch all active outcomes + their undone/unblocked actions
+    const outcomes = outcomesDb.getAllOutcomes({ status: 'active' });
+    const outcomesWithActions = outcomes.map(o => ({
+      outcome_id: o.id,
+      outcome_title: o.title,
+      deadline: o.deadline,
+      actions: actionsDb.getActionsByOutcome(o.id).filter(a => !a.done && !a.blocked),
+    }));
+
+    const contextSnapshot = userContextDb.getContextSnapshot();
+
+    // Phase 4.1 — fetch critical path and mark blocked outcome IDs
+    let blockedOutcomeIds = [];
+    try {
+        const criticalPath = dependenciesDb.getCriticalPath();
+        blockedOutcomeIds = criticalPath.map(o => o.id);
+    } catch (_) {}
+
+    const proposal = await claudeService.proposeTodayPlan(windows, outcomesWithActions, contextSnapshot, blockedOutcomeIds);
+
+    res.json({ success: true, data: proposal });
+  } catch (err) { next(err); }
+});
+
+// POST /api/today/confirm — user confirms the plan
+router.post('/today/confirm', (req, res, next) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { action_ids, outcome_ids, available_minutes, total_estimated_minutes } = req.body;
+    const plan = calendarDb.upsertDailyPlan(today, {
+      committed_action_ids: JSON.stringify(action_ids || []),
+      committed_outcome_ids: JSON.stringify(outcome_ids || []),
+      total_estimated_minutes: total_estimated_minutes || null,
+      available_minutes: available_minutes || null,
+      confirmed_at: new Date().toISOString(),
+      actual_completed_action_ids: '[]',
+    });
+    res.json({ success: true, data: plan });
+  } catch (err) { next(err); }
+});
+
+// GET /api/today/status — current plan + completion state
+router.get('/today/status', (req, res, next) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const plan = calendarDb.getTodayPlan(today);
+    if (!plan) return res.json({ success: true, data: { state: 'no_plan' } });
+
+    const committedIds = JSON.parse(plan.committed_action_ids || '[]');
+    const completedIds = JSON.parse(plan.actual_completed_action_ids || '[]');
+
+    const hour = new Date().getHours();
+    const state = !plan.confirmed_at ? 'proposal'
+      : hour >= 17 ? 'eod'
+      : 'active';
+
+    res.json({ success: true, data: { plan, state, committedIds, completedIds } });
+  } catch (err) { next(err); }
+});
+
+// POST /api/today/complete-action — mark an action done in today's plan
+router.post('/today/complete-action', (req, res, next) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { action_id } = req.body;
+    const plan = calendarDb.getTodayPlan(today);
+    if (!plan) return res.status(404).json({ success: false, error: 'No plan for today' });
+
+    const completed = JSON.parse(plan.actual_completed_action_ids || '[]');
+    if (!completed.includes(action_id)) completed.push(action_id);
+
+    calendarDb.upsertDailyPlan(today, {
+      committed_outcome_ids: plan.committed_outcome_ids,
+      committed_action_ids: plan.committed_action_ids,
+      total_estimated_minutes: plan.total_estimated_minutes,
+      available_minutes: plan.available_minutes,
+      confirmed_at: plan.confirmed_at,
+      actual_completed_action_ids: JSON.stringify(completed),
+    });
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// GET /api/today/recommendation — mid-day Claude recommendation
+router.get('/today/recommendation', async (req, res, next) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const plan = calendarDb.getTodayPlan(today);
+    if (!plan) return res.json({ success: true, data: { recommendation: null } });
+
+    const calendarData = calendarDb.getEventsForDate(today);
+    const windows = googleCalendar.getOpenWindows(calendarData);
+
+    const committedIds = JSON.parse(plan.committed_action_ids || '[]');
+    const completedIds = JSON.parse(plan.actual_completed_action_ids || '[]');
+    const remainingIds = committedIds.filter(id => !completedIds.includes(id));
+
+    const recommendation = await claudeService.generateTodayRecommendation(
+      remainingIds, windows, calendarData
+    );
+    res.json({ success: true, data: { recommendation } });
+  } catch (err) { next(err); }
+});
+// ============================================================
+// PREFERENCES — Phase 3.1
+// ============================================================
+
+// GET /api/preferences — all user preferences
+router.get('/preferences', (req, res, next) => {
+  try {
+    res.json({ success: true, data: prefDb.getAllPreferences() });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/preferences/:key — set a single preference
+router.put('/preferences/:key', (req, res, next) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    prefDb.setPreference(key, value);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// POST /api/briefings/test — send a test morning brief immediately
+router.post('/briefings/test', async (req, res, next) => {
+  try {
+    const userId = prefDb.getPreference('briefing_slack_user_id');
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'No Slack user ID configured' });
+    }
+    const text = await briefingsService.generateMorningBrief();
+    await sendSlackDM(userId, text);
+    res.json({ success: true, data: { sent: text } });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// ADVISOR — Phase 4.3
+// ============================================================
+
+// GET /api/advisor/reviews — all reviews, newest first
+router.get('/advisor/reviews', (req, res, next) => {
+  try {
+    const reviews = advisorDb.getAllAdvisorReviews();
+    res.json({ success: true, count: reviews.length, data: reviews });
+  } catch (err) { next(err); }
+});
+
+// GET /api/advisor/reviews/:id — single review
+router.get('/advisor/reviews/:id', (req, res, next) => {
+  try {
+    const review = advisorDb.getAdvisorReview(Number(req.params.id));
+    if (!review) return res.status(404).json({ success: false, error: 'Not found' });
+    res.json({ success: true, data: review });
+  } catch (err) { next(err); }
+});
+
+// POST /api/advisor/reviews/:id/read — mark a review as read (clears amber dot)
+router.post('/advisor/reviews/:id/read', (req, res, next) => {
+  try {
+    advisorDb.markReviewRead(Number(req.params.id));
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// GET /api/advisor/unread — returns whether any unread observation exists
+router.get('/advisor/unread', (req, res, next) => {
+  try {
+    const hasUnread = advisorDb.hasUnreadObservation();
+    res.json({ success: true, data: { hasUnread } });
+  } catch (err) { next(err); }
+});
+
+// POST /api/advisor/generate — manually trigger retrospective (dev/test only)
+router.post('/advisor/generate', async (req, res, next) => {
+  try {
+    await advisorService.generateWeeklyRetrospective();
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// SALES PULSE
+// ============================================================
+
+// POST /api/sales-pulse/generate — generate Slack-ready Sales Pulse post
+router.post('/sales-pulse/generate', async (req, res, next) => {
+  try {
+    const { narrative, overrides = {}, date } = req.body || {};
+    const targetDate = date ? new Date(date + 'T12:00:00') : undefined;
+
+    // Try pulling from HubSpot if configured
+    let hubspotMetrics = {};
+    const token = process.env.HUBSPOT_ACCESS_TOKEN;
+    const ownerId = process.env.HUBSPOT_OWNER_ID;
+
+    if (token && token !== 'pat-na1-xxxxx') {
+      try {
+        hubspotMetrics = await hubspotClient.pullTodayMetrics(token, ownerId, targetDate);
+      } catch (err) {
+        console.warn('HubSpot pull failed, using overrides only:', err.message);
+      }
+    }
+
+    // Merge: overrides win over HubSpot data
+    const metrics = { ...hubspotMetrics, ...overrides };
+
+    const message = formatSalesPulse(metrics, narrative, targetDate);
+
+    res.json({
+      success: true,
+      data: { message, metrics }
+    });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// DAILY ENTRIES (Standups & Reviews)
+// ============================================================
+
+/**
+ * GET /api/daily-entries
+ * Query params: ?type=standup|review&limit=20&offset=0
+ */
+router.get('/daily-entries', (req, res, next) => {
+  try {
+    const { type, limit, offset } = req.query;
+    const entries = dailyEntriesDb.getDailyEntries({
+      type,
+      limit: limit ? parseInt(limit, 10) : 20,
+      offset: offset ? parseInt(offset, 10) : 0,
+    });
+    res.json({ success: true, data: entries });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/daily-entries/:id
+ */
+router.get('/daily-entries/:id', (req, res, next) => {
+  try {
+    const entry = dailyEntriesDb.getDailyEntry(parseInt(req.params.id, 10));
+    if (!entry) return res.status(404).json({ success: false, error: 'Entry not found' });
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/daily-entries
+ * Body: { date, type, content }
+ * Upserts — if an entry for that date+type exists, it updates content.
+ */
+router.post('/daily-entries', (req, res, next) => {
+  try {
+    const { date, type, content } = req.body || {};
+    if (!date || !type || !content) {
+      return res.status(400).json({ success: false, error: 'date, type, and content are required' });
+    }
+    if (!['standup', 'review'].includes(type)) {
+      return res.status(400).json({ success: false, error: 'type must be standup or review' });
+    }
+    const entry = dailyEntriesDb.upsertDailyEntry({ date, type, content });
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

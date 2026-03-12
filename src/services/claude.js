@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const userContextDb = require('../database/user-context');
 
 console.log('🔑 Initializing Anthropic client...');
 console.log('API Key present:', !!process.env.ANTHROPIC_API_KEY);
@@ -14,21 +15,27 @@ const anthropic = new Anthropic({
 const TOOLS = [
     {
         name: 'break_into_actions',
-        description: 'Break the given outcome into a concrete list of actions with time and energy estimates. Called when a user wants to decompose an outcome into executable steps.',
+        description: 'Break the given outcome into a concrete list of actions with time and energy estimates. Uses the user\'s known durations from context. If task types are unknown, returns questions before proposing actions.',
         input_schema: {
             type: 'object',
             properties: {
                 actions: {
                     type: 'array',
+                    description: 'Proposed actions for this outcome',
                     items: {
                         type: 'object',
                         properties: {
                             title:         { type: 'string' },
-                            time_estimate: { type: 'integer', description: 'Estimated minutes' },
+                            time_estimate: { type: 'integer', description: 'Estimated minutes. Use the user\'s known durations from context. Do not guess for unknown task types — put them in questions instead.' },
                             energy_type:   { type: 'string', enum: ['deep', 'light'] },
                         },
-                        required: ['title', 'energy_type'],
+                        required: ['title', 'time_estimate', 'energy_type'],
                     },
+                },
+                questions: {
+                    type: 'array',
+                    description: 'Questions to ask the user BEFORE showing the action list. Only populate if you encounter task types with no known duration in the user\'s context. One question per unknown task type. Leave empty or omit if context covers all tasks.',
+                    items: { type: 'string' },
                 },
             },
             required: ['actions'],
@@ -120,7 +127,7 @@ const TOOLS = [
  * @param {boolean} preview - Unused for now; preserved for future tool use
  * @returns {Promise<Object>} { text, actions }
  */
-async function sendMessage(message, conversationHistory = [], preview = false) {
+async function sendMessage(message, conversationHistory = [], preview = false, contextSnapshot = '') {
     console.log('📨 Claude Service: Sending message to API');
     console.log('Message length:', message.length);
     console.log('Conversation history length:', conversationHistory.length);
@@ -135,15 +142,14 @@ async function sendMessage(message, conversationHistory = [], preview = false) {
         const todayStr = today.toISOString().split('T')[0];
         const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
 
+        const contextBlock = contextSnapshot ? `\n\n${contextSnapshot}` : '';
+
         const systemPrompt = `You are a helpful AI assistant integrated into Waypoint, a personal execution OS.
-
 Today's date: ${todayStr} (${dayOfWeek})
-
 Waypoint organizes work as: Projects → Outcomes → Actions.
 - An Outcome is a meaningful deliverable (e.g. "Launch Q1 product update")
 - An Action is a specific task within an outcome (e.g. "Write release notes")
-
-Respond concisely and helpfully. AI tools for creating/managing outcomes and actions are coming in a future update.`;
+Respond concisely and helpfully.${contextBlock}`;
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-20250514',
@@ -291,7 +297,22 @@ async function sendWithTools(messages, context = {}) {
         systemPrompt += `\nToday's Progress: ${s.outcomes_archived_today} outcomes closed, ${s.actions_completed_today} actions completed\n`;
     }
 
-    systemPrompt += `\nUse the most appropriate tool for the user's request:\n- break_into_actions: decompose an outcome into specific executable actions\n- brain_dump_to_outcomes: convert unstructured notes/text into structured outcomes and actions\n- bulk_reschedule: preview and apply deadline changes for multiple outcomes\n- prioritize_today: recommend what to focus on today based on deadlines and progress (read-only)\n\nIf the user's request doesn't map to a tool, respond conversationally.`;
+    systemPrompt += `\nUse the most appropriate tool for the user's request:\n- break_into_actions: decompose the selected outcome into 3–7 specific executable actions. Use the user's known durations from context for time estimates. If a task type has no known duration in context, put it in questions[] instead of guessing. Propose realistic estimates only.\n- brain_dump_to_outcomes: convert unstructured notes/text into structured outcomes and actions\n- bulk_reschedule: preview and apply deadline changes for multiple outcomes\n- prioritize_today: recommend what to focus on today based on deadlines and progress (read-only)\n\nIf the user's request doesn't map to a tool, respond conversationally.`;
+
+    // Phase 2.2 — inject user context snapshot
+    const contextSnapshot = userContextDb.getContextSnapshot();
+    const contextBlock = contextSnapshot ? `\n\n${contextSnapshot}` : '';
+    systemPrompt += contextBlock;
+
+    // Phase 3.3 — inject pattern context if provided (AI Breakdown)
+    if (context._patternContext) {
+        systemPrompt += context._patternContext;
+    }
+
+    // Phase 4.1 — inject dependency context if provided
+    if (context._dependencyContext) {
+        systemPrompt += context._dependencyContext;
+    }
 
     try {
         const response = await anthropic.messages.create({
@@ -320,4 +341,344 @@ async function sendWithTools(messages, context = {}) {
     }
 }
 
-module.exports = { sendMessage, classifyForInbox, sendWithTools };
+/**
+ * Batch triage a list of inbox items with Claude.
+ * Returns clustered outcomes with proposed actions, plus any clarifying questions.
+ *
+ * @param {Array}  items           - Array of inbox item objects (id, title, description)
+ * @param {string} contextSnapshot - User context snapshot from userContextDb.getContextSnapshot()
+ * @returns {Promise<{ clusters: Array, questions: Array }>}
+ */
+async function batchTriageInbox(items, contextSnapshot) {
+  const itemsList = items.map((item, i) =>
+    `[${i + 1}] "${item.title}"${item.description ? ': ' + item.description : ''}`
+  ).join('\n');
+
+  const contextBlock = contextSnapshot
+    ? `\nUser's context (how they work):\n${contextSnapshot}\n`
+    : '';
+
+  const prompt = `You are triaging a batch of inbox items for a personal execution OS.${contextBlock}
+Items to triage:
+${itemsList}
+
+Instructions:
+1. Group related items into outcome clusters. Each cluster = one outcome with actions.
+2. Unrelated items each become their own cluster.
+3. For each outcome, propose: a clear action-oriented title, a project hint (or null), and a list of actions with time estimates and energy types.
+4. Use the user's known durations from context. If a task type is unknown, add ONE question per unknown (not per item).
+5. Return valid JSON only — no markdown fences, no explanation.
+
+Response format:
+{
+  "clusters": [
+    {
+      "outcome_title": "string",
+      "project_hint": "string or null",
+      "source_item_indices": [1, 2],
+      "actions": [
+        { "title": "string", "time_estimate": 90, "energy_type": "deep" }
+      ]
+    }
+  ],
+  "questions": [
+    { "question": "string", "context_key": "string" }
+  ]
+}`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = response.content.find(b => b.type === 'text')?.text || '';
+  // Strip markdown code fences if Claude adds them despite instructions
+  const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    throw new Error(`Batch triage parse error: ${e.message}. Raw: ${json.slice(0, 200)}`);
+  }
+}
+
+async function summarizeFocusSession(conversation) {
+  const formatted = conversation.map(m => `${m.role === 'user' ? 'User' : 'Claude'}: ${m.content}`).join('\n\n');
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 400,
+    messages: [{
+      role: 'user',
+      content: `Summarize this Focus Mode work session in 3–5 sentences. Focus on what was decided, created, or learned. Be specific about outputs and next steps. Do not mention the word "summary".\n\n${formatted}`,
+    }],
+  });
+
+  return response.content.find(b => b.type === 'text')?.text?.trim() || '';
+}
+
+async function* streamFocusMessage(systemPrompt, history, userMessage) {
+  const messages = [
+    ...history,
+    { role: 'user', content: userMessage }
+  ];
+
+  const stream = anthropic.messages.stream({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages,
+  });
+
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+      yield event.delta.text;
+    }
+  }
+}
+
+
+// ============================================================
+// Phase 3.2 — Auto-Tag Library Entry
+// ============================================================
+
+/**
+ * Auto-tag a saved Library entry using Claude.
+ * Returns { tags: string[], suggested_title: string }
+ *
+ * @param {string} content - The raw saved content to tag
+ * @returns {Promise<{ tags: string[], suggested_title: string }>}
+ */
+async function autoTagLibraryEntry(content) {
+  const tags = [
+    'campaign_draft', 'pitch_deck', 'email', 'strategy',
+    'outreach', 'analysis', 'plan', 'note'
+  ];
+
+  const prompt = `You are tagging a saved work output. Assign 1–3 tags from this list: ${tags.join(', ')}.
+Also suggest a short display title (5–8 words max).
+
+Content:
+${content.slice(0, 800)}
+
+Return valid JSON only, no markdown:
+{ "tags": ["tag1", "tag2"], "suggested_title": "string" }`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 128,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = response.content.find(b => b.type === 'text')?.text || '';
+  const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  try {
+    return JSON.parse(json);
+  } catch {
+    return { tags: ['note'], suggested_title: content.slice(0, 50).trim() };
+  }
+}
+
+
+// ============================================================
+// Phase 3.3 — Auto-Tag Outcome on Archive
+// ============================================================
+
+/**
+ * Auto-tag an archived outcome using Claude.
+ * Returns an array of 1-2 tags from the consistent taxonomy.
+ *
+ * @param {string} outcomeTitle - Title of the archived outcome
+ * @param {string} resultNote   - Optional result note from the user
+ * @returns {Promise<string[]>} Array of 1-2 tags
+ */
+async function autoTagOutcome(outcomeTitle, resultNote) {
+  const taxonomy = ['prospecting', 'pitch_deck', 'email_campaign', 'product', 'strategy', 'admin', 'research', 'client_work', 'reporting', 'other'];
+  const prompt = `Assign 1-2 tags from this list to an archived outcome: ${taxonomy.join(', ')}.
+Outcome title: "${outcomeTitle}"
+${resultNote ? `Result: "${resultNote}"` : ''}
+Return JSON only: { "tags": ["tag1"] }`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 60,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const text = response.content.find(b => b.type === 'text')?.text || '';
+  const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  try {
+    return JSON.parse(json).tags || ['other'];
+  } catch {
+    return ['other'];
+  }
+}
+
+// ============================================================
+// Phase 4.2 — Archive Summary
+// ============================================================
+
+/**
+ * Generate a 2-sentence professional summary of a completed outcome.
+ *
+ * @param {string} outcomeTitle  - Title of the archived outcome
+ * @param {string} outcomeResult - 'hit' or 'miss'
+ * @param {string|null} resultNote - Optional result note from the user
+ * @returns {Promise<string>} 2-sentence summary, plain text
+ */
+async function generateOutcomeSummary(outcomeTitle, outcomeResult, resultNote) {
+  const prompt = `Write a 2-sentence professional outcome summary. First sentence: what was accomplished. Second sentence: the key result or impact. Plain text, no markdown. Tone: professional, concise.
+
+Outcome: "${outcomeTitle}"
+Result: ${outcomeResult || 'completed'}
+${resultNote ? `Result note: "${resultNote}"` : ''}`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 100,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return response.content.find(b => b.type === 'text')?.text?.trim() || '';
+}
+
+// ============================================================
+// Focus Mode — Context Extraction
+// ============================================================
+
+async function extractContextUpdates(userMessage, existingKeys) {
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const existingList = existingKeys.length > 0 ? existingKeys.join(', ') : 'none';
+
+  const prompt = `Today is ${today}.
+
+Analyze this message someone sent to their AI assistant while working on a task. Extract ONLY information valuable to remember in future sessions — things like:
+- What they're currently working on and why
+- Constraints, deadlines, or blockers they mentioned
+- Preferences or working patterns revealed
+- Important context about their situation
+
+Do NOT extract: questions they asked, casual phrasing, or task-specific details that won't matter later.
+Do NOT duplicate existing keys: ${existingList}
+
+Message: "${userMessage}"
+
+Respond with ONLY a JSON array. Each item: {"key": "short label (under 40 chars)", "value": "what to remember, include date if time-sensitive", "category": "current_work|preferences|constraints|context"}. Return [] if nothing meaningful to save.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const text = response.content.find(b => b.type === 'text')?.text?.trim() || '[]';
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    return JSON.parse(match[0]);
+  } catch (_) {
+    return [];
+  }
+}
+
+module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates };
+
+// ============================================================
+// Phase 3.0 — Today Plan Functions
+// ============================================================
+
+/**
+ * Generate a committed day proposal based on available calendar windows,
+ * active outcomes/actions, and user context.
+ *
+ * @param {Array}  windows         - Open work windows from googleCalendar.getOpenWindows()
+ * @param {Array}  outcomes        - Active outcomes with their actions
+ * @param {string} contextSnapshot - User context from userContextDb.getContextSnapshot()
+ * @returns {Promise<Object>} { committed_actions, available_minutes, committed_minutes, flags, overcommitted }
+ */
+async function proposeTodayPlan(windows, outcomes, contextSnapshot, blockedOutcomeIds = []) {
+  const windowStr = windows.map(w =>
+    `${new Date(w.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–${new Date(w.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: ${w.duration_minutes} min`
+  ).join('\n');
+
+  const outcomeStr = outcomes.map(o =>
+    `Outcome: ${o.outcome_title}${o.deadline ? ` (due ${o.deadline})` : ''}\n` +
+    (o.actions || []).map(a => `  - [id:${a.id}] ${a.title} [${a.energy_type || 'deep'}, ${a.time_estimate || '?'} min]`).join('\n')
+  ).join('\n\n');
+
+  const contextBlock = contextSnapshot ? `\nUser work patterns:\n${contextSnapshot}\n` : '';
+
+  const blockedNote = blockedOutcomeIds.length > 0
+    ? `\n\nBlocked outcomes (do NOT commit to today's plan — they have unresolved upstream dependencies): outcome IDs [${blockedOutcomeIds.join(', ')}]\n`
+    : '';
+
+  const prompt = `You are planning someone's workday. Today's available work windows:
+${windowStr}
+${contextBlock}
+Active outcomes and their next actions:
+${outcomeStr}
+${blockedNote}
+Instructions:
+1. Select the highest-priority actions that fit within available time
+2. Match deep-energy actions to larger blocks, light actions to smaller windows
+3. Flag any deadline risk
+4. Return valid JSON only — no markdown, no explanation
+
+Response format:
+{
+  "committed_actions": [
+    { "action_id": number, "outcome_id": number, "reason": "string" }
+  ],
+  "available_minutes": number,
+  "committed_minutes": number,
+  "flags": ["string"],
+  "overcommitted": boolean
+}`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = response.content.find(b => b.type === 'text')?.text || '';
+  const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    throw new Error(`Today proposal parse error: ${e.message}`);
+  }
+}
+
+/**
+ * Generate a mid-day recommendation based on remaining tasks and calendar.
+ *
+ * @param {Array}  remainingActionIds - Action IDs not yet completed
+ * @param {Array}  windows            - Open work windows
+ * @param {Array}  calendarEvents     - Today's events
+ * @returns {Promise<string>} One-sentence recommendation (plain text)
+ */
+async function generateTodayRecommendation(remainingActionIds, windows, calendarEvents) {
+  if (!remainingActionIds.length) return 'All planned tasks complete. Solid day.';
+
+  const now = new Date();
+  const nextEvent = calendarEvents
+    .filter(e => new Date(e.start_at) > now)
+    .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0];
+
+  const currentWindow = windows.find(w =>
+    new Date(w.start_at) <= now && new Date(w.end_at) >= now
+  );
+
+  const prompt = `Mid-day assessment for a productivity app. In one sentence, tell the user what to do next. Be specific: name the current work window time if available, mention the next meeting if there is one, and reference that there's still work remaining. Plain text, no markdown. Max 25 words.
+
+Current time: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+Current block: ${currentWindow ? `${new Date(currentWindow.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–${new Date(currentWindow.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'none'}
+Next meeting: ${nextEvent ? `${nextEvent.title} at ${new Date(nextEvent.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'none'}
+Remaining tasks: ${remainingActionIds.length}`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 100,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  return response.content.find(b => b.type === 'text')?.text?.trim() || '';
+}

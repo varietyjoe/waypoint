@@ -138,34 +138,46 @@ These tags are the categories used for per-category pattern floors. Consistent t
 
 ### Execution Analytics View
 
-New view accessible from the sidebar (below Library).
+New view accessible from the sidebar (Analytics in the Views nav, added in Phase 3.0). No right panel on this view — full-width center.
 
-**Four metrics, visualized simply:**
+**Layout: 2×2 card grid**
+
+Four stat cards in a 2-column grid (`grid grid-cols-2 gap-4`). Each card is a white `rounded-2xl` with subtle shadow. Structure per card:
 
 ```
-Execution Analytics
-────────────────────────────────────
-
-  Estimate Accuracy               [last 30 days]
-  ████████████░░░░░░  68% accurate
-  Improving: was 52% six weeks ago
-
-  Completion Rate
-  ██████████████████  89% of outcomes closed
-  Streak: 4 outcomes this week
-
-  Results Rate        [where result data exists]
-  ████████████░░░░░░  64% outcomes marked "Hit it"
-
-  Top category by completion:
-  ✓ Admin (100%) · ✓ Research (90%) · ⚠ Prospecting (60%)
-
-────────────────────────────────────
-  Based on 34 closed outcomes.
-  Patterns update weekly.
+┌────────────────────────────┐
+│ ESTIMATE ACCURACY          │  ← label (10px uppercase gray)
+│                            │
+│ 68%                        │  ← hero number (22px bold)
+│ ████████████░░░░  (bar)    │  ← progress bar (h-2)
+│ ↑ Improving · was 52%...   │  ← supplementary line (11px)
+└────────────────────────────┘
 ```
 
-No charts or SVG required — CSS bar representations are sufficient and simpler. Keep the view fast and readable.
+**Card 1 — Estimate Accuracy**
+- Hero: `68%`
+- Bar: green (68%)
+- Supplementary: `↑ Improving · was 52% six weeks ago` (emerald text with up arrow icon)
+
+**Card 2 — Completion Rate**
+- Hero: `89%`
+- Bar: green (89%)
+- Supplementary: `🔥 5-outcome streak this week`
+
+**Card 3 — Results Rate**
+- Hero: `64%`
+- Bar: amber (64%)
+- Supplementary: `Outcomes marked "Hit it" — where data exists (28 of 34)`
+
+**Card 4 — By Category**
+- No hero percentage — instead a vertical list of categories with icon + name + percentage
+- ✓ green icon for ≥80%, ⚠ amber for <70%
+- Example rows: Admin 100%, Research 90%, Product 82%, Prospecting 60%, Email Campaign 55%
+
+**Footer (below grid):**
+`Based on 34 closed outcomes. Patterns update weekly. Next update: Monday.`
+
+Reference `public/waypoint-vision.html` Screen 11 for exact visual. No SVG charts. Standard Tailwind CSS. Keep the view fast and readable.
 
 ---
 

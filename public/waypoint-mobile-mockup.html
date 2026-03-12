@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Waypoint — Mobile Mockup</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface-raised: #222222;
+      --border: #2a2a2a;
+      --border-subtle: #1f1f1f;
+      --accent: #3b82f6;
+      --accent-dim: rgba(59, 130, 246, 0.15);
+      --text-primary: #f0f0f0;
+      --text-secondary: #8a8a8a;
+      --text-tertiary: #555555;
+      --badge-high-bg: rgba(239, 68, 68, 0.15);
+      --badge-high-text: #f87171;
+      --badge-med-bg: rgba(245, 158, 11, 0.15);
+      --badge-med-text: #fbbf24;
+      --badge-low-bg: rgba(100, 100, 100, 0.2);
+      --badge-low-text: #888888;
+      --green: #22c55e;
+    }
+
+    html, body {
+      background: #111;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px 0 48px;
+      font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+    }
+
+    /* ── Phone shell ── */
+    .phone-shell {
+      width: 390px;
+      min-height: 844px;
+      background: var(--bg);
+      border-radius: 52px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 0 0 10px #1a1a1a,
+        0 0 0 11px rgba(255,255,255,0.04),
+        0 50px 100px rgba(0,0,0,0.8),
+        0 20px 40px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Status bar ── */
+    .status-bar {
+      height: 54px;
+      padding: 16px 28px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .status-time {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: var(--text-primary);
+    }
+
+    .status-icons {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .status-icons svg {
+      fill: var(--text-primary);
+    }
+
+    /* Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 34px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 100;
+    }
+
+    /* ── Main content area ── */
+    .app-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Tab panels ── */
+    .tab-panel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-panel.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ── App header ── */
+    .app-header {
+      padding: 16px 24px 12px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .app-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+
+    .header-date {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 3px;
+      font-weight: 400;
+      letter-spacing: 0.1px;
+    }
+
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+    }
+
+    /* ── Scroll content ── */
+    .scroll-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 0 16px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .scroll-content::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* ── Outcome groups ── */
+    .outcome-group {
+      margin-bottom: 8px;
+    }
+
+    .outcome-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 24px 6px;
+    }
+
+    .outcome-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+    }
+
+    .outcome-count {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-weight: 500;
+    }
+
+    /* ── Todo card ── */
+    .todo-card {
+      margin: 0 16px 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 13px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      user-select: none;
+    }
+
+    .todo-card:active {
+      background: var(--surface-raised);
+    }
+
+    .todo-card.completed {
+      opacity: 0.45;
+    }
+
+    .todo-card.completed .todo-title {
+      text-decoration: line-through;
+      color: var(--text-tertiary);
+    }
+
+    /* ── Custom checkbox ── */
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .checkbox.checked {
+      background: var(--green);
+      border-color: var(--green);
+      transform: scale(1.1);
+    }
+
+    .checkbox.checked::after {
+      content: '';
+      width: 5px;
+      height: 9px;
+      border-right: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(45deg) translateY(-1px);
+      display: block;
+    }
+
+    .todo-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .todo-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .priority-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .priority-badge.high {
+      background: var(--badge-high-bg);
+      color: var(--badge-high-text);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .priority-badge.medium {
+      background: var(--badge-med-bg);
+      color: var(--badge-med-text);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .priority-badge.low {
+      background: var(--badge-low-bg);
+      color: var(--badge-low-text);
+      border: 1px solid rgba(100,100,100,0.25);
+    }
+
+    .todo-title {
+      font-size: 14.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1.35;
+      letter-spacing: -0.15px;
+      transition: color 0.2s ease;
+    }
+
+    .todo-due {
+      font-size: 11.5px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .todo-due.overdue {
+      color: var(--badge-high-text);
+    }
+
+    /* ── FAB ── */
+    .fab {
+      position: absolute;
+      bottom: 16px;
+      right: 20px;
+      width: 52px;
+      height: 52px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4), 0 2px 8px rgba(0,0,0,0.4);
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
+      z-index: 10;
+      user-select: none;
+    }
+
+    .fab:active {
+      transform: scale(0.92);
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+    }
+
+    /* ── Bottom sheet ── */
+    .backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .backdrop.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .bottom-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1e1e1e;
+      border-top: 1px solid var(--border);
+      border-radius: 24px 24px 0 0;
+      padding: 20px 24px 40px;
+      z-index: 51;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .bottom-sheet.open {
+      transform: translateY(0);
+    }
+
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 20px;
+    }
+
+    .sheet-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      letter-spacing: -0.3px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 15px;
+      color: var(--text-primary);
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s ease;
+      -webkit-appearance: none;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .form-select option {
+      background: #222;
+    }
+
+    .sheet-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 13px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn:active {
+      opacity: 0.8;
+      transform: scale(0.97);
+    }
+
+    .btn-cancel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .btn-save {
+      background: var(--accent);
+      color: white;
+    }
+
+    /* ── Bottom tab bar ── */
+    .tab-bar {
+      flex-shrink: 0;
+      height: 82px;
+      background: rgba(20, 20, 20, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: 16px;
+    }
+
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      padding-top: 8px;
+      transition: opacity 0.15s ease;
+      user-select: none;
+    }
+
+    .tab-item:active {
+      opacity: 0.7;
+    }
+
+    .tab-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .tab-item.active .tab-icon {
+      transform: scale(1.1);
+    }
+
+    .tab-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      color: var(--text-tertiary);
+      transition: color 0.15s ease;
+    }
+
+    .tab-item.active .tab-label {
+      color: var(--accent);
+    }
+
+    .tab-item.active .tab-svg-icon {
+      stroke: var(--accent);
+    }
+
+    .tab-svg-icon {
+      stroke: var(--text-tertiary);
+      transition: stroke 0.15s ease;
+    }
+
+    /* ── Chat tab ── */
+    .chat-header {
+      padding: 16px 24px 12px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .chat-header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chat-app-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+
+    .chat-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .chat-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .chat-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .message-row.user {
+      justify-content: flex-end;
+    }
+
+    .message-row.assistant {
+      justify-content: flex-start;
+    }
+
+    .msg-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-bottom: 2px;
+    }
+
+    .message-bubble {
+      max-width: 78%;
+      padding: 11px 14px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      letter-spacing: -0.1px;
+    }
+
+    .message-row.user .message-bubble {
+      background: var(--accent);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message-row.assistant .message-bubble {
+      background: var(--surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-bubble ul {
+      padding-left: 16px;
+      margin-top: 6px;
+    }
+
+    .message-bubble ul li {
+      margin-bottom: 4px;
+    }
+
+    .message-bubble strong {
+      font-weight: 600;
+    }
+
+    .message-time {
+      font-size: 10.5px;
+      color: var(--text-tertiary);
+      text-align: center;
+      margin: 4px 0 2px;
+    }
+
+    /* ── Chat input ── */
+    .chat-input-area {
+      flex-shrink: 0;
+      padding: 10px 16px 10px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .chat-input-wrap {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+    }
+
+    .chat-input-field {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      color: var(--text-primary);
+      font-family: inherit;
+      resize: none;
+      line-height: 1.4;
+    }
+
+    .chat-input-field::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .chat-send-btn {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease;
+    }
+
+    .chat-send-btn:active {
+      transform: scale(0.88);
+      opacity: 0.85;
+    }
+
+    /* ── Typing indicator ── */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--text-tertiary);
+      border-radius: 50%;
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    /* ── Divider section label ── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 24px 6px;
+      margin-bottom: 2px;
+    }
+
+    .section-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .section-divider-text {
+      font-size: 10.5px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      letter-spacing: 0.4px;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="phone-shell">
+  <div class="dynamic-island"></div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-time">9:41</div>
+    <div class="status-icons">
+      <!-- Signal -->
+      <svg width="16" height="12" viewBox="0 0 16 12">
+        <rect x="0" y="8" width="3" height="4" rx="0.5" opacity="1"/>
+        <rect x="4.5" y="5" width="3" height="7" rx="0.5" opacity="1"/>
+        <rect x="9" y="2.5" width="3" height="9.5" rx="0.5" opacity="1"/>
+        <rect x="13.5" y="0" width="2.5" height="12" rx="0.5" opacity="0.3"/>
+      </svg>
+      <!-- Wifi -->
+      <svg width="15" height="12" viewBox="0 0 15 12" fill="none">
+        <path d="M7.5 9.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5z" fill="#f0f0f0"/>
+        <path d="M4.3 7.3a4.5 4.5 0 0 1 6.4 0" stroke="#f0f0f0" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M1.5 4.5a7.8 7.8 0 0 1 12 0" stroke="#f0f0f0" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+      </svg>
+      <!-- Battery -->
+      <svg width="25" height="12" viewBox="0 0 25 12">
+        <rect x="0" y="1" width="21" height="10" rx="2.5" stroke="#f0f0f0" stroke-width="1" fill="none"/>
+        <rect x="22" y="3.5" width="2.5" height="5" rx="1" fill="#f0f0f0" opacity="0.5"/>
+        <rect x="1.5" y="2.5" width="15" height="7" rx="1.5" fill="#f0f0f0"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- App Content -->
+  <div class="app-content">
+
+    <!-- ═══════════════════════════════════ TODOS TAB ═══════════════════════════════════ -->
+    <div class="tab-panel active" id="panel-todos">
+
+      <!-- Header -->
+      <div class="app-header">
+        <div class="header-top">
+          <div class="app-logo">
+            <div class="logo-icon">
+              <!-- Compass/waypoint icon -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6.5" stroke="white" stroke-width="1.3"/>
+                <path d="M8 3v1M8 12v1M3 8h1M12 8h1" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+                <circle cx="8" cy="8" r="1.5" fill="white"/>
+                <path d="M6.5 5.5 L9 7.5 L9.5 10.5 L7 8.5 Z" fill="white" opacity="0.7"/>
+              </svg>
+            </div>
+            <div>
+              <div class="app-title">Waypoint</div>
+              <div class="header-date">Thursday, March 12 · 6 open</div>
+            </div>
+          </div>
+          <div class="header-avatar">JT</div>
+        </div>
+      </div>
+
+      <!-- Scroll area -->
+      <div class="scroll-content">
+
+        <!-- Group: Sponsorships OS -->
+        <div class="outcome-group">
+          <div class="outcome-header">
+            <span class="outcome-label">Sponsorships OS</span>
+            <span class="outcome-count">3</span>
+          </div>
+
+          <div class="todo-card" onclick="toggleTodo(this)">
+            <div class="checkbox"></div>
+            <div class="todo-body">
+              <div class="todo-meta"><span class="priority-badge high">High</span></div>
+              <div class="todo-title">Finalize Q2 sponsor deck — send to Alignable team</div>
+              <div class="todo-due overdue">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5V6.5L7.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Due Mar 11 · Overdue
+              </div>
+            </div>
+          </div>
+
+          <div class="todo-card" onclick="toggleTodo(this)">
+            <div class="checkbox"></div>
+            <div class="todo-body">
+              <div class="todo-meta"><span class="priority-badge high">High</span></div>
+              <div class="todo-title">Review pricing tiers with Marcus before call</div>
+              <div class="todo-due">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5V6.5L7.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Due Mar 13
+              </div>
+            </div>
+          </div>
+
+          <div class="todo-card completed" onclick="toggleTodo(this)">
+            <div class="checkbox checked"></div>
+            <div class="todo-body">
+              <div class="todo-meta"><span class="priority-badge medium">Medium</span></div>
+              <div class="todo-title">Draft outreach template for cold sponsors</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group: Q2 Planning -->
+        <div class="outcome-group">
+          <div class="outcome-header">
+            <span class="outcome-label">Q2 Planning</span>
+            <span class="outcome-count">2</span>
+          </div>
+
+          <div class="todo-card" onclick="toggleTodo(this)">
+            <div class="checkbox"></div>
+            <div class="todo-body">
+              <div class="todo-meta"><span class="priority-badge medium">Medium</span></div>
+              <div class="todo-title">Map out hiring milestones for engineering</div>
+              <div class="todo-due">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5V6.5L7.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Due Mar 17
+              </div>
+            </div>
+          </div>
+
+          <div class="todo-card" onclick="toggleTodo(this)">
+            <div class="checkbox"></div>
+            <div class="todo-body">
+              <div class="todo-meta"><span class="priority-badge low">Low</span></div>
+              <div class="todo-title">Gather team OKR input — async Notion doc</div>
+              <div class="todo-due">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5V6.5L7.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Due Mar 20
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group: Inbox -->
+        <div class="outcome-group">
+          <div class="outcome-header">
+            <span class="outcome-label">Inbox</span>
+            <span class="outcome-count">1</span>
+          </div>
+
+          <div class="todo-card" onclick="toggleTodo(this)">
+            <div class="checkbox"></div>
+            <div class="todo-body">
+              <div class="todo-meta">
+                <span class="priority-badge medium">Medium</span>
+              </div>
+              <div class="todo-title">Follow up with Dana on legal review</div>
+              <div class="todo-due" style="color: var(--text-tertiary);">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                No due date · Unassigned
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end scroll-content -->
+
+      <!-- FAB -->
+      <div class="fab" onclick="openSheet()">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M11 4v14M4 11h14" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <!-- Backdrop -->
+      <div class="backdrop" id="backdrop" onclick="closeSheet()"></div>
+
+      <!-- Bottom Sheet -->
+      <div class="bottom-sheet" id="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">New Todo</div>
+
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input class="form-input" type="text" placeholder="What needs to get done?" id="new-todo-title" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="new-todo-priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Due Date</label>
+          <input class="form-input" type="date" id="new-todo-date" style="color-scheme: dark;" />
+        </div>
+
+        <div class="sheet-actions">
+          <button class="btn btn-cancel" onclick="closeSheet()">Cancel</button>
+          <button class="btn btn-save" onclick="saveTodo()">Save</button>
+        </div>
+      </div>
+
+    </div><!-- end todos panel -->
+
+    <!-- ═══════════════════════════════════ CHAT TAB ═══════════════════════════════════ -->
+    <div class="tab-panel" id="panel-chat">
+
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-header-inner">
+          <div class="chat-title-group">
+            <div class="chat-logo-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1.5 L9.5 5.5 L14 6 L10.5 9 L11.5 13.5 L8 11.5 L4.5 13.5 L5.5 9 L2 6 L6.5 5.5 Z" fill="white" opacity="0.9"/>
+              </svg>
+            </div>
+            <div>
+              <div class="chat-app-title">Waypoint</div>
+              <div class="chat-subtitle">Your execution assistant</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e88;"></div>
+            <span style="font-size:11px;color:var(--text-secondary);">Active</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="chat-scroll" id="chat-scroll">
+
+        <div class="message-time">Today, 9:08 AM</div>
+
+        <!-- User msg 1 -->
+        <div class="message-row user">
+          <div class="message-bubble">What should I focus on today?</div>
+        </div>
+
+        <!-- Assistant msg 1 -->
+        <div class="message-row assistant">
+          <div class="msg-avatar">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5 L9.5 5.5 L14 6 L10.5 9 L11.5 13.5 L8 11.5 L4.5 13.5 L5.5 9 L2 6 L6.5 5.5 Z" fill="white"/>
+            </svg>
+          </div>
+          <div class="message-bubble">
+            You have <strong>3 open items</strong> under Sponsorships OS — your highest priority is the <strong>Q2 sponsor deck</strong>, which was actually due yesterday. Your last standup noted you were blocked waiting on design assets, so that's worth unblocking first thing.<br><br>After that, reviewing pricing tiers with Marcus lands tomorrow. Starting with the deck should unlock a clean run into the rest of the week.
+          </div>
+        </div>
+
+        <div class="message-time" style="margin-top:6px;">9:11 AM</div>
+
+        <!-- User msg 2 -->
+        <div class="message-row user">
+          <div class="message-bubble">Can you draft a quick agenda for my Alignable sync?</div>
+        </div>
+
+        <!-- Assistant msg 2 -->
+        <div class="message-row assistant">
+          <div class="msg-avatar">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5 L9.5 5.5 L14 6 L10.5 9 L11.5 13.5 L8 11.5 L4.5 13.5 L5.5 9 L2 6 L6.5 5.5 Z" fill="white"/>
+            </svg>
+          </div>
+          <div class="message-bubble">
+            Here's a tight 30-min agenda for your Alignable sync:
+            <ul>
+              <li><strong>0–5 min</strong> — Quick wins since last call</li>
+              <li><strong>5–15 min</strong> — Walk Q2 sponsor deck, get feedback on tier structure</li>
+              <li><strong>15–22 min</strong> — Align on pricing — Marcus's concerns, your floor</li>
+              <li><strong>22–27 min</strong> — Next steps &amp; owners</li>
+              <li><strong>27–30 min</strong> — Buffer / open Qs</li>
+            </ul>
+            Want me to add this to your prep notes?
+          </div>
+        </div>
+
+        <!-- Typing indicator (decorative) -->
+        <div class="message-row assistant" id="typing-row" style="display:none;">
+          <div class="msg-avatar">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5 L9.5 5.5 L14 6 L10.5 9 L11.5 13.5 L8 11.5 L4.5 13.5 L5.5 9 L2 6 L6.5 5.5 Z" fill="white"/>
+            </svg>
+          </div>
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+
+      </div><!-- end chat-scroll -->
+
+      <!-- Chat Input -->
+      <div class="chat-input-area">
+        <div class="chat-input-wrap">
+          <input
+            class="chat-input-field"
+            id="chat-input"
+            type="text"
+            placeholder="Ask anything…"
+            onkeydown="handleChatKey(event)"
+          />
+        </div>
+        <button class="chat-send-btn" onclick="sendChatMessage()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 8 L14 8 M9 3.5 L14 8 L9 12.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+    </div><!-- end chat panel -->
+
+  </div><!-- end app-content -->
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab-item active" id="tab-todos" onclick="switchTab('todos')">
+      <div class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" class="tab-svg-icon">
+          <rect x="3" y="3" width="16" height="16" rx="3" stroke-width="1.5"/>
+          <path d="M7 11l2.5 2.5L15 8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="tab-label">Todos</span>
+    </div>
+    <div class="tab-item" id="tab-chat" onclick="switchTab('chat')">
+      <div class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" class="tab-svg-icon">
+          <path d="M4 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3V5z" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="tab-label">Chat</span>
+    </div>
+  </div>
+
+</div><!-- end phone-shell -->
+
+<script>
+  // ── Tab switching ──────────────────────────────────────
+  let currentTab = 'todos';
+
+  function switchTab(tab) {
+    if (tab === currentTab) return;
+
+    document.getElementById('panel-' + currentTab).classList.remove('active');
+    document.getElementById('tab-' + currentTab).classList.remove('active');
+
+    currentTab = tab;
+
+    document.getElementById('panel-' + tab).classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+
+    // Scroll chat to bottom when switching to chat
+    if (tab === 'chat') {
+      setTimeout(() => {
+        const scroll = document.getElementById('chat-scroll');
+        scroll.scrollTop = scroll.scrollHeight;
+      }, 50);
+    }
+  }
+
+  // ── Todo toggle ────────────────────────────────────────
+  function toggleTodo(card) {
+    // If click was on checkbox area
+    const checkbox = card.querySelector('.checkbox');
+    const isCompleted = card.classList.contains('completed');
+
+    checkbox.classList.toggle('checked', !isCompleted);
+    card.classList.toggle('completed', !isCompleted);
+  }
+
+  // ── Bottom sheet ───────────────────────────────────────
+  function openSheet() {
+    document.getElementById('bottom-sheet').classList.add('open');
+    document.getElementById('backdrop').classList.add('visible');
+    setTimeout(() => document.getElementById('new-todo-title').focus(), 300);
+  }
+
+  function closeSheet() {
+    document.getElementById('bottom-sheet').classList.remove('open');
+    document.getElementById('backdrop').classList.remove('visible');
+    // Reset form
+    document.getElementById('new-todo-title').value = '';
+    document.getElementById('new-todo-priority').value = 'medium';
+    document.getElementById('new-todo-date').value = '';
+  }
+
+  function saveTodo() {
+    const title = document.getElementById('new-todo-title').value.trim();
+    if (!title) {
+      document.getElementById('new-todo-title').focus();
+      document.getElementById('new-todo-title').style.borderColor = '#f87171';
+      setTimeout(() => document.getElementById('new-todo-title').style.borderColor = '', 1200);
+      return;
+    }
+
+    const priority = document.getElementById('new-todo-priority').value;
+    const date = document.getElementById('new-todo-date').value;
+
+    // Build new card
+    const group = document.querySelector('#panel-todos .outcome-group:last-child .todo-card')?.parentNode
+      || document.querySelector('#panel-todos .scroll-content');
+
+    const card = document.createElement('div');
+    card.className = 'todo-card';
+    card.setAttribute('onclick', 'toggleTodo(this)');
+    card.innerHTML = `
+      <div class="checkbox"></div>
+      <div class="todo-body">
+        <div class="todo-meta"><span class="priority-badge ${priority}">${priority.charAt(0).toUpperCase() + priority.slice(1)}</span></div>
+        <div class="todo-title">${escapeHtml(title)}</div>
+        ${date ? `<div class="todo-due"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5V6.5L7.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Due ${formatDate(date)}</div>` : ''}
+      </div>
+    `;
+
+    // Insert before last group's last card, or append to inbox group
+    const inboxCards = document.querySelector('#panel-todos .outcome-group:last-child');
+    if (inboxCards) {
+      inboxCards.appendChild(card);
+      // Update count badge
+      const countEl = inboxCards.querySelector('.outcome-count');
+      if (countEl) {
+        const current = parseInt(countEl.textContent) || 0;
+        countEl.textContent = current + 1;
+      }
+    }
+
+    // Animate in
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(8px)';
+    requestAnimationFrame(() => {
+      card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+      card.style.opacity = '1';
+      card.style.transform = 'translateY(0)';
+    });
+
+    closeSheet();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // ── Chat ───────────────────────────────────────────────
+  const cannedResponses = [
+    "Got it! I've noted that. Based on your current context, it looks like this connects to your Q2 Planning outcome. Want me to add it there?",
+    "That makes sense. Your pattern data shows you do your best deep work in the mornings — I'd suggest blocking time before your 11am sync.",
+    "On it. I'll keep that in context for your next planning session. Anything else you'd like to capture while it's top of mind?",
+    "Noted. You've mentioned something similar before — back in Feb you flagged the same bottleneck. Want to turn this into a recurring blocker to track?",
+  ];
+  let responseIndex = 0;
+
+  function handleChatKey(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  }
+
+  function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const scroll = document.getElementById('chat-scroll');
+
+    // Add user message
+    const userRow = document.createElement('div');
+    userRow.className = 'message-row user';
+    userRow.innerHTML = `<div class="message-bubble">${escapeHtml(text)}</div>`;
+    userRow.style.opacity = '0';
+    scroll.appendChild(userRow);
+    requestAnimationFrame(() => {
+      userRow.style.transition = 'opacity 0.2s ease';
+      userRow.style.opacity = '1';
+    });
+
+    input.value = '';
+    scroll.scrollTop = scroll.scrollHeight;
+
+    // Show typing indicator
+    const typingRow = document.getElementById('typing-row');
+    typingRow.style.display = 'flex';
+    scroll.scrollTop = scroll.scrollHeight;
+
+    // Add assistant response after delay
+    setTimeout(() => {
+      typingRow.style.display = 'none';
+
+      const response = cannedResponses[responseIndex % cannedResponses.length];
+      responseIndex++;
+
+      const assistantRow = document.createElement('div');
+      assistantRow.className = 'message-row assistant';
+      assistantRow.innerHTML = `
+        <div class="msg-avatar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1.5 L9.5 5.5 L14 6 L10.5 9 L11.5 13.5 L8 11.5 L4.5 13.5 L5.5 9 L2 6 L6.5 5.5 Z" fill="white"/>
+          </svg>
+        </div>
+        <div class="message-bubble">${escapeHtml(response)}</div>
+      `;
+      assistantRow.style.opacity = '0';
+      scroll.insertBefore(assistantRow, typingRow);
+
+      requestAnimationFrame(() => {
+        assistantRow.style.transition = 'opacity 0.25s ease';
+        assistantRow.style.opacity = '1';
+      });
+
+      scroll.scrollTop = scroll.scrollHeight;
+    }, 1400);
+  }
+
+  // ── Init ───────────────────────────────────────────────
+  // Scroll chat to bottom initially
+  window.addEventListener('load', () => {
+    const scroll = document.getElementById('chat-scroll');
+    scroll.scrollTop = scroll.scrollHeight;
+  });
+</script>
+
+</body>
+</html>

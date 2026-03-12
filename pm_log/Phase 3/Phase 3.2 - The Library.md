@@ -127,11 +127,13 @@ Q1 sales strategy framework         #strategy
 ```
 
 Clicking an entry opens a detail panel showing:
-- Title (editable)
-- Tags (editable)
-- Full content (read-only, copyable)
+- Title (editable inline — click to edit, border appears)
+- Tags (editable): existing tags render as pills; an inline **"+ tag"** button sits next to the last pill, clicking it appends a new editable tag input inline (not a separate form)
+- Full content (read-only, "Show more" collapses beyond ~5 lines)
+- Copy button
 - Source outcome + date
 - "Open in Focus Mode" button (opens a new Focus session on the source outcome with this entry preloaded)
+- Delete button (below primary actions — red text, confirm on click)
 
 Manual save: "Save manually" button opens a simple form — paste content, Claude auto-tags, user confirms.
 

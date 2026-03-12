@@ -73,7 +73,9 @@ Beyond the weekly cadence, Claude can surface a strategic observation when:
 - A deadline cluster is forming that hasn't been flagged in the weekly review yet
 - A behavior change is statistically detectable (e.g. Focus session lengths declining over 3 weeks)
 
-These surface as a subtle in-app flag: a small "Claude has an observation →" link in the sidebar. Clicking it opens the observation. It doesn't interrupt — it waits for you to engage.
+These surface as a small **amber dot (●)** overlaid on the "Advisor" item in the sidebar Views nav — the same dot-badge pattern used for inbox new-item counts. The dot draws attention without interrupting workflow. No text label alongside the dot. Clicking the Advisor nav item clears the dot and opens the observation. The dot disappears once the user has viewed the current observation.
+
+**Implementation:** Set a `has_unread_observation` flag (boolean) on the `advisor_reviews` table. Frontend polls or checks on page load — if true, render the amber dot on the Advisor sidebar item using the same `w-1.5 h-1.5 bg-amber-500 rounded-full` pattern already used in the inbox badge.
 
 **Hard constraints:**
 - Maximum one proactive flag per week (not per day, not per session)
@@ -121,8 +123,9 @@ This creates a record of your working history as interpreted by Claude — a kin
 - [ ] Observations are grounded in real data (no hallucinated patterns)
 - [ ] Tone is consistently advisory, not judgmental
 - [ ] If nothing notable: Claude says so (no fabricated observations)
-- [ ] Proactive flags surface in sidebar when threshold evidence exists
+- [ ] Proactive flags surface as amber dot on sidebar Advisor item when threshold evidence exists
+- [ ] Amber dot cleared when user views the observation (via `has_unread_observation` flag)
 - [ ] Maximum one proactive flag per week enforced
-- [ ] Advisor history view shows all past retrospectives and flags
+- [ ] Advisor history view shows all past retrospectives and flags; "Previous reviews →" link at bottom
 - [ ] All observations respect Pattern Memory floors (8+ data points per category)
 - [ ] Engineer + PM sign-off

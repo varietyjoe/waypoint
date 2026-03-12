@@ -8,6 +8,7 @@ function initActionsTable() {
             title TEXT NOT NULL,
             time_estimate INTEGER,
             energy_type TEXT DEFAULT 'light',
+            action_type TEXT DEFAULT 'standard',
             done INTEGER DEFAULT 0,
             done_at TEXT,
             blocked INTEGER DEFAULT 0,
@@ -17,6 +18,22 @@ function initActionsTable() {
             updated_at TEXT DEFAULT (datetime('now'))
         )
     `);
+    // Phase 3.3 — add started_at and ended_at for time tracking
+    const actionCols = db.pragma('table_info(actions)').map(c => c.name);
+    if (!actionCols.includes('started_at')) {
+        db.exec('ALTER TABLE actions ADD COLUMN started_at TEXT');
+    }
+    if (!actionCols.includes('ended_at')) {
+        db.exec('ALTER TABLE actions ADD COLUMN ended_at TEXT');
+    }
+    if (!actionCols.includes('action_type')) {
+        db.exec("ALTER TABLE actions ADD COLUMN action_type TEXT DEFAULT 'standard'");
+    }
+    if (!actionCols.includes('snoozed_until')) {
+        db.exec("ALTER TABLE actions ADD COLUMN snoozed_until TEXT");
+        console.log('✅ actions.snoozed_until column added');
+    }
+
     console.log('✅ Actions table initialized');
 }
 
@@ -33,7 +50,7 @@ function getActionById(id) {
 }
 
 function createAction(outcomeId, data) {
-    const { title, time_estimate, energy_type = 'light', blocked = 0, blocked_by, position } = data;
+    const { title, time_estimate, energy_type = 'light', action_type = 'standard', blocked = 0, blocked_by, position } = data;
     if (!title || !title.trim()) throw new Error('title is required');
 
     // Auto-assign position after current max for this outcome
@@ -41,13 +58,14 @@ function createAction(outcomeId, data) {
     const pos = (position !== undefined && position !== null) ? position : ((maxRow?.m ?? -1) + 1);
 
     const result = db.prepare(`
-        INSERT INTO actions (outcome_id, title, time_estimate, energy_type, blocked, blocked_by, position)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO actions (outcome_id, title, time_estimate, energy_type, action_type, blocked, blocked_by, position)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         outcomeId || null,
         title.trim(),
         time_estimate || null,
         energy_type,
+        action_type || 'standard',
         blocked ? 1 : 0,
         blocked_by || null,
         pos
@@ -60,7 +78,11 @@ function getUnassignedActions() {
     return db.prepare(`
         SELECT * FROM actions
         WHERE outcome_id IS NULL
-        ORDER BY created_at DESC
+          AND done = 0
+          AND (snoozed_until IS NULL OR snoozed_until <= datetime('now'))
+        ORDER BY
+          CASE WHEN action_type = 'tiny' THEN 0 ELSE 1 END,
+          created_at DESC
     `).all();
 }
 
@@ -68,7 +90,7 @@ function updateAction(id, updates) {
     const action = getActionById(id);
     if (!action) throw new Error(`Action ${id} not found`);
 
-    const allowed = ['title', 'time_estimate', 'energy_type', 'done', 'blocked', 'blocked_by', 'position', 'outcome_id'];
+    const allowed = ['title', 'time_estimate', 'energy_type', 'action_type', 'done', 'blocked', 'blocked_by', 'position', 'outcome_id'];
     const fields = Object.keys(updates).filter(k => allowed.includes(k));
     if (fields.length === 0) throw new Error('No valid fields to update');
 
@@ -78,7 +100,11 @@ function updateAction(id, updates) {
     });
 
     const setClause = fields.map(f => `${f} = ?`).join(', ');
-    db.prepare(`UPDATE actions SET ${setClause}, updated_at = datetime('now') WHERE id = ?`).run(...values, id);
+    // If done is being set to 1, stamp done_at; if being cleared, null it out
+    const doneAt = 'done' in updates
+        ? (updates.done ? `, done_at = datetime('now')` : `, done_at = NULL`)
+        : '';
+    db.prepare(`UPDATE actions SET ${setClause}${doneAt}, updated_at = datetime('now') WHERE id = ?`).run(...values, id);
     return getActionById(id);
 }
 
@@ -107,6 +133,35 @@ function reorderAction(id, position) {
     return getActionById(id);
 }
 
+function snoozeAction(id) {
+    db.prepare(`
+        UPDATE actions SET snoozed_until = datetime('now', '+1 day') WHERE id = ?
+    `).run(id);
+    return db.prepare('SELECT * FROM actions WHERE id = ?').get(id);
+}
+
+function getAllOpenActions() {
+    return db.prepare(`
+        SELECT a.*, o.title AS outcome_title
+        FROM actions a
+        LEFT JOIN outcomes o ON a.outcome_id = o.id
+        WHERE a.done = 0
+        ORDER BY a.outcome_id ASC, a.position ASC, a.created_at ASC
+    `).all();
+}
+
+function getRecentlyCompletedActions(days = 7, limit = 20) {
+    return db.prepare(`
+        SELECT a.*, o.title AS outcome_title
+        FROM actions a
+        LEFT JOIN outcomes o ON a.outcome_id = o.id
+        WHERE a.done = 1
+          AND a.done_at >= datetime('now', ? || ' days')
+        ORDER BY a.done_at DESC
+        LIMIT ?
+    `).all(`-${days}`, limit);
+}
+
 module.exports = {
     initActionsTable,
     getActionsByOutcome,
@@ -117,4 +172,7 @@ module.exports = {
     deleteAction,
     toggleAction,
     reorderAction,
+    snoozeAction,
+    getAllOpenActions,
+    getRecentlyCompletedActions,
 };

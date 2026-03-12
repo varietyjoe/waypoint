@@ -94,55 +94,93 @@ CREATE TABLE IF NOT EXISTS daily_plans (
 )
 ```
 
+### Sidebar Navigation (Ships with Phase 3.0)
+
+The sidebar "Views" section is the persistent navigation pattern for all secondary views. It ships with Phase 3.0 because the Today view is the first view that lives in it. Subsequent phases slot into the structure without touching the sidebar again.
+
+**Sidebar structure (add below Projects, above Recently Closed):**
+
+```
+Views
+─────
+📅 Today          ← links to Today view (this phase)
+📚 Library        ← stub until Phase 3.2 (show "Coming soon" or link to Today)
+📊 Analytics      ← stub until Phase 3.3
+💡 Advisor        ← stub until Phase 4.3; amber dot overlay when new review ready
+🗃 Memory         ← links to existing Memory view (Phase 2.2)
+```
+
+Use icons matching the vision HTML (see `public/waypoint-vision.html` Screen 1 sidebar) — calendar, library stack, bar chart, lightbulb, database SVG icons. Stubs can be non-functional links or show a pill `Soon` — either is fine. The visual structure is what matters now.
+
+Active state: highlighted blue with `text-blue-700 font-medium` (matches existing `.sb-item.active` pattern).
+
+---
+
 ### Today View — UI
 
-A new primary view, not a phase overlay. It replaces the center panel content when active (triggered after triage completes, or via a "Today" tab/button in the nav).
+A new primary view, not a phase overlay. It replaces the center panel content when active (triggered after triage completes, or via the "Today" link in the sidebar Views nav).
 
 **Three states:**
 
 **State 1 — Proposal (morning, pre-confirm):**
+
+Center panel:
 ```
 Today · [Day, Date]
 ────────────────────────────────────
 
   You have 4h 20m of real work time today.
-  2 deep blocks: 9–11am, 2–4pm
-  1 light window: 12–1pm
 
-  Claude's suggested plan:
-  ┌─────────────────────────────────────────┐
-  │ 🟣 DEEP   Pitch Deck — Rohter · 90 min │
-  │ 🟣 DEEP   Strategy doc · 60 min        │
-  │ ○  LIGHT  Send to Scott · 10 min       │
-  │ ○  LIGHT  Follow-up emails · 30 min    │
-  └─────────────────────────────────────────┘
+  [horizontal calendar strip: "9am Standup · 30m"  "2pm Sales Sync · 60m"  "4pm Hard stop"]
 
-  Total: 3h 10m of 4h 20m available.
+  ─────────────────────────────────────────────
 
-  ⚠ "Pitch Deck" is due Thursday — 2 days.
-     Based on your history, revision usually
-     takes a day. V1 needs to be done today.
+  Claude's Suggested Plan
+
+  ● DEEP   Draft pitch deck v1          Rohter Deck   90 min
+  ● DEEP   Build slide deck in Canva    Rohter Deck   60 min
+  ○ LIGHT  Send to Scott for review     Rohter Deck   10 min
+  ○ LIGHT  Follow-up emails             Prospecting   30 min
+
+  3h 10m of 4h 20m available · 73%
+  ████████████░░░░░  (progress bar)
+
+  ⚠ Pitch deck is due Thursday — 3 days
+    Based on your history, revision takes a day.
+    V1 needs to be done today.
 
   [Adjust]         [Confirm plan →]
 ────────────────────────────────────
 ```
 
+The calendar strip is a horizontal scrollable row of event pills above the plan, showing today's hard commitments at a glance before the plan.
+
 **State 2 — Active (mid-day, post-confirm):**
+
+Center panel:
 ```
-Today · [Day, Date]
+Today · Friday, Feb 21          12:30pm   ← live clock (JS setInterval, updates every minute)
 ────────────────────────────────────
 
-  3 of 4 tasks done · 2h 40m completed
+  3 of 4 tasks · 2h 40m done
 
-  ✓  Pitch Deck — Rohter · 90 min  DONE
-  ✓  Send to Scott · 10 min         DONE
-  ✓  Follow-up emails · 30 min      DONE
-  ○  Strategy doc · 60 min          REMAINING
+  ████████████░░░░  75% of plan complete  |  1h remaining
 
-  You're ahead of pace. One item left.
+  ✓  Draft pitch deck v1       DONE · 90 min    (completed card, faded green)
+  ✓  Send to Scott for review  DONE · 10 min
+  ✓  Follow-up emails          DONE · 30 min
+  ●  Build slide deck in Canva  Deep · 60 min   [Focus →]  ← inline Focus button
 
+  ─────────────────────────────────────────────
+  ✦  You're ahead of pace. One deep work item left —
+     60 minutes, fits your 2pm block before Sales Sync.
 ────────────────────────────────────
 ```
+
+Mid-day enhancements:
+- **Live clock** in center header — `new Date().toLocaleTimeString()` formatted as `h:mma`, updated via `setInterval` every 60s
+- **"Focus →" button** inline on the remaining (incomplete) task card — clicking opens Focus Mode on that specific action
+- **✦ Claude note card** at the bottom — short pace assessment generated alongside the mid-day plan status. Use `POST /api/today/status` or append to the existing plan fetch. Claude prompt: "In one sentence, assess the user's progress relative to their plan and remaining time. Reference the specific remaining task and next calendar block. Plain text."
 
 **State 3 — EOD:**
 ```
@@ -163,6 +201,43 @@ Today · [Day, Date]
 
 ────────────────────────────────────
 ```
+
+---
+
+### Today View — Right Panel ("Calendar Today")
+
+The right panel on the Today view is a dedicated **"Calendar Today"** panel — not the Execution Intelligence panel used elsewhere.
+
+**Right panel content (all states):**
+
+```
+Calendar Today
+──────────────
+
+● Connected: Google Calendar      ← green dot + connection status
+
+[Event cards — one per event today]
+  Daily Standup     9:00am – 9:30am · 30 min
+  Sales Sync        2:00pm – 3:00pm · 60 min
+  Hard stop         4:00pm
+
+Available Blocks
+──────────────
+  9:30am – 2:00pm   4h 30m         ← emerald highlight (primary work window)
+  3:00pm – 4:00pm   1h 0m          ← secondary window
+```
+
+**Mid-day right panel — additional "live" state:**
+
+- Past/completed events: crossed-out title with faded/completed styling
+- Current active block: highlighted card — "Now · Deep work block" + remaining time ("12:30pm – 2:00pm · 90 min left")
+- Upcoming events: standard styling
+- **Recommendation card** (Claude-generated, blue tint):
+  - "Recommendation: Start [task] now — [X] minutes before [next meeting], enough to finish with buffer."
+  - Generated by a new `GET /api/today/recommendation` endpoint (or appended to the mid-day status response)
+  - Claude receives: remaining task, current block end time, next meeting. Returns one sentence.
+
+Reference `public/waypoint-vision.html` Screens 6 and 7 for exact visual treatment.
 
 ### Claude Proposal Logic
 
@@ -219,10 +294,17 @@ Frontend renders the proposal. User can drag to reorder, remove items, or add fr
 - [ ] `POST /api/today/propose` returns a valid committed day proposal from Claude
 - [ ] Today view renders all three states (proposal, active, EOD) correctly
 - [ ] Proposal shows available time, suggested actions, deadline flags
+- [ ] Horizontal calendar strip renders event pills above Claude's plan (proposal state)
 - [ ] User can adjust (add/remove actions) before confirming
 - [ ] "Confirm plan" writes to `daily_plans` table
-- [ ] Mid-day state updates as actions are checked off
+- [ ] Mid-day state shows live clock updating every minute
+- [ ] Mid-day state: remaining task has inline "Focus →" button
+- [ ] Mid-day state: ✦ Claude note card renders at bottom with pace assessment
 - [ ] EOD state shows actual vs planned with move-to-tomorrow option
+- [ ] Right panel "Calendar Today" renders on all Today view states: connection status, event list, Available Blocks
+- [ ] Mid-day right panel: past events faded/crossed-out, current block highlighted "Now · [type]", Recommendation card rendered
+- [ ] Sidebar "Views" section ships with Today, Library (stub), Analytics (stub), Advisor (stub), Memory nav items
+- [ ] Sidebar active state highlights correctly for each view
 - [ ] Calendar service is provider-abstracted (Google is provider A, slot for Outlook later)
 - [ ] Token refresh handled transparently
 - [ ] Engineer + PM sign-off

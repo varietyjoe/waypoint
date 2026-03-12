@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "start:bg": "node src/server.js > server.log 2>&1 & echo \"Waypoint server started in background (PID: $!). Logs: server.log\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,9 +16,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "googleapis": "^171.4.0",
     "node-cron": "^4.2.1",
     "sqlite3": "^5.1.7"
   }

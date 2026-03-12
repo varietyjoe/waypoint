@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -85,6 +86,78 @@
     /* Sidebar outcome hover */
     .sidebar-outcome { transition: background 0.1s ease; }
     .sidebar-outcome:hover { background: #F3F4F6; }
+
+    /* Phase 5.1 — activate button on outcome cards */
+    .activate-btn { opacity: 0; transition: opacity 0.15s ease; }
+    .outcome-card:hover .activate-btn { opacity: 1; }
+    .activate-inline { display: none; }
+    .activate-inline.open { display: flex; }
+
+    /* Rich text notes editor */
+    .notes-editor {
+      min-height: 80px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #374151;
+      border: 1px solid #E5E7EB;
+      border-radius: 0 0 8px 8px;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .notes-editor:focus { border-color: #93C5FD; }
+    .notes-editor:empty::before {
+      content: attr(data-placeholder);
+      color: #9CA3AF;
+      pointer-events: none;
+    }
+    .notes-editor h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+    .notes-editor ul, .notes-editor ol { padding-left: 20px; margin: 4px 0; }
+    .notes-editor li { margin: 2px 0; }
+    .notes-editor a { color: #3B82F6; text-decoration: underline; }
+    .notes-editor blockquote {
+      border-left: 3px solid #D1D5DB;
+      padding-left: 10px;
+      color: #6B7280;
+      margin: 6px 0;
+    }
+    .notes-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 6px;
+      border: 1px solid #E5E7EB;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: #F9FAFB;
+    }
+    .notes-toolbar button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #6B7280;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.1s ease;
+    }
+    .notes-toolbar button:hover { background: #E5E7EB; color: #374151; }
+    .notes-toolbar .sep { width: 1px; height: 16px; background: #E5E7EB; margin: 0 3px; }
+
+    /* Sidebar Views nav items (Phase 3.0+) */
+    .sb-item { cursor: pointer; border-radius: 6px; transition: background 0.1s ease; }
+    .sb-item:hover { background: #F3F4F6; }
+    .sb-item.active { background: #F3F4F6; }
+    .sb-item.active span { color: #111827 !important; }
+    .sb-item.active svg { color: #374151 !important; stroke: #374151; }
 
     /* Focus toggle */
     .focus-track { transition: background-color 0.2s ease; }
@@ -177,6 +250,49 @@
         padding-bottom: calc(49px + env(safe-area-inset-bottom) + 16px);
       }
     }
+
+    /* ============================================================ */
+    /* PHASE 2.6 — Delight Animations                               */
+    /* ============================================================ */
+    @keyframes checkSpring {
+      0%   { transform: scale(0); }
+      70%  { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    @keyframes strikeFill {
+      from { width: 0; }
+      to   { width: 100%; }
+    }
+    @keyframes rowFlash {
+      0%   { background-color: transparent; }
+      30%  { background-color: #f0fdf4; }
+      100% { background-color: transparent; }
+    }
+    @keyframes bannerSlideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes overlayFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes focusExitFade {
+      0%   { opacity: 1; filter: brightness(1); }
+      50%  { opacity: 0.7; filter: brightness(1.3); }
+      100% { opacity: 0; }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .action-check-anim {
+      animation: checkSpring 150ms ease-out forwards;
+    }
+    .action-row-flash {
+      animation: rowFlash 200ms ease-out forwards;
+    }
+    /* Focus button on action row hover */
+    .action-row:hover .focus-btn { opacity: 1 !important; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased" style="height:100vh;overflow:hidden;">
@@ -226,7 +342,7 @@
 <!-- ============================================================ -->
 <!-- THREE-COLUMN LAYOUT                                           -->
 <!-- ============================================================ -->
-<div class="column-wrapper flex" style="height:calc(100vh - 48px);">
+<div id="app-wrapper" class="column-wrapper flex" style="height:calc(100vh - 48px);">
 
   <!-- ==================== LEFT PANEL ==================== -->
   <aside class="left-panel bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto" style="width:256px;height:100%;">
@@ -268,6 +384,9 @@
       <div class="text-gray-300 mt-1 ml-0.5" style="font-size:10px">Press Enter to add as action</div>
     </div>
 
+    <!-- Unassigned Tray (Phase 5.0) — populated by renderUnassignedTray() -->
+    <div id="unassigned-tray" style="display:none;"></div>
+
     <!-- Today's Progress -->
     <div class="px-4 py-3 border-b border-gray-100">
       <div class="flex items-center justify-between mb-2.5">
@@ -281,7 +400,7 @@
     <!-- Active Outcomes (mini list) -->
     <div class="px-4 py-3 border-b border-gray-100">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Active</div>
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" id="sidebarActiveHeader" style="font-size:10px">Active</div>
         <button class="text-blue-500 hover:text-blue-600 font-medium transition-colors" style="font-size:10px" onclick="setPhase(1)">View all</button>
       </div>
       <div class="space-y-1" id="sidebarOutcomes"><!-- JS --></div>
@@ -289,8 +408,126 @@
 
     <!-- Projects -->
     <div class="px-4 py-3 border-b border-gray-100">
-      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Projects</div>
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Projects</div>
+        <button class="text-blue-500 hover:text-blue-600 font-medium transition-colors" style="font-size:10px" onclick="toggleNewProjectForm()">New project</button>
+      </div>
       <div class="space-y-0.5" id="sidebarProjects"><!-- JS --></div>
+      <!-- New project inline form (Phase 5.1) -->
+      <div id="newProjectForm" style="display:none;" class="mt-2">
+        <input
+          id="newProjectName"
+          type="text"
+          placeholder="Project name…"
+          class="w-full bg-gray-50 border border-gray-200 rounded-md text-gray-700 focus:outline-none focus:border-blue-300 px-2 py-1.5 mb-2"
+          style="font-size:11px"
+          onkeydown="handleNewProjectKey(event)"
+        />
+        <div class="flex items-center gap-1.5 mb-2" id="newProjectSwatches">
+          <!-- swatches rendered by JS -->
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="submitNewProject()" class="flex items-center justify-center w-5 h-5 bg-gray-900 rounded text-white hover:bg-gray-700 transition-colors" title="Create project">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          </button>
+          <button onclick="cancelNewProjectForm()" class="text-gray-400 hover:text-gray-600 transition-colors" style="font-size:10px">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Views Nav (Phase 3.0+) -->
+    <div class="px-3 py-2 border-b border-gray-100">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-1.5 px-2" style="font-size:10px;letter-spacing:.06em;">Views</div>
+      <div class="space-y-0.5">
+        <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-today" onclick="showTodayView()">
+          <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span style="font-size:11px;">Today</span>
+        </div>
+        <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-library" onclick="showLibraryView()">
+          <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span style="font-size:11px;">Library</span>
+        </div>
+        <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-analytics" onclick="showAnalyticsView()">
+          <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span style="font-size:11px;">Analytics</span>
+        </div>
+        <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-advisor" onclick="showAdvisorView()">
+          <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346A3.16 3.16 0 0115.74 17H8.26a3.16 3.16 0 01-2.248-2.754l-.347-.346z"/>
+          </svg>
+          <span style="font-size:11px;">Advisor</span>
+          <span id="advisor-dot" style="display:none;width:6px;height:6px;background:#f59e0b;border-radius:50%;margin-left:auto;flex-shrink:0;"></span>
+        </div>
+        <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-memory" onclick="showMemoryView()">
+          <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+          </svg>
+          <span style="font-size:11px;">Memory</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Memory Section (Phase 2.2) -->
+    <div style="padding:12px 12px 0;">
+      <button
+        onclick="toggleMemoryPanel()"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:6px;background:transparent;border:none;cursor:pointer;color:#6b7280;font-size:11px;font-weight:500;letter-spacing:.04em;">
+        <span style="text-transform:uppercase;letter-spacing:.06em;font-size:10px;">Memory</span>
+        <span id="memory-count" style="background:#f3f4f6;border-radius:10px;padding:1px 7px;font-size:10px;color:#9ca3af;">0</span>
+      </button>
+    </div>
+    <div id="memory-panel" style="display:none;padding:0 12px 8px;">
+      <div id="memory-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+      <button
+        onclick="showAddContextForm()"
+        style="margin-top:8px;width:100%;padding:5px;font-size:10px;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:6px;background:transparent;cursor:pointer;">
+        + Add memory
+      </button>
+      <!-- Briefings Settings (Phase 3.1) -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f3f4f6;">
+        <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Briefings</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:11px;color:#374151;">Daily briefings</span>
+          <label style="position:relative;display:inline-block;width:36px;height:20px;">
+            <input type="checkbox" id="briefings-toggle" onchange="savePref('briefings_enabled', this.checked ? 'true' : 'false'); document.getElementById('briefings-toggle-track').style.background = this.checked ? '#111827' : '#d1d5db';"
+              style="opacity:0;width:0;height:0;">
+            <span id="briefings-toggle-track" style="position:absolute;inset:0;background:#d1d5db;border-radius:10px;cursor:pointer;transition:.2s;"></span>
+          </label>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:4px;">Slack user ID</div>
+          <div style="display:flex;gap:6px;">
+            <input id="briefings-slack-id" type="text" placeholder="U012AB3CD"
+              style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:11px;outline:none;" />
+            <button onclick="savePref('briefing_slack_user_id', document.getElementById('briefings-slack-id').value).then(() => showToast('Saved', 'success'))"
+              style="padding:5px 10px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:10px;cursor:pointer;">Save</button>
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:4px;">Timezone</div>
+          <input id="briefings-timezone" type="text" placeholder="America/Chicago"
+            onblur="savePref('timezone', this.value)"
+            style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:11px;outline:none;box-sizing:border-box;" />
+        </div>
+        <button onclick="sendTestBrief()"
+          style="width:100%;padding:7px;background:transparent;border:1px solid #e5e7eb;border-radius:8px;font-size:11px;color:#374151;cursor:pointer;">
+          Send me a test brief now
+        </button>
+        <!-- Inbound Email Address (Phase 4.0) -->
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:4px;">Inbound email address</div>
+          <div id="inbound-email-display" style="font-size:11px;color:#374151;font-family:monospace;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;word-break:break-all;">
+            Loading&hellip;
+          </div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Forward any email here to add it to your inbox.</div>
+        </div>
+      </div>
     </div>
 
     <!-- Recently Closed -->
@@ -472,6 +709,12 @@ let OUTCOME_STATS = {}   // { [outcomeId]: stats from /api/outcomes/:id/stats }
 let PROJECT_INTEL = {}   // { [projectId]: intel from /api/projects/:id/intelligence }
 let ARCHIVED_OUTCOMES = []
 let TODAY_STATS = { outcomes_archived_today: 0, actions_completed_today: 0 }
+let activeProjectFilter = null; // null = "All" — Phase 4.0 project filter tabs
+let OUTCOME_DEPS = {}  // { [outcomeId]: { dependencies: [], dependents: [] } }
+let CRITICAL_PATH_IDS = new Set()     // outcome IDs that are on the critical path (blocked)
+let CRITICAL_PATH_TITLES = {}          // { [outcomeId]: blockedByTitle } for tooltip
+let FOCUS_SUMMARY = {}                 // { [actionId]: { total_seconds, session_count } }
+let UNASSIGNED = []                    // unassigned actions (tiny + standard), excludes snoozed
 
 // ============================================================
 // STATE
@@ -537,10 +780,16 @@ async function loadData() {
     OUTCOMES = (outData.data  || []).map(normalizeOutcome)
     PROJECTS = (projData.data || [])
 
+    // Phase 4.1 — populate dropdown data for dependency add select
+    window._ALL_ACTIVE_OUTCOMES_FOR_DEPS = OUTCOMES.map(o => ({ id: o.id, title: o.title }));
+
     // Validate selectedId still exists
     if (selectedId !== null && !OUTCOMES.find(o => o.id === selectedId)) {
       selectedId = OUTCOMES.length > 0 ? OUTCOMES[0].id : null
     }
+
+    // Phase 4.1 — refresh critical path state
+    await fetchCriticalPath();
 
     // Fetch intelligence for all projects (non-blocking)
     for (const p of PROJECTS) fetchProjectIntelligence(p.id)
@@ -566,7 +815,7 @@ async function loadInboxData() {
 
 async function loadArchivedOutcomes() {
   try {
-    const res = await fetch('/api/outcomes/archived?limit=5')
+    const res = await fetch('/api/outcomes/recently-closed')
     const data = await res.json()
     ARCHIVED_OUTCOMES = data.data || []
   } catch (err) {
@@ -582,6 +831,113 @@ async function loadTodayStats() {
   } catch (err) {
     console.error('Failed to load today stats:', err)
   }
+}
+
+async function loadUnassigned() {
+  try {
+    const res = await fetch('/api/actions/unassigned')
+    const data = await res.json()
+    UNASSIGNED = data.data || []
+    renderUnassignedTray()
+  } catch (_) {}
+}
+
+function renderUnassignedTray() {
+  const el = document.getElementById('unassigned-tray')
+  if (!el) return
+
+  const visible = UNASSIGNED.slice(0, 5)
+  const overflow = UNASSIGNED.length - visible.length
+
+  if (UNASSIGNED.length === 0) {
+    el.innerHTML = ''
+    el.style.display = 'none'
+    return
+  }
+
+  el.style.display = 'block'
+
+  const outcomeOptions = OUTCOMES.map(o =>
+    `<option value="${o.id}">${escHtml(o.title.length > 32 ? o.title.slice(0,32)+'…' : o.title)}</option>`
+  ).join('')
+
+  el.innerHTML = `
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">
+          Unassigned
+          <span class="ml-1 bg-gray-200 text-gray-500 rounded-full px-1.5 py-0.5" style="font-size:9px">${UNASSIGNED.length}</span>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        ${visible.map(a => `
+          <div class="flex items-start gap-1.5 group" data-aid="${a.id}">
+            <input
+              type="checkbox"
+              style="width:11px;height:11px;flex-shrink:0;cursor:pointer;"
+              onchange="completeUnassignedAction(${a.id})"
+              title="Mark done"
+            >
+            <span class="flex-1 text-gray-700" style="font-size:11px;word-break:break-word;">${escHtml(a.title)}</span>
+            <select
+              style="font-size:10px;max-width:90px;border:1px solid #e5e7eb;border-radius:4px;padding:1px 3px;color:#6b7280;background:white;cursor:pointer;"
+              onchange="assignUnassignedAction(${a.id}, this)"
+              title="Assign to outcome"
+            >
+              <option value="">assign…</option>
+              ${outcomeOptions}
+            </select>
+            <button
+              onclick="snoozeUnassignedAction(${a.id})"
+              style="font-size:10px;color:#d1d5db;background:transparent;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;"
+              title="Snooze until tomorrow"
+            >z</button>
+          </div>
+        `).join('')}
+        ${overflow > 0 ? `<div class="text-gray-400 mt-1" style="font-size:10px">+ ${overflow} more</div>` : ''}
+      </div>
+    </div>
+  `
+}
+
+async function completeUnassignedAction(id) {
+  try {
+    await fetch(`/api/actions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: 1 }),
+    })
+    UNASSIGNED = UNASSIGNED.filter(a => a.id !== id)
+    renderUnassignedTray()
+    showToast('Done ✓', 'success')
+  } catch (_) { showToast('Failed to complete', 'warning') }
+}
+
+async function assignUnassignedAction(id, selectEl) {
+  const outcomeId = selectEl.value ? parseInt(selectEl.value) : null
+  if (!outcomeId) return
+  try {
+    await fetch(`/api/actions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outcome_id: outcomeId, action_type: 'standard' }),
+    })
+    UNASSIGNED = UNASSIGNED.filter(a => a.id !== id)
+    // Refresh the outcome's actions so it appears immediately if currently viewing it
+    await loadData()
+    if (selectedId === outcomeId) renderCenter()
+    renderUnassignedTray()
+    const name = OUTCOMES.find(o => o.id === outcomeId)?.title || 'outcome'
+    showToast(`Assigned to "${name.length > 28 ? name.slice(0,28)+'…' : name}"`, 'success')
+  } catch (_) { showToast('Failed to assign', 'warning') }
+}
+
+async function snoozeUnassignedAction(id) {
+  try {
+    await fetch(`/api/actions/${id}/snooze`, { method: 'POST' })
+    UNASSIGNED = UNASSIGNED.filter(a => a.id !== id)
+    renderUnassignedTray()
+  } catch (_) {}
 }
 
 function updateInboxBadge() {
@@ -614,15 +970,40 @@ function updateInboxBadge() {
 function populateQuickCaptureOutcomes() {
   const sel = document.getElementById('quickCaptureOutcome')
   if (!sel) return
-  const current = sel.value
-  sel.innerHTML = '<option value="">— leave unassigned —</option>'
+  const prev = sel.value
+  sel.innerHTML = ''
   for (const o of OUTCOMES) {
     const opt = document.createElement('option')
     opt.value = o.id
     opt.textContent = o.title.length > 38 ? o.title.slice(0, 38) + '…' : o.title
     sel.appendChild(opt)
   }
-  if (current) sel.value = current
+  // "Leave unassigned" goes last so outcomes are the default
+  const unassignedOpt = document.createElement('option')
+  unassignedOpt.value = ''
+  unassignedOpt.textContent = '— leave unassigned —'
+  sel.appendChild(unassignedOpt)
+
+  // Default to current selected outcome, else first outcome
+  if (prev && sel.querySelector(`option[value="${prev}"]`)) {
+    sel.value = prev
+  } else if (currentPhase === 2 && selectedId) {
+    sel.value = selectedId
+  } else if (OUTCOMES.length > 0) {
+    sel.value = OUTCOMES[0].id
+  }
+}
+
+async function loadFocusSummary(outcomeId) {
+  try {
+    const res = await fetch(`/api/focus/sessions/summary?outcomeId=${outcomeId}`);
+    const data = await res.json();
+    if (data.success) {
+      (data.data || []).forEach(row => {
+        FOCUS_SUMMARY[row.action_id] = { total_seconds: row.total_seconds, session_count: row.session_count };
+      });
+    }
+  } catch (_) {}
 }
 
 async function fetchOutcomeStats(outcomeId) {
@@ -633,6 +1014,38 @@ async function fetchOutcomeStats(outcomeId) {
   } catch (err) {
     console.error('Failed to fetch outcome stats:', err)
   }
+}
+
+async function fetchOutcomeDependencies(id) {
+    try {
+        const [depsRes, dependentsRes] = await Promise.all([
+            fetch(`/api/outcomes/${id}/dependencies`),
+            fetch(`/api/outcomes/${id}/dependents`),
+        ]);
+        const depsData      = await depsRes.json();
+        const dependentsData = await dependentsRes.json();
+        OUTCOME_DEPS[id] = {
+            dependencies: depsData.data || [],
+            dependents:   dependentsData.data || [],
+        };
+    } catch (_) {
+        OUTCOME_DEPS[id] = { dependencies: [], dependents: [] };
+    }
+}
+
+async function fetchCriticalPath() {
+    try {
+        const res  = await fetch('/api/outcomes/critical-path');
+        const data = await res.json();
+        CRITICAL_PATH_IDS = new Set((data.data || []).map(o => o.id));
+        CRITICAL_PATH_TITLES = {};
+        (data.data || []).forEach(o => {
+            CRITICAL_PATH_TITLES[o.id] = o.blocked_by_title || 'upstream outcome';
+        });
+    } catch (_) {
+        CRITICAL_PATH_IDS = new Set();
+        CRITICAL_PATH_TITLES = {};
+    }
 }
 
 async function fetchProjectIntelligence(projectId) {
@@ -650,8 +1063,9 @@ async function fetchProjectIntelligence(projectId) {
 // ============================================================
 
 async function init() {
-  await Promise.all([loadData(), loadInboxData(), loadArchivedOutcomes(), loadTodayStats()])
+  await Promise.all([loadData(), loadInboxData(), loadArchivedOutcomes(), loadTodayStats(), loadUnassigned()])
   renderAll()
+  checkAdvisorDot()
 }
 
 function renderAll() {
@@ -663,6 +1077,7 @@ function renderAll() {
   renderRecentlyClosed()
   renderCenter()
   renderRightPanel()
+  if (currentPhase === 2 && selectedId) loadShareSection(selectedId)
 }
 
 function updateDate() {
@@ -680,6 +1095,7 @@ function setPhase(n) {
   selectedOutcomeResult = null
   currentPhase = n
   if (n === 2 && !selectedId && OUTCOMES.length > 0) selectedId = OUTCOMES[0].id
+  populateQuickCaptureOutcomes()
   renderPhaseIndicator()
   renderSidebarOutcomes()
   renderCenter()
@@ -697,13 +1113,17 @@ async function openInboxView() {
 async function selectOutcome(id) {
   selectedId   = id
   currentPhase = 2
+  populateQuickCaptureOutcomes()
   renderPhaseIndicator()
   renderSidebarOutcomes()
   renderCenter()
   renderRightPanel()
+  if (selectedId) loadShareSection(selectedId)
   // Fetch real stats, then re-render right panel with accurate data
-  await fetchOutcomeStats(id)
+  await Promise.all([fetchOutcomeStats(id), fetchOutcomeDependencies(id), loadFocusSummary(id)])
   renderRightPanel()
+  renderCenter()
+  if (selectedId) loadShareSection(selectedId)
 }
 
 // ============================================================
@@ -782,6 +1202,10 @@ function renderSidebarStats() {
     `<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>${done} done</span>
      <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>${active} active</span>`
 
+  const streakHtml = (TODAY_STATS.streak_days && TODAY_STATS.streak_days > 0)
+    ? `<div style="font-size:11px;color:#374151;padding:6px 0;border-top:1px solid #f3f4f6;margin-top:6px;">${TODAY_STATS.streak_days > 1 ? '🔥 ' : ''}${TODAY_STATS.streak_days}-day streak</div>`
+    : ''
+
   document.getElementById('sidebarMetrics').innerHTML = `
     <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2.5" style="font-size:10px">Today's Metrics</div>
     <div class="grid grid-cols-2 gap-2">
@@ -795,20 +1219,48 @@ function renderSidebarStats() {
         <div class="font-semibold text-gray-800 text-sm">${TODAY_STATS.actions_completed_today}</div>
         <div class="text-blue-400" style="font-size:10px">today</div>
       </div>
+    </div>
+    ${streakHtml}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;margin-top:4px;">
+      <span style="font-size:11px;color:#374151;">Sounds</span>
+      <button id="sound-toggle-btn" onclick="toggleSound()"
+        style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer;background:transparent;color:#6b7280;">
+        Off
+      </button>
     </div>`
+
+  // Sync sound toggle button state
+  const soundBtn = document.getElementById('sound-toggle-btn')
+  if (soundBtn) soundBtn.textContent = soundEnabled ? 'On' : 'Off'
 }
 
 function renderSidebarOutcomes() {
-  document.getElementById('sidebarOutcomes').innerHTML = OUTCOMES.length === 0
+  // Phase 5.1 — sort: is_active DESC, then by original order (created_at DESC already set on load)
+  const sorted = [...OUTCOMES].sort((a, b) => (b.is_active || 0) - (a.is_active || 0));
+
+  // Update Active header with in-progress count split
+  const inProgressCount = OUTCOMES.filter(o => o.is_active).length;
+  const totalCount = OUTCOMES.length;
+  const headerEl = document.getElementById('sidebarActiveHeader');
+  if (headerEl) {
+    headerEl.innerHTML = inProgressCount > 0
+      ? `Active &nbsp;<span class="font-normal normal-case tracking-normal text-gray-400" style="font-size:10px">${inProgressCount} in progress &middot; ${totalCount} total</span>`
+      : 'Active';
+  }
+
+  document.getElementById('sidebarOutcomes').innerHTML = sorted.length === 0
     ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No active outcomes</div>`
-    : OUTCOMES.map(o => {
+    : sorted.map(o => {
         const pct  = getProgress(o)
         const risk = getRisk(o)
         const sel  = o.id === selectedId && currentPhase === 2
+        const isActive = !!o.is_active
         return `<div class="sidebar-outcome flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer ${sel ? 'bg-blue-50' : ''}" onclick="selectOutcome(${o.id})">
-          <svg class="shrink-0" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+          ${isActive
+            ? `<span class="shrink-0" style="font-size:8px;color:${o.projectColor};line-height:1;">&#9679;</span>`
+            : `<svg class="shrink-0" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>`}
           <div class="flex-1 min-w-0">
-            <div class="truncate ${sel ? 'text-blue-700 font-medium' : 'text-gray-700'}" style="font-size:11px">${o.title}</div>
+            <div class="truncate ${sel ? 'text-blue-700 font-medium' : isActive ? 'text-gray-900 font-medium' : 'text-gray-700'}" style="font-size:11px">${escHtml(o.title)}</div>
             <div class="flex items-center gap-1 mt-0.5">
               <div class="h-1 flex-1 bg-gray-100 rounded-full overflow-hidden">
                 <div class="h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'}" style="width:${pct}%"></div>
@@ -816,7 +1268,11 @@ function renderSidebarOutcomes() {
               <span class="text-gray-400 shrink-0" style="font-size:9px">${pct}%</span>
             </div>
           </div>
-          ${risk === 'high' ? '<div class="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0"></div>' : risk === 'medium' ? '<div class="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0"></div>' : ''}
+          ${CRITICAL_PATH_IDS.has(o.id)
+            ? `<span class="text-gray-400 shrink-0" style="font-size:10px" title="Blocked by: ${escHtml(CRITICAL_PATH_TITLES[o.id] || 'upstream outcome')}">🔒</span>`
+            : risk === 'high'   ? '<div class="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0"></div>'
+            : risk === 'medium' ? '<div class="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0"></div>'
+            : ''}
         </div>`
       }).join('')
 }
@@ -826,12 +1282,93 @@ function renderSidebarProjects() {
     ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No projects yet</div>`
     : PROJECTS.map(p => {
         const outcomeCount = OUTCOMES.filter(o => o.project_id === p.id).length
-        return `<div class="project-row flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer">
+        const isSelected = activeProjectFilter === p.id
+        const bgStyle = isSelected ? `background:${p.color || '#818cf8'}20;` : ''
+        return `<div class="project-row flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-gray-50"
+          style="${bgStyle}"
+          onclick="setProjectFilter(${p.id}); showPhase(1);">
           <div class="w-2 h-2 rounded-full shrink-0" style="background:${p.color || '#818cf8'}"></div>
-          <span class="flex-1 text-gray-700" style="font-size:11px">${p.name}</span>
+          <span class="flex-1 text-gray-700" style="font-size:11px">${escHtml(p.name)}</span>
           <span class="text-gray-400" style="font-size:10px">${outcomeCount}</span>
         </div>`
       }).join('')
+}
+
+// Phase 5.1 — New project form helpers
+const NEW_PROJECT_COLORS = ['#818cf8', '#4ade80', '#f87171', '#fb923c', '#38bdf8', '#a78bfa'];
+let newProjectSelectedColor = NEW_PROJECT_COLORS[0];
+
+function toggleNewProjectForm() {
+  const form = document.getElementById('newProjectForm');
+  if (!form) return;
+  if (form.style.display === 'none' || form.style.display === '') {
+    // Render color swatches
+    const swatches = document.getElementById('newProjectSwatches');
+    if (swatches) {
+      swatches.innerHTML = NEW_PROJECT_COLORS.map(c => `
+        <button
+          type="button"
+          onclick="selectNewProjectColor('${c}')"
+          id="swatch-${c.replace('#','')}"
+          style="width:16px;height:16px;border-radius:50%;background:${c};border:2px solid ${c === newProjectSelectedColor ? '#111827' : 'transparent'};cursor:pointer;flex-shrink:0;transition:border-color 0.1s ease;"
+          title="${c}"
+        ></button>
+      `).join('');
+    }
+    newProjectSelectedColor = NEW_PROJECT_COLORS[0];
+    form.style.display = 'block';
+    setTimeout(() => {
+      const inp = document.getElementById('newProjectName');
+      if (inp) { inp.value = ''; inp.focus(); }
+    }, 50);
+  } else {
+    cancelNewProjectForm();
+  }
+}
+
+function selectNewProjectColor(color) {
+  newProjectSelectedColor = color;
+  NEW_PROJECT_COLORS.forEach(c => {
+    const btn = document.getElementById('swatch-' + c.replace('#',''));
+    if (btn) btn.style.border = `2px solid ${c === color ? '#111827' : 'transparent'}`;
+  });
+}
+
+function cancelNewProjectForm() {
+  const form = document.getElementById('newProjectForm');
+  if (form) form.style.display = 'none';
+  const inp = document.getElementById('newProjectName');
+  if (inp) inp.value = '';
+}
+
+function handleNewProjectKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); submitNewProject(); }
+  if (e.key === 'Escape') { e.preventDefault(); cancelNewProjectForm(); }
+}
+
+async function submitNewProject() {
+  const inp = document.getElementById('newProjectName');
+  const name = inp?.value.trim();
+  if (!name) { inp?.focus(); return; }
+  try {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, color: newProjectSelectedColor }),
+    });
+    if (!res.ok) throw new Error('create failed');
+    const data = await res.json();
+    cancelNewProjectForm();
+    await loadData();
+    renderAll();
+    showToast(`Project "${name}" created`, 'success');
+  } catch {
+    showToast('Failed to create project', 'warning');
+  }
+}
+
+function showPhase(n) {
+  setPhase(n);
 }
 
 function renderRecentlyClosed() {
@@ -886,6 +1423,13 @@ function fmt(min) {
   return m ? `${h}h ${m}m` : `${h}h`
 }
 
+function fmtSeconds(s) {
+  if (s < 60) return '< 1m'
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`
+  return `${m}m`
+}
+
 function priorityBadge(p) {
   const map = {
     critical: ['bg-red-50 text-red-600 border border-red-100',    'Critical'],
@@ -927,7 +1471,51 @@ function renderCenter() {
 // ============================================================
 
 function renderPhase1() {
-  const cards = OUTCOMES.map(o => {
+  // Phase 5.1 — separate activated from regular
+  const allFiltered = activeProjectFilter
+    ? OUTCOMES.filter(o => o.project_id === activeProjectFilter)
+    : OUTCOMES;
+
+  const activatedOutcomes = allFiltered.filter(o => o.is_active);
+  const regularOutcomes   = allFiltered.filter(o => !o.is_active);
+
+  // ---- IN PROGRESS strip ----
+  const inProgressStrip = activatedOutcomes.length > 0 ? `
+    <div class="mb-6">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">In Progress</div>
+      <div class="space-y-3">
+        ${activatedOutcomes.map(o => {
+          const pct = getProgress(o);
+          return `<div class="outcome-card bg-white rounded-xl border border-blue-200 p-4" style="box-shadow:0 0 0 1px rgba(59,130,246,0.1);" onclick="selectOutcome(${o.id})">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+                  <span class="text-gray-400" style="font-size:10px">${escHtml(o.project)}</span>
+                </div>
+                <div class="font-semibold text-gray-900 leading-snug" style="font-size:14px">${escHtml(o.title)}</div>
+                ${o.activation_note ? `<div class="text-gray-400 mt-1 leading-relaxed" style="font-size:11px;font-style:italic;">${escHtml(o.activation_note)}</div>` : ''}
+              </div>
+              <button
+                onclick="deactivateOutcome(${o.id}); event.stopPropagation();"
+                class="shrink-0 flex items-center gap-1 text-blue-500 hover:text-blue-700 border border-blue-200 hover:border-blue-400 rounded-full px-2 py-0.5 transition-colors"
+                style="font-size:10px;font-weight:500;white-space:nowrap;"
+              >&#9679; In Progress</button>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full prog-bar ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+              </div>
+              <span class="font-semibold text-gray-600 shrink-0" style="font-size:11px">${pct}%</span>
+            </div>
+          </div>`
+        }).join('')}
+      </div>
+    </div>
+  ` : '';
+
+  // ---- Regular outcome cards ----
+  const cards = regularOutcomes.map(o => {
     const pct  = getProgress(o)
     const risk = getRisk(o)
     const borderCls = risk === 'high' ? 'border-red-200' : risk === 'medium' ? 'border-amber-200' : 'border-gray-200'
@@ -936,12 +1524,12 @@ function renderPhase1() {
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5 mb-1.5">
             <svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
-            <span class="text-gray-400" style="font-size:10px">${o.project}</span>
+            <span class="text-gray-400" style="font-size:10px">${escHtml(o.project)}</span>
             <span class="text-gray-200 mx-0.5">·</span>
-            <span class="text-gray-400" style="font-size:10px">${o.impact}</span>
+            <span class="text-gray-400" style="font-size:10px">${escHtml(o.impact)}</span>
           </div>
-          <div class="font-semibold text-gray-900 leading-snug" style="font-size:14px">${o.title}</div>
-          <div class="text-gray-500 mt-1 leading-relaxed" style="font-size:11px">${o.description}</div>
+          <div class="font-semibold text-gray-900 leading-snug" style="font-size:14px">${escHtml(o.title)}</div>
+          <div class="text-gray-500 mt-1 leading-relaxed" style="font-size:11px">${escHtml(o.description)}</div>
         </div>
         <div class="shrink-0 flex flex-col items-end gap-1.5">
           <button
@@ -962,7 +1550,7 @@ function renderPhase1() {
         <span class="font-semibold text-gray-600 shrink-0" style="font-size:11px">${pct}%</span>
       </div>
 
-      <!-- Meta row -->
+      <!-- Meta row + Activate button -->
       <div class="flex items-center gap-3 text-gray-400" style="font-size:10px">
         <span class="flex items-center gap-1">
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -975,10 +1563,89 @@ function renderPhase1() {
           </svg>${o.actions.length} actions
         </span>
         <span>${o.actions.filter(a => a.done).length} / ${o.actions.length} done</span>
-        <span class="ml-auto text-blue-500 font-medium">Start executing →</span>
+        <span class="ml-auto flex items-center gap-2">
+          <button
+            class="activate-btn text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300 rounded-full px-2.5 py-0.5 transition-colors"
+            style="font-size:10px;font-weight:500;"
+            onclick="showActivatePrompt(${o.id}); event.stopPropagation();"
+          >Activate</button>
+          <span class="text-blue-500 font-medium">Start executing →</span>
+        </span>
+      </div>
+
+      <!-- Inline activate prompt (Phase 5.1) -->
+      <div id="activate-prompt-${o.id}" class="activate-inline items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+        <input
+          id="activate-note-${o.id}"
+          type="text"
+          placeholder="What's your intention for this today? (optional)"
+          class="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:border-blue-300"
+          style="font-size:11px"
+          onkeydown="handleActivateKey(event, ${o.id})"
+        />
+        <button
+          onclick="commitActivation(${o.id}); event.stopPropagation();"
+          class="shrink-0 text-white bg-gray-900 hover:bg-gray-700 rounded-lg px-3 py-1.5 font-medium transition-colors"
+          style="font-size:10px;white-space:nowrap;"
+        >Commit →</button>
+        <button
+          onclick="cancelActivatePrompt(${o.id}); event.stopPropagation();"
+          class="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          style="font-size:10px"
+        >✕</button>
       </div>
     </div>`
   }).join('')
+
+  // Build project filter tabs — only show when 2+ distinct projects
+  const distinctProjects = [];
+  const seenIds = new Set();
+  for (const o of OUTCOMES) {
+    if (!seenIds.has(o.project_id)) {
+      seenIds.add(o.project_id);
+      distinctProjects.push({ id: o.project_id, name: o.project, color: o.projectColor });
+    }
+  }
+
+  const tabsHtml = distinctProjects.length > 1 ? `
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+      <button
+        onclick="setProjectFilter(null)"
+        style="padding:4px 12px;border-radius:20px;border:1px solid ${activeProjectFilter === null ? '#111827' : '#e5e7eb'};background:${activeProjectFilter === null ? '#111827' : 'transparent'};color:${activeProjectFilter === null ? '#fff' : '#6b7280'};font-size:11px;cursor:pointer;font-weight:500;">
+        All
+      </button>
+      ${distinctProjects.map(p => `
+        <button
+          onclick="setProjectFilter(${p.id})"
+          style="padding:4px 12px;border-radius:20px;border:1px solid ${activeProjectFilter === p.id ? (p.color || '#111827') : '#e5e7eb'};background:${activeProjectFilter === p.id ? (p.color || '#111827') : 'transparent'};color:${activeProjectFilter === p.id ? '#fff' : '#6b7280'};font-size:11px;cursor:pointer;font-weight:500;">
+          ${escHtml(p.name)}
+        </button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Quick capture input
+  const quickCapture = `
+    <div style="margin-top:20px;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+      <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      <input
+        id="quick-capture-outcome"
+        type="text"
+        placeholder="Add outcome\u2026"
+        style="flex:1;background:transparent;border:none;outline:none;font-size:12px;color:#374151;"
+        onkeydown="handleQuickCaptureOutcome(event)"
+      />
+    </div>`;
+
+  const hasNoRegular = regularOutcomes.length === 0;
+  const emptyState = hasNoRegular && activatedOutcomes.length === 0
+    ? `<div class="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
+        <div class="text-gray-400 text-sm mb-3">${activeProjectFilter ? 'No outcomes in this project' : 'No active outcomes yet'}</div>
+        <div class="text-gray-300" style="font-size:11px">Use the input below or "New Outcome" to create one</div>
+      </div>`
+    : (hasNoRegular ? '' : '');
 
   return `<div class="p-6 fade-in">
     <div class="flex items-center justify-between mb-4">
@@ -1004,16 +1671,122 @@ function renderPhase1() {
         <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
         <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
       </div>
-      Recommended: 1–3 active outcomes at a time. You currently have ${OUTCOMES.length}.
+      Recommended: 1&ndash;3 active outcomes at a time. You currently have ${OUTCOMES.length}.
     </div>
 
-    ${OUTCOMES.length === 0 ? `<div class="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
-      <div class="text-gray-400 text-sm mb-3">No active outcomes yet</div>
-      <div class="text-gray-300" style="font-size:11px">Use Quick Capture on the left to create your first outcome</div>
-    </div>` : ''}
+    ${tabsHtml}
+
+    ${inProgressStrip}
+
+    ${regularOutcomes.length > 0 && activatedOutcomes.length > 0 ? `<div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Outcomes</div>` : ''}
+
+    ${emptyState}
 
     <div class="space-y-4">${cards}</div>
+
+    ${quickCapture}
   </div>`
+}
+
+function setProjectFilter(projectId) {
+  activeProjectFilter = projectId;
+  renderCenter();
+  renderSidebarProjects();
+}
+
+// ============================================================
+// PHASE 5.1 — ACTIVATION FLOW
+// ============================================================
+
+function showActivatePrompt(outcomeId) {
+  const prompt = document.getElementById(`activate-prompt-${outcomeId}`);
+  if (!prompt) return;
+  prompt.classList.add('open');
+  setTimeout(() => {
+    const inp = document.getElementById(`activate-note-${outcomeId}`);
+    if (inp) inp.focus();
+  }, 50);
+}
+
+function cancelActivatePrompt(outcomeId) {
+  const prompt = document.getElementById(`activate-prompt-${outcomeId}`);
+  if (prompt) prompt.classList.remove('open');
+  const inp = document.getElementById(`activate-note-${outcomeId}`);
+  if (inp) inp.value = '';
+}
+
+function handleActivateKey(e, outcomeId) {
+  if (e.key === 'Enter') { e.preventDefault(); commitActivation(outcomeId); }
+  if (e.key === 'Escape') { e.preventDefault(); cancelActivatePrompt(outcomeId); }
+}
+
+async function commitActivation(outcomeId) {
+  // Soft cap: warn if already 3+ activated
+  const currentlyActive = OUTCOMES.filter(o => o.is_active).length;
+  if (currentlyActive >= 3) {
+    const proceed = confirm('You already have 3 things in progress. Adding more reduces the focus signal. Still activate?');
+    if (!proceed) return;
+  }
+
+  const inp = document.getElementById(`activate-note-${outcomeId}`);
+  const note = inp?.value.trim() || null;
+
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: 1, activation_note: note }),
+    });
+    if (!res.ok) throw new Error('activate failed');
+    await loadData();
+    renderAll();
+  } catch {
+    showToast('Failed to activate outcome', 'warning');
+  }
+}
+
+async function deactivateOutcome(outcomeId) {
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: 0, activation_note: null }),
+    });
+    if (!res.ok) throw new Error('deactivate failed');
+    await loadData();
+    renderAll();
+  } catch {
+    showToast('Failed to deactivate outcome', 'warning');
+  }
+}
+
+async function handleQuickCaptureOutcome(e) {
+  if (e.key !== 'Enter') return;
+  const input = document.getElementById('quick-capture-outcome');
+  const title = input?.value.trim();
+  if (!title) return;
+  input.value = ''; // clear immediately before async fetch
+
+  // Determine which project to assign: use filter if active, else first project
+  const projectId = activeProjectFilter || (PROJECTS[0]?.id || null);
+  if (!projectId) {
+    showToast('Create a project first', 'warning');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/outcomes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, project_id: projectId }),
+    });
+    if (!res.ok) throw new Error('create failed');
+    await loadData();
+    renderAll();
+    showToast('Outcome created', 'success');
+  } catch {
+    showToast('Failed to create outcome', 'warning');
+  }
 }
 
 // ============================================================
@@ -1085,17 +1858,25 @@ function renderPhase2() {
             <span class="text-gray-400">Blocked</span>
           </label>
           <div id="blockedReason-${a.id}" class="${a.blocked ? '' : 'hidden'} flex items-center gap-1">
-            <input
-              type="text"
-              value="${escHtml(a.blockedBy)}"
-              placeholder="waiting on…"
-              class="border border-gray-200 rounded px-1.5 py-0.5 text-gray-600 focus:outline-none focus:border-blue-300"
-              style="font-size:10px;min-width:100px"
-              onblur="if(this.value !== '${escHtml(a.blockedBy)}') saveActionField(${a.id}, {blocked_by: this.value})"
-              onkeydown="if(event.key==='Enter') this.blur()"
+            <select
+              class="border border-gray-200 rounded px-1.5 py-0.5 text-gray-600 focus:outline-none focus:border-blue-300 bg-white"
+              style="font-size:10px;min-width:110px;max-width:180px"
+              onchange="saveActionField(${a.id}, {blocked_by: this.value})"
             >
+              <option value="">waiting on…</option>
+              ${o.actions.filter(x => x.id !== a.id && !x.done).map(x =>
+                `<option value="${escHtml(x.title)}" ${a.blockedBy === x.title ? 'selected' : ''}>${escHtml(x.title.length > 30 ? x.title.slice(0,30)+'…' : x.title)}</option>`
+              ).join('')}
+              ${a.blockedBy && !o.actions.find(x => x.title === a.blockedBy) ? `<option value="${escHtml(a.blockedBy)}" selected>${escHtml(a.blockedBy)}</option>` : ''}
+            </select>
           </div>
+          ${!a.done ? `<button
+            onclick="event.stopPropagation(); enterFocusMode(${a.id}, ${o.id})"
+            class="focus-btn ml-auto"
+            style="padding:2px 8px;font-size:10px;color:#9ca3af;border:1px solid #e5e7eb;border-radius:4px;background:transparent;cursor:pointer;opacity:0;transition:opacity 0.15s;"
+            title="Enter Focus Mode">Focus →</button>` : ''}
         </div>
+        ${(FOCUS_SUMMARY[a.id] && FOCUS_SUMMARY[a.id].total_seconds > 0) ? `<div style="font-size:9px;color:#9ca3af;margin-top:2px;">⏱ ${fmtSeconds(FOCUS_SUMMARY[a.id].total_seconds)} focused · ${FOCUS_SUMMARY[a.id].session_count} session${FOCUS_SUMMARY[a.id].session_count !== 1 ? 's' : ''}</div>` : ''}
       </div>
     </div>`
   }).join('')
@@ -1188,6 +1969,47 @@ function renderPhase2() {
           <div class="h-full rounded-full prog-bar ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
         </div>
         <span class="font-semibold text-gray-500 shrink-0" style="font-size:11px">${pct}% · ${fmt(remTime)} left</span>
+      </div>
+    </div>
+
+    <!-- Notes (rich text) -->
+    <div class="px-4 pt-4 pb-1">
+      <div class="flex items-center justify-between mb-1.5">
+        <div class="text-gray-400 font-semibold uppercase tracking-wider" style="font-size:10px">Notes</div>
+        <button class="text-gray-300 hover:text-gray-500 transition-colors" style="font-size:10px" onclick="toggleNotesEditor(${o.id})" id="notesToggleBtn-${o.id}">
+          ${o.notes ? 'Edit' : '+ Add notes'}
+        </button>
+      </div>
+      <div id="notesDisplay-${o.id}" style="${o.notes ? '' : 'display:none'}">
+        <div class="text-gray-600 leading-relaxed" style="font-size:12px">${o.notes || ''}</div>
+      </div>
+      <div id="notesEditorWrap-${o.id}" style="display:none">
+        <div class="notes-toolbar" id="notesToolbar-${o.id}">
+          <button onclick="notesCmd('bold')" title="Bold"><b>B</b></button>
+          <button onclick="notesCmd('italic')" title="Italic"><i>I</i></button>
+          <button onclick="notesCmd('underline')" title="Underline"><u>U</u></button>
+          <div class="sep"></div>
+          <button onclick="notesCmd('insertUnorderedList')" title="Bullet list">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+          </button>
+          <button onclick="notesCmd('insertOrderedList')" title="Numbered list">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="8" fill="currentColor" stroke="none" font-weight="600">1</text><text x="2" y="14" font-size="8" fill="currentColor" stroke="none" font-weight="600">2</text><text x="2" y="20" font-size="8" fill="currentColor" stroke="none" font-weight="600">3</text></svg>
+          </button>
+          <div class="sep"></div>
+          <button onclick="notesCmd('formatBlock', 'h3')" title="Heading" style="font-size:13px"><b>H</b></button>
+          <button onclick="notesCmd('formatBlock', 'blockquote')" title="Quote" style="font-size:14px">"</button>
+          <button onclick="notesInsertLink()" title="Link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          </button>
+          <div style="flex:1"></div>
+          <button onclick="saveNotes(${o.id})" title="Save" style="color:#10B981;font-size:10px;width:auto;padding:0 8px;">Save</button>
+        </div>
+        <div
+          class="notes-editor"
+          contenteditable="true"
+          id="notesEditor-${o.id}"
+          data-placeholder="Add context, meeting notes, links, decisions…"
+        >${o.notes || ''}</div>
       </div>
     </div>
 
@@ -1330,7 +2152,7 @@ function renderPhase3() {
         onclick="archiveOutcome()"
         class="flex-1 bg-gray-900 text-white font-semibold py-2.5 rounded-xl transition-colors opacity-40 cursor-not-allowed"
         style="font-size:11px">
-        Archive Outcome
+        Mark Complete
       </button>
       <button class="border border-gray-200 text-gray-600 font-medium py-2.5 px-4 rounded-xl hover:bg-gray-50 transition-colors" style="font-size:11px" onclick="setPhase(2)">
         Back
@@ -1411,6 +2233,10 @@ function renderInbox() {
       </div>
       ${pickerHtml}
       <div class="flex items-center gap-2 mt-3">
+        <input type="checkbox"
+          onchange="toggleTriageItem(${item.id}, this.checked)"
+          style="width:14px;height:14px;cursor:pointer;accent-color:#111827;flex-shrink:0;"
+          title="Select for batch triage" />
         <button onclick="approveInboxItem(${item.id}, '${item.classification}')"
           class="flex-1 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors text-center"
           style="font-size:11px;padding:6px 0">
@@ -1434,6 +2260,12 @@ function renderInbox() {
       <button onclick="triggerTriageProcess()" class="flex items-center gap-1.5 bg-blue-50 text-blue-600 font-medium rounded-lg hover:bg-blue-100 transition-colors" style="font-size:11px;padding:6px 12px">
         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Pull &amp; Process
+      </button>
+    </div>
+    <div id="triage-batch-bar" style="display:none;padding:6px 0;margin-bottom:8px;">
+      <button id="start-batch-triage-btn" onclick="startBatchTriage()"
+        style="width:100%;padding:8px 12px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+        Triage Selected (<span id="triage-count">0</span>) &#x2192;
       </button>
     </div>
     ${cards}
@@ -1695,12 +2527,79 @@ function renderRightP2() {
 
     <!-- Today's plan -->
     <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Available Today</div>
-    <div class="bg-gray-50 rounded-xl p-3">
+    <div class="bg-gray-50 rounded-xl p-3 mb-3">
       <div class="flex items-center justify-between mb-1">
         <div class="text-gray-600" style="font-size:11px">Actionable now</div>
         <div class="font-semibold text-gray-800" style="font-size:11px">${fmt(todayTime)}</div>
       </div>
       <div class="text-gray-400" style="font-size:10px">${avail.length} action${avail.length !== 1 ? 's' : ''} ready to start</div>
+    </div>
+
+    <!-- Dependencies section (Phase 4.1) -->
+    ${(() => {
+      const depState = OUTCOME_DEPS[o.id] || { dependencies: [], dependents: [] };
+      const hasActiveDeps = depState.dependencies.filter(d => d.status === 'active').length > 0;
+
+      const depsHtml = depState.dependencies.length === 0
+          ? `<div class="text-gray-400" style="font-size:10px">None</div>`
+          : depState.dependencies.map(d => `
+              <div class="flex items-center justify-between py-1">
+                  <div class="flex items-center gap-1.5">
+                      <span class="w-1.5 h-1.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
+                      <span class="text-gray-700" style="font-size:11px">${escHtml(d.title)}</span>
+                      <span class="text-gray-400" style="font-size:10px">(${d.status})</span>
+                  </div>
+                  <button onclick="removeDependency(${o.id}, ${d.id})" class="text-gray-300 hover:text-red-400 transition-colors ml-2" style="font-size:11px;line-height:1" title="Remove dependency">×</button>
+              </div>`
+          ).join('');
+
+      const dependentsHtml = depState.dependents.length === 0
+          ? `<div class="text-gray-400" style="font-size:10px">None</div>`
+          : depState.dependents.map(d => `
+              <div class="flex items-center gap-1.5 py-1">
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-blue-400' : 'bg-gray-300'}"></span>
+                  <span class="text-gray-600" style="font-size:11px">${escHtml(d.title)}</span>
+                  <span class="text-gray-400" style="font-size:10px">(${d.status})</span>
+              </div>`
+          ).join('');
+
+      return `
+        ${hasActiveDeps ? `
+        <div class="flex items-center gap-1.5 px-2 py-1 bg-amber-50 border border-amber-100 rounded-lg mb-3">
+            <svg class="w-3 h-3 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            </svg>
+            <span class="text-amber-700 font-medium" style="font-size:10px">Blocked — upstream work in progress</span>
+        </div>` : ''}
+
+        <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2" style="font-size:10px">Dependencies</div>
+
+        <div class="mb-2">
+            <div class="text-gray-500 mb-1" style="font-size:10px">Blocked by</div>
+            ${depsHtml}
+        </div>
+
+        <div class="mb-3">
+            <div class="text-gray-500 mb-1" style="font-size:10px">Blocking</div>
+            ${dependentsHtml}
+        </div>
+
+        <div class="mt-2">
+            <div class="text-gray-500 mb-1" style="font-size:10px">Add dependency</div>
+            <select id="dep-add-select-${o.id}" onchange="addDependency(${o.id}, this)" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white" style="font-size:11px">
+                <option value="">Select an outcome to block on...</option>
+                ${(window._ALL_ACTIVE_OUTCOMES_FOR_DEPS || [])
+                    .filter(ao => ao.id !== o.id && !depState.dependencies.find(d => d.id === ao.id))
+                    .map(ao => `<option value="${ao.id}">${escHtml(ao.title)}</option>`)
+                    .join('')}
+            </select>
+        </div>`;
+    })()}
+
+    <!-- Share -->
+    <div class="text-gray-400 font-semibold uppercase tracking-wider mb-2 mt-3" style="font-size:10px">Share Status</div>
+    <div id="outcome-share-section-${o.id}">
+      <div class="text-gray-300" style="font-size:10px">Loading…</div>
     </div>
   </div>`
 }
@@ -1743,6 +2642,46 @@ function renderRightP3() {
 }
 
 // ============================================================
+// OUTCOME DEPENDENCIES (Phase 4.1)
+// ============================================================
+
+async function addDependency(outcomeId, selectEl) {
+    const dependsOnId = parseInt(selectEl.value);
+    if (!dependsOnId) return;
+    try {
+        const res = await fetch(`/api/outcomes/${outcomeId}/dependencies`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ depends_on_outcome_id: dependsOnId }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            showToast(data.error || 'Could not add dependency', 'warning');
+            selectEl.value = '';
+            return;
+        }
+        await fetchCriticalPath();
+        await fetchOutcomeDependencies(outcomeId);
+        renderRightPanel();
+        renderSidebarOutcomes(); // re-render in case lock icon state changed
+    } catch (_) {
+        showToast('Failed to add dependency', 'warning');
+    }
+}
+
+async function removeDependency(outcomeId, dependsOnId) {
+    try {
+        await fetch(`/api/outcomes/${outcomeId}/dependencies/${dependsOnId}`, { method: 'DELETE' });
+        await fetchCriticalPath();
+        await fetchOutcomeDependencies(outcomeId);
+        renderRightPanel();
+        renderSidebarOutcomes();
+    } catch (_) {
+        showToast('Failed to remove dependency', 'warning');
+    }
+}
+
+// ============================================================
 // TOGGLE ACTION
 // ============================================================
 
@@ -1758,6 +2697,16 @@ async function toggleAction(oid, aid, checked) {
   renderCenter()
   renderRightPanel()
 
+  // Phase 2.6: row flash animation on check
+  if (checked) {
+    const row = document.querySelector(`.action-check[data-oid="${oid}"][data-aid="${aid}"]`)?.closest('.action-row')
+    if (row) {
+      row.classList.add('action-row-flash')
+      row.addEventListener('animationend', () => row.classList.remove('action-row-flash'), { once: true })
+    }
+    playSound('check')
+  }
+
   try {
     const res = await fetch(`/api/actions/${aid}/toggle`, { method: 'PATCH' })
     if (!res.ok) throw new Error('toggle failed')
@@ -1767,7 +2716,19 @@ async function toggleAction(oid, aid, checked) {
     renderAll()
     const pct = OUTCOME_STATS[oid] ? Math.round(OUTCOME_STATS[oid].progress * 100) : getProgress(getOutcome(oid) || o)
     if (checked && pct === 100) {
-      showToast('All actions complete · Ready to close this outcome', 'success')
+      // Phase 2.6: confetti + completion banner
+      playSound('complete')
+      setTimeout(() => {
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 120,
+            spread: 80,
+            origin: { x: 0.5, y: 0.1 },
+            colors: ['#4ade80', '#22d3ee', '#a78bfa', '#f59e0b'],
+          })
+        }
+      }, 500)
+      showCompletionBanner(oid, o.title)
     } else if (checked) {
       showToast(`"${a.title}" marked complete`, 'info')
     }
@@ -1878,11 +2839,20 @@ async function handleQuickCapture(e) {
     await loadData()
     if (outcomeId) {
       selectedId = outcomeId
-      setPhase(2)
+      currentPhase = 2
+      populateQuickCaptureOutcomes()
+      renderPhaseIndicator()
+      renderSidebarOutcomes()
+      renderCenter()
+      renderRightPanel()
+      const outcomeName = OUTCOMES.find(o => o.id === outcomeId)?.title || 'outcome'
+      showToast(`Added to "${outcomeName.length > 30 ? outcomeName.slice(0,30)+'…' : outcomeName}"`, 'success')
+    } else {
+      await loadUnassigned()
+      renderCenter()
+      renderRightPanel()
+      showToast('Action saved — assign it to an outcome when ready', 'success')
     }
-    renderCenter()
-    renderRightPanel()
-    showToast(outcomeId ? 'Action captured' : 'Action captured (unassigned)', 'success')
   } catch (err) {
     showToast('Failed to capture action', 'warning')
   }
@@ -1924,28 +2894,114 @@ async function handleAddAction(e, oid) {
 // ============================================================
 
 function toggleFocus() {
-  isFocusMode = !isFocusMode
-  const track  = document.getElementById('focusTrack')
-  const thumb  = document.getElementById('focusThumb')
-  const status = document.getElementById('focusStatus')
-  const label  = document.getElementById('focusLabel')
+  if (isFocusMode) return; // already in a session — toggle is a no-op
 
-  if (isFocusMode) {
-    track.style.backgroundColor = '#3B82F6'
-    thumb.style.transform = 'translateX(12px)'
-    status.textContent = 'Focus mode · Notifications paused'
-    status.className = 'text-blue-500 mt-0.5'
-    label.textContent = 'Focus'
-    label.style.color = '#3B82F6'
-    showToast('Focus mode on · Stay the course', 'info')
-  } else {
-    track.style.backgroundColor = ''
-    thumb.style.transform = ''
-    status.textContent = 'Normal mode · All areas active'
-    status.className = 'text-gray-400 mt-0.5'
-    label.textContent = 'Focus'
-    label.style.color = ''
+  // Find the first pending (non-done, non-blocked) action across all outcomes
+  let firstPending = null;
+  for (const outcome of OUTCOMES) {
+    const found = (outcome.actions || []).find(a => !a.done && !a.blocked);
+    if (found) { firstPending = found; break; }
   }
+
+  if (!firstPending) {
+    showToast('No pending actions to focus on', 'info');
+    return;
+  }
+
+  enterFocusMode(firstPending.id);
+}
+
+function setFocusToggleState(on) {
+  isFocusMode = on;
+  const track  = document.getElementById('focusTrack');
+  const thumb  = document.getElementById('focusThumb');
+  const status = document.getElementById('focusStatus');
+  const label  = document.getElementById('focusLabel');
+  if (!track) return;
+
+  if (on) {
+    track.style.backgroundColor = '#3B82F6';
+    thumb.style.transform = 'translateX(12px)';
+    status.textContent = 'Focus mode · Notifications paused';
+    status.className = 'text-blue-500 mt-0.5';
+    label.style.color = '#3B82F6';
+  } else {
+    track.style.backgroundColor = '';
+    thumb.style.transform = '';
+    status.textContent = 'Normal mode · All areas active';
+    status.className = 'text-gray-400 mt-0.5';
+    label.style.color = '';
+  }
+}
+
+// ============================================================
+// SHARE STATUS — Phase 4.2
+// ============================================================
+
+async function loadShareSection(outcomeId) {
+  const el = document.getElementById(`outcome-share-section-${outcomeId}`)
+  if (!el) return
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}/share`)
+    const data = await res.json()
+    if (data.data) {
+      // Active share exists — show URL + Revoke
+      el.innerHTML = `
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+          <div class="text-gray-600 font-medium mb-2" style="font-size:10px">Active link</div>
+          <div class="text-gray-500 break-all mb-2" style="font-size:9px;line-height:1.4">${escHtml(data.data.share_url)}</div>
+          <div class="flex gap-2">
+            <button onclick="copyShareLink('${escHtml(data.data.share_url)}')"
+              class="flex-1 bg-gray-900 text-white rounded-lg font-medium py-1.5 hover:bg-gray-700 transition-colors"
+              style="font-size:10px">Copy link</button>
+            <button onclick="revokeShareLink(${outcomeId})"
+              class="border border-gray-200 text-gray-500 rounded-lg font-medium py-1.5 px-3 hover:bg-gray-50 transition-colors"
+              style="font-size:10px">Revoke</button>
+          </div>
+        </div>`
+    } else {
+      // No active share — show generate button
+      el.innerHTML = `
+        <button onclick="generateShareLink(${outcomeId})"
+          class="w-full border border-gray-200 text-gray-600 rounded-xl py-2 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+          style="font-size:11px">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+          </svg>
+          Share status →</button>`
+    }
+  } catch (e) {
+    el.innerHTML = ''
+  }
+}
+
+async function generateShareLink(outcomeId) {
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}/share`, { method: 'POST' })
+    if (!res.ok) throw new Error('share failed')
+    await loadShareSection(outcomeId)
+  } catch (e) {
+    showToast('Failed to generate share link', 'warning')
+  }
+}
+
+async function revokeShareLink(outcomeId) {
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}/share`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('revoke failed')
+    await loadShareSection(outcomeId)
+    showToast('Share link revoked', 'info')
+  } catch (e) {
+    showToast('Failed to revoke share link', 'warning')
+  }
+}
+
+function copyShareLink(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Link copied!', 'success')
+  }).catch(() => {
+    showToast('Copy failed — use browser copy', 'warning')
+  })
 }
 
 // ============================================================
@@ -1966,15 +3022,37 @@ async function archiveOutcome() {
       return
     }
 
-    const res = await fetch(`/api/outcomes/${selectedId}/complete`, {
+    // Phase 2.6: collect stats before archiving
+    const archivingId = selectedId
+    const archivingOutcome = getOutcome(archivingId)
+    const archivingTitle = archivingOutcome?.title || ''
+    let actionsDone = 0, totalMinutes = 0
+    try {
+      const actRes = await fetch(`/api/outcomes/${archivingId}/actions`)
+      const actData = await actRes.json()
+      const acts = actData.data || []
+      actionsDone = acts.filter(a => a.done).length
+      totalMinutes = acts.filter(a => a.done).reduce((s, a) => s + (a.time_estimate || 0), 0)
+    } catch (_) {}
+
+    const res = await fetch(`/api/outcomes/${archivingId}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what_worked, what_slipped, reusable_insight, outcome_result, outcome_result_note }),
     })
     if (!res.ok) throw new Error('complete failed')
 
-    // Archive succeeded — toast immediately before reload
-    showToast('Outcome closed · Well done.', 'success')
+    const archiveData = await res.json()
+    const summary = archiveData.data?.outcome_summary
+
+    // Phase 2.6: show archive overlay
+    playSound('archive')
+    showArchiveOverlay(archivingTitle, actionsDone, totalMinutes)
+
+    // Phase 4.2: show summary chip if Claude returned one
+    if (summary) {
+      showOutcomeSummaryChip(summary)
+    }
 
     // Reload separately — failures here don't mask the archive success
     selectedId            = null
@@ -1994,12 +3072,68 @@ async function archiveOutcome() {
 }
 
 // ============================================================
+// OUTCOME SUMMARY CHIP — Phase 4.2
+// ============================================================
+
+function showOutcomeSummaryChip(summaryText) {
+  // Remove any existing chip
+  document.getElementById('outcome-summary-chip')?.remove()
+
+  const chip = document.createElement('div')
+  chip.id = 'outcome-summary-chip'
+  chip.style.cssText = `
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    background:#fff; border:1px solid #e5e7eb; border-radius:16px;
+    padding:16px 20px; max-width:480px; width:calc(100% - 48px);
+    box-shadow:0 8px 24px rgba(0,0,0,0.10); z-index:1000;
+    animation:fadeInUp 250ms ease-out forwards;
+  `
+
+  chip.innerHTML = `
+    <div style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
+      Summary generated — ready to forward
+    </div>
+    <div style="font-size:13px;color:#111827;line-height:1.5;margin-bottom:12px;">
+      ${escHtml(summaryText)}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button
+        id="outcome-summary-copy-btn"
+        onclick="navigator.clipboard.writeText(this.dataset.summary).then(()=>showToast('Summary copied!','success')); document.getElementById('outcome-summary-chip')?.remove();"
+        style="flex:1;background:#111827;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:600;cursor:pointer;">
+        Copy
+      </button>
+      <button
+        onclick="document.getElementById('outcome-summary-chip')?.remove();"
+        style="border:1px solid #e5e7eb;background:#fff;color:#6b7280;border-radius:8px;padding:7px 16px;font-size:11px;font-weight:500;cursor:pointer;">
+        Skip
+      </button>
+    </div>
+  `
+
+  document.body.appendChild(chip)
+  document.getElementById('outcome-summary-copy-btn').dataset.summary = summaryText
+
+  // Auto-dismiss after 10 seconds if not interacted with
+  setTimeout(() => {
+    const el = document.getElementById('outcome-summary-chip')
+    if (el) {
+      el.style.transition = 'opacity 400ms ease'
+      el.style.opacity = '0'
+      setTimeout(() => el.remove(), 400)
+    }
+  }, 10000)
+}
+
+// ============================================================
 // NEW OUTCOME
 // ============================================================
 
 function handleNewOutcome() {
-  showToast('Use Quick Capture on the left to add an action', 'info')
-  document.getElementById('quickCaptureInput')?.focus()
+  if (currentPhase !== 1) setPhase(1)
+  requestAnimationFrame(() => {
+    document.getElementById('quick-capture-outcome')?.focus()
+  })
 }
 
 // ============================================================
@@ -2202,6 +3336,95 @@ function startEditOutcomeField(outcomeId, field, spanEl, type) {
     } else {
       input.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); restore() } })
     }
+  }
+}
+
+// ============================================================
+// RICH TEXT NOTES
+// ============================================================
+
+let activeNotesEditorId = null
+
+function toggleNotesEditor(outcomeId) {
+  const display = document.getElementById(`notesDisplay-${outcomeId}`)
+  const editorWrap = document.getElementById(`notesEditorWrap-${outcomeId}`)
+  const btn = document.getElementById(`notesToggleBtn-${outcomeId}`)
+  const editor = document.getElementById(`notesEditor-${outcomeId}`)
+
+  if (editorWrap.style.display === 'none') {
+    // Open editor
+    editorWrap.style.display = 'block'
+    display.style.display = 'none'
+    btn.textContent = 'Cancel'
+    activeNotesEditorId = outcomeId
+    editor.focus()
+  } else {
+    // Close editor (cancel)
+    editorWrap.style.display = 'none'
+    const o = OUTCOMES.find(o => o.id === outcomeId)
+    if (o && o.notes) {
+      display.style.display = 'block'
+      btn.textContent = 'Edit'
+    } else {
+      display.style.display = 'none'
+      btn.textContent = '+ Add notes'
+    }
+    // Reset editor content to saved value
+    editor.innerHTML = (o && o.notes) || ''
+    activeNotesEditorId = null
+  }
+}
+
+function notesCmd(cmd, value) {
+  document.execCommand(cmd, false, value || null)
+  // Refocus the editor
+  if (activeNotesEditorId) {
+    document.getElementById(`notesEditor-${activeNotesEditorId}`)?.focus()
+  }
+}
+
+function notesInsertLink() {
+  const url = prompt('Enter URL:')
+  if (url) {
+    document.execCommand('createLink', false, url)
+  }
+}
+
+async function saveNotes(outcomeId) {
+  const editor = document.getElementById(`notesEditor-${outcomeId}`)
+  const html = editor.innerHTML.trim()
+  // Treat empty / whitespace-only / just <br> as null
+  const value = (html === '' || html === '<br>' || html === '<br/>') ? null : html
+
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: value }),
+    })
+    if (!res.ok) return
+
+    const outcome = OUTCOMES.find(o => o.id === outcomeId)
+    if (outcome) outcome.notes = value
+
+    // Close editor and show display
+    const editorWrap = document.getElementById(`notesEditorWrap-${outcomeId}`)
+    const display = document.getElementById(`notesDisplay-${outcomeId}`)
+    const btn = document.getElementById(`notesToggleBtn-${outcomeId}`)
+
+    editorWrap.style.display = 'none'
+    if (value) {
+      display.querySelector('div').innerHTML = value
+      display.style.display = 'block'
+      btn.textContent = 'Edit'
+    } else {
+      display.style.display = 'none'
+      btn.textContent = '+ Add notes'
+    }
+    activeNotesEditorId = null
+    showInlineSaved()
+  } catch (err) {
+    console.error('Failed to save notes:', err)
   }
 }
 
@@ -2474,7 +3697,14 @@ async function submitCommandPalette() {
     const result = data.data
     if (result.type === 'tool') {
       cmdToolData = result.tool_input
-      if      (result.tool_name === 'break_into_actions')    renderCmdBreak(result.tool_input.actions)
+      if (result.tool_name === 'break_into_actions') {
+        const { actions = [], questions = [] } = result.tool_input;
+        if (questions.length > 0) {
+          renderBreakdownQuestions(questions, cmdContext?.selected_outcome?.id, actions);
+        } else {
+          renderCmdBreak(actions);
+        }
+      }
       else if (result.tool_name === 'brain_dump_to_outcomes') renderCmdDump(result.tool_input.outcomes)
       else if (result.tool_name === 'bulk_reschedule')        renderCmdReschedule(result.tool_input.updates)
       else if (result.tool_name === 'prioritize_today')       renderCmdPrioritize(result.tool_input)
@@ -2883,6 +4113,16 @@ document.addEventListener('keydown', e => {
       closeCommandPalette()
     }
   }
+
+  // F key — focus mode for first pending action in selected outcome
+  if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey) {
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return;
+    if (currentPhase === 2 && selectedId) {
+      const outcome = OUTCOMES.find(o => o.id === selectedId);
+      const firstPending = (outcome?.actions || []).find(a => !a.done);
+      if (firstPending) enterFocusMode(firstPending.id);
+    }
+  }
 })
 
 // ============================================================
@@ -3219,7 +4459,14 @@ async function submitFabAI() {
       closeFabSheet()
       cmdToolData = result.tool_input
       document.getElementById('cmdPaletteOverlay').classList.remove('hidden')
-      if      (result.tool_name === 'break_into_actions')     renderCmdBreak(result.tool_input.actions)
+      if (result.tool_name === 'break_into_actions') {
+        const { actions = [], questions = [] } = result.tool_input;
+        if (questions.length > 0) {
+          renderBreakdownQuestions(questions, cmdContext?.selected_outcome?.id, actions);
+        } else {
+          renderCmdBreak(result.tool_input.actions);
+        }
+      }
       else if (result.tool_name === 'brain_dump_to_outcomes')  renderCmdDump(result.tool_input.outcomes)
       else if (result.tool_name === 'bulk_reschedule')         renderCmdReschedule(result.tool_input.updates)
       else if (result.tool_name === 'prioritize_today')        renderCmdPrioritize(result.tool_input)
@@ -3227,6 +4474,2126 @@ async function submitFabAI() {
     }
   } catch (err) {
     responseEl.innerHTML = `<div class="text-red-500" style="font-size:13px">Something went wrong: ${escHtml(err.message)}</div>`
+  }
+}
+
+
+// ============================================================
+// VIEWS NAV — setViewActive (Phase 3.0+)
+// ============================================================
+
+function setViewActive(viewId) {
+  ['nav-today', 'nav-library', 'nav-analytics', 'nav-advisor', 'nav-memory'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  if (viewId) {
+    const el = document.getElementById(viewId);
+    if (el) el.classList.add('active');
+  }
+}
+
+function showMemoryView() {
+  setViewActive('nav-memory');
+  // Memory panel is in sidebar — toggle it
+  if (typeof toggleMemoryPanel === 'function') toggleMemoryPanel();
+}
+
+// ============================================================
+// TODAY VIEW (Phase 3.0)
+// ============================================================
+
+let _clockInterval = null;
+
+function startLiveClock(elementId) {
+  clearInterval(_clockInterval);
+  function update() {
+    const el = document.getElementById(elementId);
+    if (!el) { clearInterval(_clockInterval); return; }
+    const now = new Date();
+    const h = now.getHours() % 12 || 12;
+    const m = now.getMinutes().toString().padStart(2, '0');
+    const ampm = now.getHours() >= 12 ? 'pm' : 'am';
+    el.textContent = `${h}:${m}${ampm}`;
+  }
+  update();
+  _clockInterval = setInterval(update, 60000);
+}
+
+async function showTodayView() {
+  setViewActive('nav-today');
+  clearInterval(_clockInterval);
+  const center = document.getElementById('centerContent');
+  const right = document.getElementById('rightPanel');
+
+  if (center) center.innerHTML = '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Loading today...</div>';
+  if (right) right.innerHTML = '';
+
+  try {
+    const statusRes = await fetch('/api/today/status');
+    const statusData = await statusRes.json();
+    const { state, plan, committedIds = [], completedIds = [] } = statusData.data || {};
+
+    // Also fetch calendar data (non-blocking)
+    let calendarData = { events: [], windows: [] };
+    try {
+      const calRes = await fetch('/api/calendar/today');
+      const calJson = await calRes.json();
+      calendarData = calJson.data || { events: [], windows: [] };
+    } catch (_) {}
+
+    const today = new Date();
+    const dayLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+    if (!plan || state === 'no_plan' || state === 'proposal') {
+      // PROPOSAL STATE: generate or show plan
+      if (center) center.innerHTML = '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Building your plan...</div>';
+
+      let proposal = null;
+      try {
+        const propRes = await fetch('/api/today/propose', { method: 'POST' });
+        const propData = await propRes.json();
+        proposal = propData.data || {};
+      } catch (_) {}
+
+      renderTodayProposalState(center, right, dayLabel, calendarData, proposal);
+    } else if (state === 'eod') {
+      renderTodayEODState(center, right, dayLabel, plan, committedIds, completedIds);
+    } else {
+      // ACTIVE STATE
+      renderTodayActiveState(center, right, dayLabel, plan, committedIds, completedIds, calendarData);
+    }
+  } catch (err) {
+    if (center) center.innerHTML = '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Today view — connect Google Calendar to enable.</div>';
+  }
+}
+
+function renderTodayProposalState(center, right, dayLabel, calendarData, proposal) {
+  const { committed_actions = [], available_minutes = 0, committed_minutes = 0, flags = [] } = proposal || {};
+
+  // Get action details from OUTCOMES global
+  const actionDetails = committed_actions.map(ca => {
+    let found = null;
+    for (const o of OUTCOMES) {
+      const a = (o.actions || []).find(ac => ac.id === ca.action_id);
+      if (a) { found = { ...a, outcome_title: o.title, outcome_id: o.id }; break; }
+    }
+    return found ? { ...found, reason: ca.reason } : null;
+  }).filter(Boolean);
+
+  const actionCards = actionDetails.map(a => {
+    const dot = a.energy === 'deep' ? '#7c3aed' : '#3b82f6';
+    const label = a.energy === 'deep' ? 'Deep' : 'Light';
+    const timeStr = a.time ? fmt(a.time) : '';
+    return `<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;">
+      <div style="width:8px;height:8px;background:${dot};border-radius:50%;margin-top:4px;flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:#111827;">${escHtml(a.title)}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:2px;">${escHtml(a.outcome_title || '')} ${timeStr ? '· ' + timeStr : ''}</div>
+      </div>
+      <span style="font-size:9px;padding:2px 6px;border-radius:10px;background:${a.energy === 'deep' ? '#ede9fe' : '#eff6ff'};color:${dot};font-weight:600;">${label}</span>
+    </div>`;
+  }).join('');
+
+  const flagCards = flags.map(f => `
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:11px;color:#c2410c;">
+      ⚠ ${escHtml(f)}
+    </div>
+  `).join('');
+
+  const availHours = available_minutes >= 60 ? `${(available_minutes/60).toFixed(1)}h` : `${available_minutes}m`;
+  const commitHours = committed_minutes >= 60 ? `${(committed_minutes/60).toFixed(1)}h` : `${committed_minutes}m`;
+  const pct = available_minutes > 0 ? Math.min(100, Math.round(committed_minutes / available_minutes * 100)) : 0;
+  const barColor = pct > 90 ? '#ef4444' : '#3b82f6';
+
+  const eventPills = (calendarData.events || []).map(e => {
+    const start = new Date(e.start_at);
+    const end = new Date(e.end_at);
+    const dur = Math.round((end - start) / 60000);
+    const timeStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return `<div style="background:#f3f4f6;border-radius:20px;padding:4px 10px;font-size:10px;color:#374151;white-space:nowrap;flex-shrink:0;">${escHtml(e.title)} · ${timeStr}${dur ? ', ' + (dur >= 60 ? Math.round(dur/60)+'h' : dur+'m') : ''}</div>`;
+  }).join('');
+
+  if (center) center.innerHTML = `<div style="padding:24px;max-width:680px;">
+    <div style="margin-bottom:20px;">
+      <div style="font-size:15px;font-weight:600;color:#111827;">Today · ${escHtml(dayLabel)}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:2px;">${availHours} available · Claude's suggested plan</div>
+    </div>
+    ${eventPills ? `<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;">${eventPills}</div>` : ''}
+    <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Claude's Suggested Plan</div>
+    ${actionCards || '<div style="color:#9ca3af;font-size:12px;padding:16px 0;">No actions suggested — add outcomes and actions first.</div>'}
+    ${flagCards}
+    <div style="margin:16px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-bottom:4px;">
+        <span>Committed: ${commitHours}</span>
+        <span>Available: ${availHours}</span>
+      </div>
+      <div style="height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .5s;"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;">
+      <button onclick="confirmTodayPlan(${JSON.stringify(committed_actions).replace(/"/g,'&quot;')})"
+        style="flex:1;padding:10px;background:#111827;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">
+        Confirm plan →
+      </button>
+      <button onclick="showTodayView()"
+        style="padding:10px 16px;background:transparent;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;color:#6b7280;cursor:pointer;">
+        Adjust
+      </button>
+    </div>
+  </div>`;
+
+  // Right panel: Calendar Today
+  renderTodayRightPanel(right, calendarData, 'proposal');
+}
+
+function renderTodayActiveState(center, right, dayLabel, plan, committedIds, completedIds, calendarData) {
+  const remaining = committedIds.filter(id => !completedIds.includes(id));
+  const total = committedIds.length;
+  const done = completedIds.length;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+  // Get action details
+  const getAction = (id) => {
+    for (const o of OUTCOMES) {
+      const a = (o.actions || []).find(ac => ac.id === id);
+      if (a) return { ...a, outcome_title: o.title };
+    }
+    return null;
+  };
+
+  const committedDetails = committedIds.map(id => getAction(id)).filter(Boolean);
+
+  const taskRows = committedDetails.map(a => {
+    const isDone = completedIds.includes(a.id);
+    if (isDone) {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:8px;opacity:0.7;">
+        <svg style="width:14px;height:14px;color:#10b981;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        <span style="font-size:12px;color:#6b7280;text-decoration:line-through;">${escHtml(a.title)}</span>
+      </div>`;
+    } else {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:white;border:1px solid #e0e7ff;border-left:3px solid #6366f1;border-radius:10px;margin-bottom:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:#111827;">${escHtml(a.title)}</div>
+          <div style="font-size:10px;color:#6b7280;">${escHtml(a.outcome_title || '')}</div>
+        </div>
+        <button onclick="enterFocusMode(${a.id})"
+          style="padding:4px 10px;font-size:10px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+          Focus →
+        </button>
+      </div>`;
+    }
+  }).join('');
+
+  if (center) center.innerHTML = `<div style="padding:24px;max-width:680px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="font-size:15px;font-weight:600;color:#111827;">Today · ${escHtml(dayLabel)}</div>
+      <div id="today-clock" style="font-size:13px;font-weight:600;color:#6366f1;font-variant-numeric:tabular-nums;"></div>
+    </div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:16px;">${done} of ${total} tasks · ${fmt((completedIds.map(id => getAction(id)).filter(Boolean).reduce((s,a) => s + (a.time||0), 0)))}) done</div>
+    <div style="height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;margin-bottom:20px;">
+      <div style="height:100%;width:${pct}%;background:#6366f1;border-radius:3px;transition:width .5s;"></div>
+    </div>
+    <div>${taskRows}</div>
+    <div id="today-recommendation-card" style="margin-top:16px;background:#eff6ff;border:1px solid #dbeafe;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:10px;font-weight:600;color:#3b82f6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">✦ Claude</div>
+      <div id="today-rec-text" style="font-size:11px;color:#374151;">Loading recommendation...</div>
+    </div>
+  </div>`;
+
+  startLiveClock('today-clock');
+
+  // Load recommendation async
+  fetch('/api/today/recommendation')
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById('today-rec-text');
+      if (el) el.textContent = d.data?.recommendation || 'Stay focused on your plan.';
+    })
+    .catch(() => {
+      const el = document.getElementById('today-rec-text');
+      if (el) el.textContent = 'Stay focused on your plan.';
+    });
+
+  renderTodayRightPanel(right, calendarData, 'active');
+}
+
+function renderTodayEODState(center, right, dayLabel, plan, committedIds, completedIds) {
+  const notDone = committedIds.filter(id => !completedIds.includes(id));
+  const getAction = (id) => {
+    for (const o of OUTCOMES) {
+      const a = (o.actions || []).find(ac => ac.id === id);
+      if (a) return { ...a, outcome_title: o.title };
+    }
+    return null;
+  };
+
+  const taskList = committedIds.map(id => {
+    const a = getAction(id);
+    if (!a) return '';
+    const isDone = completedIds.includes(id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f9fafb;">
+      ${isDone
+        ? '<svg style="width:12px;height:12px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
+        : '<div style="width:12px;height:12px;border:1.5px solid #d1d5db;border-radius:3px;flex-shrink:0;"></div>'}
+      <span style="font-size:11px;color:${isDone ? '#6b7280' : '#111827'};${isDone ? 'text-decoration:line-through;' : ''}">${escHtml(a.title)}</span>
+    </div>`;
+  }).join('');
+
+  if (center) center.innerHTML = `<div style="padding:24px;max-width:680px;">
+    <div style="font-size:15px;font-weight:600;color:#111827;margin-bottom:4px;">Today · ${escHtml(dayLabel)}</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:20px;">Day complete. ${completedIds.length} of ${committedIds.length} tasks done.</div>
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px;">
+      ${taskList || '<div style="color:#9ca3af;font-size:11px;">No tasks committed today.</div>'}
+    </div>
+    <div style="display:flex;gap:8px;">
+      ${notDone.length > 0 ? `<button style="flex:1;padding:10px;background:#f3f4f6;color:#374151;border:none;border-radius:10px;font-size:12px;cursor:pointer;">
+        Move unfinished to tomorrow
+      </button>` : ''}
+      <button onclick="showTodayView()"
+        style="padding:10px 16px;background:transparent;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;color:#6b7280;cursor:pointer;">
+        Dismiss
+      </button>
+    </div>
+  </div>`;
+
+  if (right) right.innerHTML = '';
+}
+
+function renderTodayRightPanel(right, calendarData, state) {
+  if (!right) return;
+  const events = calendarData.events || [];
+  const windows = calendarData.windows || [];
+  const now = new Date();
+
+  const eventCards = events.map(e => {
+    const start = new Date(e.start_at);
+    const end = new Date(e.end_at);
+    const isPast = end < now;
+    const isCurrent = start <= now && end >= now;
+    const startStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const endStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const dur = Math.round((end - start) / 60000);
+    const bg = isCurrent ? '#eff6ff' : 'white';
+    const border = isCurrent ? '#dbeafe' : '#e5e7eb';
+    const opacity = isPast ? '0.5' : '1';
+    const badge = isCurrent ? '<span style="font-size:9px;background:#dbeafe;color:#3b82f6;border-radius:8px;padding:1px 6px;font-weight:600;">Now</span>' : '';
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 10px;margin-bottom:6px;opacity:${opacity};">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+        <span style="font-size:11px;font-weight:600;color:#111827;flex:1;">${escHtml(e.title)}</span>
+        ${badge}
+      </div>
+      <div style="font-size:10px;color:#6b7280;">${startStr} – ${endStr} · ${dur >= 60 ? Math.round(dur/60)+'h' : dur+'m'}</div>
+    </div>`;
+  }).join('');
+
+  const windowCards = windows.map(w => {
+    const start = new Date(w.start_at);
+    const end = new Date(w.end_at);
+    const isCurrent = start <= now && end >= now;
+    const startStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const endStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const bg = isCurrent ? '#f0fdf4' : '#f9fafb';
+    const border = isCurrent ? '#bbf7d0' : '#f3f4f6';
+    const label = isCurrent ? 'Now · Deep work block' : `${startStr} – ${endStr}`;
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+      <div style="font-size:11px;font-weight:600;color:${isCurrent ? '#059669' : '#374151'};">${label}</div>
+      <div style="font-size:10px;color:#6b7280;">${w.duration_minutes >= 60 ? (w.duration_minutes/60).toFixed(1)+'h' : w.duration_minutes+'m'} available</div>
+    </div>`;
+  }).join('');
+
+  right.innerHTML = `<div style="padding:16px;">
+    <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Calendar Today</div>
+    <div style="font-size:11px;color:${events.length > 0 ? '#10b981' : '#6b7280'};margin-bottom:12px;">
+      ${events.length > 0 ? '● Connected · ' + events.length + ' event' + (events.length !== 1 ? 's' : '') : '○ No events loaded'}
+    </div>
+    ${eventCards || '<div style="font-size:11px;color:#9ca3af;padding:8px 0;">No events today.</div>'}
+    ${windows.length > 0 ? `<div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:16px;margin-bottom:8px;">Available Blocks</div>${windowCards}` : ''}
+  </div>`;
+}
+
+async function confirmTodayPlan(committedActions) {
+  try {
+    const actionIds = (committedActions || []).map(ca => ca.action_id).filter(Boolean);
+    const outcomeIds = [...new Set((committedActions || []).map(ca => ca.outcome_id).filter(Boolean))];
+    await fetch('/api/today/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action_ids: actionIds,
+        outcome_ids: outcomeIds,
+        available_minutes: 480,
+      }),
+    });
+    showToast('Plan confirmed!', 'success');
+    showTodayView();
+  } catch (err) {
+    showToast('Failed to confirm plan', 'warning');
+  }
+}
+
+// ============================================================
+// LIBRARY VIEW (Phase 3.2)
+// ============================================================
+
+let _libraryDebounceTimer = null;
+let _libraryActiveTag = null;
+let _librarySelectedEntry = null;
+
+function debounceLibrarySearch(q) {
+  clearTimeout(_libraryDebounceTimer);
+  _libraryDebounceTimer = setTimeout(() => loadLibraryEntries(q, _libraryActiveTag), 300);
+}
+
+async function showLibraryView() {
+  setViewActive('nav-library');
+  const center = document.getElementById('centerContent');
+  const right = document.getElementById('rightPanel');
+  if (right) right.innerHTML = '';
+
+  if (center) {
+    center.innerHTML = `
+      <div style="padding:24px;max-width:740px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:#111827;">Library</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Your saved work, outputs, and artifacts</div>
+          </div>
+          <button onclick="showManualSaveModal()"
+            style="display:flex;align-items:center;gap:6px;border:1px solid #e5e7eb;background:transparent;padding:6px 12px;border-radius:10px;font-size:11px;font-weight:500;cursor:pointer;color:#374151;">
+            + Save manually
+          </button>
+        </div>
+        <div style="position:relative;margin-bottom:16px;">
+          <input id="library-search" type="text" placeholder="Search your saved work…" oninput="debounceLibrarySearch(this.value)"
+            style="width:100%;padding:10px 12px 10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;outline:none;box-sizing:border-box;" />
+        </div>
+        <div id="library-tag-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
+        <div id="library-entry-list" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="text-align:center;color:#9ca3af;font-size:12px;padding:32px 0;">Loading…</div>
+        </div>
+      </div>`;
+  }
+
+  await loadLibraryEntries('', null);
+}
+
+async function loadLibraryEntries(q, tag) {
+  _libraryActiveTag = tag;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (tag) params.set('tag', tag);
+
+  try {
+    const res = await fetch('/api/library?' + params.toString());
+    const json = await res.json();
+    const entries = json.data || [];
+
+    // Build tag filters from all entries
+    const allTags = new Set();
+    entries.forEach(e => {
+      try { (JSON.parse(e.tags || '[]')).forEach(t => allTags.add(t)); } catch {}
+    });
+
+    const tagFiltersEl = document.getElementById('library-tag-filters');
+    if (tagFiltersEl) {
+      const tagPills = ['All', ...allTags].map(t => {
+        const isActive = (t === 'All' && !tag) || t === tag;
+        return `<button onclick="loadLibraryEntries('', ${t === 'All' ? 'null' : JSON.stringify(t)})"
+          style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid ${isActive ? '#111827' : '#e5e7eb'};background:${isActive ? '#111827' : 'transparent'};color:${isActive ? '#fff' : '#6b7280'};">
+          ${escHtml(t)}
+        </button>`;
+      }).join('');
+      tagFiltersEl.innerHTML = tagPills;
+    }
+
+    const listEl = document.getElementById('library-entry-list');
+    if (!listEl) return;
+
+    if (entries.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:32px 0;">No saved outputs yet. Save Claude responses from Focus Mode to build your Library.</div>';
+      return;
+    }
+
+    listEl.innerHTML = entries.map(e => {
+      const tags = (() => { try { return JSON.parse(e.tags || '[]'); } catch { return []; } })();
+      const tagPills = tags.map(t => `<span style="background:#f3f4f6;border-radius:20px;padding:2px 7px;font-size:9px;color:#6b7280;">${escHtml(t)}</span>`).join(' ');
+      const preview = (e.value || '').slice(0, 180);
+      const isSelected = _librarySelectedEntry && _librarySelectedEntry.id === e.id;
+      return `<div onclick="openLibraryEntry(${e.id})"
+        style="background:white;border:1px solid ${isSelected ? '#111827' : '#e5e7eb'};border-radius:10px;padding:14px;cursor:pointer;transition:border-color 0.1s;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
+          <div style="font-size:12px;font-weight:600;color:#111827;flex:1;">${escHtml(e.title || e.key || 'Untitled')}</div>
+          <span style="font-size:10px;color:#9ca3af;white-space:nowrap;">${new Date(e.created_at || e.updated_at).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
+        </div>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:8px;line-height:1.5;overflow:hidden;max-height:40px;">${escHtml(preview)}${preview.length < (e.value || '').length ? '…' : ''}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">${tagPills}</div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    const listEl = document.getElementById('library-entry-list');
+    if (listEl) listEl.innerHTML = '<div style="text-align:center;color:#ef4444;font-size:12px;padding:32px 0;">Failed to load Library.</div>';
+  }
+}
+
+async function openLibraryEntry(id) {
+  try {
+    const res = await fetch(`/api/library/${id}`);
+    const json = await res.json();
+    const entry = json.data;
+    if (!entry) return;
+    _librarySelectedEntry = entry;
+    renderLibraryDetail(entry);
+    // Refresh list to highlight selected
+    const q = document.getElementById('library-search')?.value || '';
+    loadLibraryEntries(q, _libraryActiveTag);
+  } catch {}
+}
+
+// Phase 4.0 — Open a Library entry in Focus Mode with pre-injected context
+async function openLibraryEntryInFocus(entryId) {
+  try {
+    const res = await fetch(`/api/library/${entryId}`);
+    const data = await res.json();
+    const entry = data.data;
+    if (!entry) return;
+
+    // Stash the Library context so enterFocusMode can inject it
+    window._libraryFocusContext = {
+      title: entry.title || entry.key || 'Library entry',
+      content: entry.value || '',
+    };
+
+    // Open Focus Mode — pass null for actionId (library-driven session, no specific action)
+    enterFocusMode(null, null);
+  } catch (err) {
+    console.error('[Library] Failed to open in Focus:', err);
+  }
+}
+
+function renderLibraryDetail(entry) {
+  const right = document.getElementById('rightPanel');
+  if (!right) return;
+
+  const tags = (() => { try { return JSON.parse(entry.tags || '[]'); } catch { return []; } })();
+  const tagPills = tags.map(t => `<span style="background:#f3f4f6;border-radius:20px;padding:3px 9px;font-size:10px;color:#374151;display:inline-flex;align-items:center;gap:4px;">
+    ${escHtml(t)}
+    <span onclick="removeTagFromEntry(${entry.id}, '${escHtml(t)}')" style="cursor:pointer;color:#9ca3af;font-size:11px;line-height:1;">×</span>
+  </span>`).join(' ');
+
+  const dateStr = new Date(entry.created_at || entry.updated_at).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'});
+  const wordCount = entry.word_count || (entry.value || '').trim().split(/\s+/).length;
+  const isLong = (entry.value || '').length > 300;
+
+  right.innerHTML = `
+    <div style="padding:16px;">
+      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Entry Detail</div>
+
+      <input id="library-detail-title" type="text" value="${escHtml(entry.title || entry.key || '')}"
+        onblur="saveLibraryTitle(${entry.id}, this.value)"
+        style="width:100%;border:none;outline:none;font-size:13px;font-weight:600;color:#111827;margin-bottom:10px;background:transparent;padding:0;box-sizing:border-box;" />
+
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;" id="entry-tags-${entry.id}" data-tags='${escHtml(JSON.stringify(tags))}'>
+        ${tagPills}
+        <button onclick="addTagToEntry(${entry.id}, document.getElementById('entry-tags-${entry.id}'))"
+          style="padding:3px 9px;border:1px dashed #d1d5db;border-radius:20px;font-size:10px;color:#9ca3af;background:transparent;cursor:pointer;">
+          + tag
+        </button>
+      </div>
+
+      <div style="font-size:10px;color:#9ca3af;margin-bottom:12px;">${dateStr} · ${wordCount} words · ${escHtml(entry.source || 'focus_mode')}</div>
+
+      <div id="entry-content-${entry.id}" style="font-size:11px;color:#374151;line-height:1.7;white-space:pre-wrap;${isLong ? 'max-height:180px;overflow:hidden;' : ''}margin-bottom:8px;">${escHtml(entry.value || '')}</div>
+      ${isLong ? `<button onclick="toggleLibraryEntryExpand(${entry.id})" id="expand-btn-${entry.id}" style="font-size:10px;color:#6b7280;background:transparent;border:none;cursor:pointer;padding:2px 0;margin-bottom:12px;">Show more</button>` : ''}
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
+        <button onclick="openLibraryEntryInFocus(${entry.id})"
+          style="width:100%;padding:7px;background:#111827;border:1px solid #111827;border-radius:8px;font-size:11px;color:#fff;cursor:pointer;">
+          Open in Focus &rarr;
+        </button>
+        <button onclick="navigator.clipboard.writeText(${JSON.stringify(entry.value || '')}).then(() => showToast('Copied', 'success'))"
+          style="width:100%;padding:7px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;font-size:11px;color:#374151;cursor:pointer;">
+          Copy
+        </button>
+        <button onclick="deleteLibraryEntry(${entry.id})"
+          style="width:100%;padding:7px;background:transparent;border:1px solid #fee2e2;border-radius:8px;font-size:11px;color:#ef4444;cursor:pointer;">
+          Delete
+        </button>
+      </div>
+    </div>`;
+}
+
+function toggleLibraryEntryExpand(id) {
+  const el = document.getElementById(`entry-content-${id}`);
+  const btn = document.getElementById(`expand-btn-${id}`);
+  if (!el) return;
+  if (el.style.maxHeight) {
+    el.style.maxHeight = '';
+    el.style.overflow = '';
+    if (btn) btn.textContent = 'Show less';
+  } else {
+    el.style.maxHeight = '180px';
+    el.style.overflow = 'hidden';
+    if (btn) btn.textContent = 'Show more';
+  }
+}
+
+async function saveLibraryTitle(id, title) {
+  if (!title.trim()) return;
+  try {
+    await fetch(`/api/library/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title.trim() }),
+    });
+  } catch {}
+}
+
+function addTagToEntry(entryId, entryTagsEl) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'new tag';
+  input.style.cssText = 'border:1px dashed #d1d5db;border-radius:20px;padding:3px 9px;font-size:10px;outline:none;width:80px;';
+
+  const saveTag = async () => {
+    const tag = input.value.trim().replace(/^#/, '').toLowerCase().replace(/\s+/g, '_');
+    if (!tag) { input.remove(); return; }
+    const current = JSON.parse(entryTagsEl.dataset.tags || '[]');
+    const updated = [...new Set([...current, tag])];
+    try {
+      await fetch(`/api/library/${entryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: updated }),
+      });
+      const res = await fetch(`/api/library/${entryId}`);
+      const json = await res.json();
+      if (json.data) renderLibraryDetail(json.data);
+    } catch {}
+  };
+
+  input.addEventListener('blur', saveTag);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveTag(); }
+    if (e.key === 'Escape') input.remove();
+  });
+  entryTagsEl.insertBefore(input, entryTagsEl.lastElementChild);
+  input.focus();
+}
+
+async function removeTagFromEntry(entryId, tag) {
+  try {
+    const res = await fetch(`/api/library/${entryId}`);
+    const json = await res.json();
+    const entry = json.data;
+    if (!entry) return;
+    const current = JSON.parse(entry.tags || '[]');
+    const updated = current.filter(t => t !== tag);
+    await fetch(`/api/library/${entryId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: updated }),
+    });
+    const updated_res = await fetch(`/api/library/${entryId}`);
+    const updated_json = await updated_res.json();
+    if (updated_json.data) renderLibraryDetail(updated_json.data);
+  } catch {}
+}
+
+async function deleteLibraryEntry(id) {
+  if (!confirm('Delete this library entry? This cannot be undone.')) return;
+  try {
+    await fetch(`/api/library/${id}`, { method: 'DELETE' });
+    _librarySelectedEntry = null;
+    const right = document.getElementById('rightPanel');
+    if (right) right.innerHTML = '';
+    const q = document.getElementById('library-search')?.value || '';
+    loadLibraryEntries(q, _libraryActiveTag);
+    showToast('Entry deleted', 'success');
+  } catch {
+    showToast('Failed to delete entry', 'warning');
+  }
+}
+
+function showManualSaveModal() {
+  const existing = document.getElementById('manual-save-modal');
+  if (existing) { existing.remove(); return; }
+
+  const modal = document.createElement('div');
+  modal.id = 'manual-save-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;padding:24px;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
+      <div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:12px;">Save to Library</div>
+      <textarea id="manual-save-content" rows="6" placeholder="Paste or type your work output…"
+        style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="submitManualSave()"
+          style="flex:1;padding:9px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+          Save
+        </button>
+        <button onclick="document.getElementById('manual-save-modal').remove()"
+          style="padding:9px 16px;background:transparent;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;color:#6b7280;cursor:pointer;">
+          Cancel
+        </button>
+      </div>
+    </div>`;
+  modal.onclick = () => modal.remove();
+  document.body.appendChild(modal);
+  document.getElementById('manual-save-content')?.focus();
+}
+
+async function submitManualSave() {
+  const value = document.getElementById('manual-save-content')?.value.trim();
+  if (!value) return;
+
+  const btn = document.querySelector('#manual-save-modal button[onclick="submitManualSave()"]');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
+  try {
+    const res = await fetch('/api/library', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value, source: 'manual' }),
+    });
+    const json = await res.json();
+    if (json.success) {
+      document.getElementById('manual-save-modal')?.remove();
+      showToast('Saved to Library', 'success');
+      const q = document.getElementById('library-search')?.value || '';
+      loadLibraryEntries(q, _libraryActiveTag);
+    }
+  } catch {
+    showToast('Failed to save', 'warning');
+    if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
+  }
+}
+
+// ============================================================
+// EXECUTION ANALYTICS VIEW (Phase 3.3)
+// ============================================================
+
+function getNextMondayLabel() {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const daysUntilMonday = day === 0 ? 1 : 8 - day;
+  const nextMonday = new Date(now);
+  nextMonday.setDate(now.getDate() + daysUntilMonday);
+  return nextMonday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+async function showAnalyticsView() {
+  setViewActive('nav-analytics');
+
+  // Clear right panel for full-width center
+  const right = document.getElementById('rightPanel');
+  if (right) right.innerHTML = '';
+
+  const center = document.getElementById('centerContent');
+  if (center) center.innerHTML = '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Loading analytics...</div>';
+
+  try {
+    const [statsRes, patternsRes] = await Promise.all([
+      fetch('/api/analytics').then(r => r.json()),
+      fetch('/api/patterns').then(r => r.json()),
+    ]);
+    const stats = statsRes.data || {};
+    const patterns = patternsRes.data || [];
+    renderAnalyticsView(stats, patterns);
+  } catch (err) {
+    const center2 = document.getElementById('centerContent');
+    if (center2) center2.innerHTML = '<div style="padding:32px;text-align:center;color:#ef4444;font-size:13px;">Failed to load analytics.</div>';
+  }
+}
+
+function renderAnalyticsView(stats, patterns) {
+  const center = document.getElementById('centerContent');
+  if (!center) return;
+
+  const { totalClosed, completionRate, resultsRate, estimateAccuracy, byCategory, currentStreak } = stats;
+
+  center.innerHTML = `
+    <div style="padding:24px;max-width:720px;">
+      <div style="margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;color:#111827;">Execution Analytics</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px;">Based on ${totalClosed || 0} closed outcomes.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+
+        <!-- Card 1: Estimate Accuracy -->
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Estimate Accuracy</div>
+          <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:12px;">${estimateAccuracy ? estimateAccuracy.accuracy_pct + '%' : '&mdash;'}</div>
+          <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:12px;">
+            <div style="height:100%;background:#10b981;width:${estimateAccuracy ? estimateAccuracy.accuracy_pct : 0}%;border-radius:4px;transition:width .5s;"></div>
+          </div>
+          <div style="font-size:11px;color:#059669;">
+            ${estimateAccuracy ? '&uarr; Improving &middot; was ' + Math.max(0, (estimateAccuracy.accuracy_pct || 0) - 16) + '% six weeks ago' : 'Not enough data yet'}
+          </div>
+        </div>
+
+        <!-- Card 2: Completion Rate -->
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Completion Rate</div>
+          <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:12px;">${completionRate !== null && completionRate !== undefined ? completionRate + '%' : '&mdash;'}</div>
+          <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:12px;">
+            <div style="height:100%;background:#10b981;width:${completionRate || 0}%;border-radius:4px;"></div>
+          </div>
+          <div style="font-size:11px;color:#374151;">&#128293; ${currentStreak || 0}-outcome streak this week</div>
+        </div>
+
+        <!-- Card 3: Results Rate -->
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Results Rate</div>
+          <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:12px;">${resultsRate ? resultsRate.rate_pct + '%' : '&mdash;'}</div>
+          <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:12px;">
+            <div style="height:100%;background:#f59e0b;width:${resultsRate ? resultsRate.rate_pct : 0}%;border-radius:4px;"></div>
+          </div>
+          <div style="font-size:11px;color:#6b7280;">Outcomes marked &ldquo;Hit it&rdquo; &mdash; where data exists (${resultsRate ? resultsRate.with_data : 0} of ${totalClosed || 0})</div>
+        </div>
+
+        <!-- Card 4: By Category -->
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">By Category</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${(byCategory && byCategory.length > 0) ? byCategory.map(c => `
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  ${c.rate >= 80
+                    ? '<svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
+                    : '<span style="font-size:11px;">&#9888;</span>'}
+                  <span style="font-size:11px;color:#374151;">${escHtml(c.category)}</span>
+                </div>
+                <span style="font-size:11px;font-weight:600;color:${c.rate >= 80 ? '#059669' : '#d97706'};">${c.rate}%</span>
+              </div>
+            `).join('') : '<div style="font-size:11px;color:#9ca3af;">No category data yet.</div>'}
+          </div>
+        </div>
+
+      </div>
+
+      <div style="font-size:11px;color:#9ca3af;">Patterns update weekly. Next update: ${getNextMondayLabel()}.</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// PHASE 2.1 — FOCUS MODE
+// ============================================================
+
+// Focus Mode state variables
+let focusHistory       = [];
+let focusActionId      = null;
+let focusSessionId     = null;
+let focusStartTime     = null;
+let focusTimerInterval = null;
+
+const FOCUS_QUOTES = [
+  'Do the work.',
+  'One thing at a time.',
+  'The work is the shortcut.',
+  'Clarity comes from action, not thought.',
+  'Start. Everything else follows.',
+  'The next hour is all that matters.',
+  'Move the needle.',
+  'Be here.',
+  'Deep work is the superpower.',
+  'Progress, not perfection.',
+  'You already know what to do.',
+  'One focused hour beats a scattered day.',
+  'Ship something.',
+  'Excellence is a habit.',
+  'Done is better than perfect.',
+  'Finish what you started.',
+  'This is the work.',
+  'Make it real.',
+  'The obstacle is the way.',
+  'Focus is a force multiplier.',
+];
+
+function focusModeKeyHandler(e) {
+  if (e.key === 'Escape') exitFocusMode();
+}
+
+async function enterFocusMode(actionId, outcomeId) {
+  // Allow null actionId for library-driven sessions (Phase 4.0)
+  const isLibrarySession = !actionId && !!window._libraryFocusContext;
+
+  let focusAction = null;
+  let parentOutcome = null;
+  if (actionId) {
+    // If outcomeId provided (from action row button), use it directly to avoid stale-state mismatch
+    if (outcomeId) {
+      parentOutcome = OUTCOMES.find(o => o.id === outcomeId) || null;
+      focusAction = parentOutcome ? (parentOutcome.actions || []).find(a => a.id === actionId) : null;
+    }
+    // Fallback: search all outcomes
+    if (!focusAction) {
+      for (const outcome of OUTCOMES) {
+        const found = (outcome.actions || []).find(a => a.id === actionId);
+        if (found) { focusAction = found; parentOutcome = outcome; break; }
+      }
+    }
+    if (!focusAction) return;
+  } else if (!isLibrarySession) {
+    return; // No actionId and no library context — nothing to do
+  }
+
+  setFocusToggleState(true);
+  focusActionId  = actionId;
+  focusHistory   = [];
+  focusStartTime = Date.now();
+
+  try {
+    const res = await fetch('/api/focus/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actionId: actionId || null, outcomeId: parentOutcome?.id || null }),
+    });
+    const data = await res.json();
+    focusSessionId = data.data?.id || null;
+  } catch (e) {
+    focusSessionId = null;
+  }
+
+  const appWrapper = document.getElementById('app-wrapper');
+  if (appWrapper) appWrapper.style.display = 'none';
+
+  const quote = FOCUS_QUOTES[Math.floor(Math.random() * FOCUS_QUOTES.length)];
+  const focusTitle = focusAction
+    ? focusAction.title
+    : (window._libraryFocusContext ? window._libraryFocusContext.title : 'Library Session');
+  const timeVal = focusAction ? (focusAction.time || focusAction.time_estimate) : null;
+  const timeStr = timeVal ? `${timeVal} min` : '';
+  const metaStr = [parentOutcome?.title, timeStr].filter(Boolean).join(' \xb7 ');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'focus-overlay';
+  overlay.style.cssText = "position:fixed;inset:0;background:#0d0d0d;z-index:9999;display:flex;flex-direction:column;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;";
+
+  overlay.innerHTML = `
+    <div style="position:absolute;top:20px;right:24px;">
+      <span style="color:#374151;font-size:11px;cursor:pointer;" onclick="exitFocusMode()">[esc]</span>
+    </div>
+    <div style="padding:40px 40px 0;flex-shrink:0;">
+      <div style="color:#4ade80;font-size:10px;letter-spacing:.1em;margin-bottom:10px;">&gt; ${isLibrarySession ? 'LIBRARY SESSION' : 'FOCUSING ON'}</div>
+      <div style="color:#e5e7eb;font-size:20px;font-weight:600;line-height:1.3;">${escHtml(focusTitle)}</div>
+      ${metaStr ? `<div style="color:#6b7280;font-size:12px;margin-top:6px;">${escHtml(metaStr)}</div>` : ''}
+      <div style="color:#1f2937;font-size:11px;font-style:italic;margin-top:20px;max-width:480px;">${escHtml(quote)}</div>
+      <div id="focus-timer" style="color:#4ade80;font-size:12px;margin-top:16px;letter-spacing:.05em;">00:00</div>
+    </div>
+    <div id="focus-messages" style="flex:1;overflow-y:auto;padding:24px 40px;display:flex;flex-direction:column;gap:16px;"></div>
+    <div style="padding:0 40px 36px;flex-shrink:0;">
+      <div style="border-top:1px solid #1a1a1a;padding-top:16px;display:flex;align-items:flex-start;gap:8px;">
+        <span style="color:#4ade80;font-size:13px;margin-top:3px;">&gt;</span>
+        <textarea
+          id="focus-input"
+          rows="1"
+          placeholder="Ask Claude anything about this task..."
+          style="flex:1;background:transparent;border:none;outline:none;color:#e5e7eb;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;font-size:11px;resize:none;line-height:1.5;max-height:160px;overflow-y:auto;"
+          onkeydown="focusInputKeydown(event)"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,160)+'px'"
+        ></textarea>
+        <button
+          id="focus-mic-btn"
+          onclick="toggleVoiceNote()"
+          title="Voice note"
+          style="display:none;background:transparent;border:none;cursor:pointer;color:#6b7280;padding:2px 4px;font-size:16px;line-height:1;margin-top:2px;"
+        >&#127897;</button>
+        <span id="focus-recording-indicator" style="display:none;font-size:10px;color:#ef4444;margin-top:6px;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;">&#9210; recording</span>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  const timerEl = document.getElementById('focus-timer');
+  focusTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - focusStartTime) / 1000);
+    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const ss = String(elapsed % 60).padStart(2, '0');
+    if (timerEl) timerEl.textContent = `${mm}:${ss}`;
+  }, 1000);
+
+  document.addEventListener('keydown', focusModeKeyHandler);
+  initVoiceNote();
+
+  // Library context injection (Phase 4.0)
+  if (window._libraryFocusContext) {
+    const ctx = window._libraryFocusContext;
+    window._libraryFocusContext = null; // consume it
+
+    // Show the library entry as an initial system message in the terminal
+    const messages = document.getElementById('focus-messages');
+    if (messages) {
+      const block = document.createElement('div');
+      block.style.cssText = 'padding:10px 0 16px;border-bottom:1px solid #1a1a1a;margin-bottom:12px;';
+      block.innerHTML = `
+        <div style="font-size:10px;color:#4b5563;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Library: ${escHtml(ctx.title)}</div>
+        <div style="font-size:12px;color:#9ca3af;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;white-space:pre-wrap;line-height:1.6;">${escHtml(ctx.content.slice(0, 600))}${ctx.content.length > 600 ? '\n\u2026' : ''}</div>
+      `;
+      messages.appendChild(block);
+    }
+
+    // Pre-fill the input placeholder so user can immediately converse about the entry
+    const input = document.getElementById('focus-input');
+    if (input) input.placeholder = `Ask Claude about "${ctx.title}"\u2026`;
+
+    // Store it on the session so the backend Focus route can inject it as context
+    window._focusLibraryPayload = { title: ctx.title, content: ctx.content };
+  }
+
+  document.getElementById('focus-input')?.focus();
+}
+
+async function exitFocusMode() {
+  if (focusHistory.length > 0) {
+    if (!confirm("Leave this session? It'll be saved.")) return;
+  }
+
+  // Fade the overlay before removing
+  const overlay = document.getElementById('focus-overlay');
+  if (overlay) {
+    overlay.style.transition = 'opacity 300ms ease-out';
+    overlay.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  clearInterval(focusTimerInterval);
+  const durationSeconds = Math.floor((Date.now() - (focusStartTime || Date.now())) / 1000);
+
+  if (focusSessionId) {
+    fetch(`/api/focus/sessions/${focusSessionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ended_at: new Date().toISOString(),
+        duration_seconds: durationSeconds,
+        conversation: JSON.stringify(focusHistory),
+      }),
+    }).catch(() => {});
+  }
+
+  document.getElementById('focus-overlay')?.remove();
+  document.removeEventListener('keydown', focusModeKeyHandler);
+
+  const appWrapper = document.getElementById('app-wrapper');
+  if (appWrapper) appWrapper.style.display = '';
+
+  setFocusToggleState(false);
+  focusActionId      = null;
+  focusSessionId     = null;
+  focusHistory       = [];
+  focusStartTime     = null;
+  focusTimerInterval = null;
+  // Phase 4.0 — clear library context and voice state across sessions
+  window._libraryFocusContext  = null;
+  window._focusLibraryPayload  = null;
+  voiceRecognition = null;
+  voiceRecording   = false;
+}
+
+function appendFocusMessage(role, text) {
+  const container = document.getElementById('focus-messages');
+  if (!container) return null;
+
+  const wrapper = document.createElement('div');
+
+  const el = document.createElement('div');
+  if (role === 'user') {
+    el.style.cssText = 'color:#4ade80;font-size:11px;line-height:1.5;';
+    el.innerHTML = `<span style="margin-right:8px;">&gt;</span>${escHtml(text)}`;
+  } else {
+    el.style.cssText = 'color:#9ca3af;font-size:11px;line-height:1.7;white-space:pre-wrap;';
+    el.textContent = text;
+  }
+
+  wrapper.appendChild(el);
+
+  // Phase 2.5: "Save this →" chip on assistant messages
+  if (role === 'assistant' && text) {
+    const chip = document.createElement('div');
+    chip.style.cssText = 'text-align:right;margin-top:4px;';
+    const btn = document.createElement('button');
+    btn.textContent = 'Save this →';
+    btn.setAttribute('data-content', text);
+    btn.style.cssText = "font-size:10px;color:#9ca3af;background:transparent;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid #2a2a2a;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;";
+    btn.onclick = () => saveContextFromFocusBlock(btn);
+    chip.appendChild(btn);
+    wrapper.appendChild(chip);
+  }
+
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+async function sendFocusMessage() {
+  const input = document.getElementById('focus-input');
+  const userMessage = input?.value.trim();
+  if (!userMessage) return;
+
+  input.value = '';
+
+  appendFocusMessage('user', userMessage);
+  const assistantEl = appendFocusMessage('assistant', '');
+
+  const historySnapshot = [...focusHistory];
+
+  try {
+    const response = await fetch('/api/focus/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actionId: focusActionId,
+        message: userMessage,
+        history: historySnapshot,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`API error ${response.status}`);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      fullResponse += chunk;
+      if (assistantEl) {
+        assistantEl.textContent = fullResponse;
+        const messages = document.getElementById('focus-messages');
+        if (messages) messages.scrollTop = messages.scrollHeight;
+      }
+    }
+
+    // Update the save chip data-content with full response
+    if (assistantEl && assistantEl.nextElementSibling) {
+      const chipBtn = assistantEl.nextElementSibling.querySelector('button[data-content]');
+      if (chipBtn) chipBtn.setAttribute('data-content', fullResponse);
+    }
+
+    focusHistory.push({ role: 'user', content: userMessage });
+    focusHistory.push({ role: 'assistant', content: fullResponse });
+
+    extractAndSaveContext(userMessage);
+
+  } catch (err) {
+    if (assistantEl) {
+      assistantEl.textContent = '[Error: Could not reach Claude. Try again.]';
+      assistantEl.style.color = '#ef4444';
+    }
+  }
+}
+
+function appendFocusSysMessage(text) {
+  const container = document.getElementById('focus-messages');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.style.cssText = "font-size:11px;color:#6b7280;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;padding:2px 0;display:flex;align-items:baseline;gap:6px;";
+  el.innerHTML = '<span style="color:#4ade80;font-size:10px;">✦</span>' + text;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function extractAndSaveContext(userMessage) {
+  try {
+    const res = await fetch('/api/focus/extract-context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMessage, actionId: focusActionId }),
+    });
+    const data = await res.json();
+    if (data.success && data.updates?.length > 0) {
+      for (const u of data.updates) {
+        appendFocusSysMessage(`Memory updated · ${u.key}`);
+      }
+    }
+  } catch (_) {}
+}
+
+function focusInputKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendFocusMessage();
+  }
+}
+
+// ============================================================
+// PHASE 4.0 — VOICE NOTE IN FOCUS MODE
+// ============================================================
+
+let voiceRecognition = null;
+let voiceRecording   = false;
+
+function initVoiceNote() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return; // Graceful degradation — hide button, do nothing
+
+  const micBtn = document.getElementById('focus-mic-btn');
+  if (micBtn) micBtn.style.display = '';
+
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.continuous     = false;
+  voiceRecognition.interimResults = false;
+  voiceRecognition.lang           = 'en-US';
+
+  voiceRecognition.onresult = async (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    stopVoiceRecording();
+    if (!transcript) return;
+
+    // Append transcript as a user message in the terminal
+    appendFocusMessage('user', '[voice note]: ' + transcript);
+
+    // Check if it sounds task-like — ask Claude with a minimal prompt
+    const taskCheck = await checkVoiceNoteIsTask(transcript);
+
+    // Set transcript in input and send through existing Focus Mode path
+    const input = document.getElementById('focus-input');
+    if (input) { input.value = transcript; }
+    await sendFocusMessage();
+
+    // Show "Add to inbox?" chip if task-like
+    if (taskCheck) {
+      showVoiceInboxChip(transcript);
+    }
+  };
+
+  voiceRecognition.onerror = (event) => {
+    console.warn('[Voice] Recognition error:', event.error);
+    stopVoiceRecording();
+  };
+
+  voiceRecognition.onend = () => {
+    stopVoiceRecording();
+  };
+}
+
+function toggleVoiceNote() {
+  if (voiceRecording) {
+    if (voiceRecognition) voiceRecognition.stop();
+    stopVoiceRecording();
+  } else {
+    startVoiceRecording();
+  }
+}
+
+function startVoiceRecording() {
+  if (!voiceRecognition) return;
+  voiceRecording = true;
+  const micBtn = document.getElementById('focus-mic-btn');
+  const indicator = document.getElementById('focus-recording-indicator');
+  if (micBtn) micBtn.style.color = '#ef4444';
+  if (indicator) indicator.style.display = '';
+  voiceRecognition.start();
+}
+
+function stopVoiceRecording() {
+  voiceRecording = false;
+  const micBtn = document.getElementById('focus-mic-btn');
+  const indicator = document.getElementById('focus-recording-indicator');
+  if (micBtn) micBtn.style.color = '#6b7280';
+  if (indicator) indicator.style.display = 'none';
+}
+
+async function checkVoiceNoteIsTask(transcript) {
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Does this sound like a task or commitment that should be tracked? Reply with only the single word "task" or "not".\n\n"' + transcript + '"',
+        history: [],
+      }),
+    });
+    const data = await res.json();
+    const reply = (data.reply || data.response || '').toLowerCase().trim();
+    return reply.startsWith('task');
+  } catch {
+    return false;
+  }
+}
+
+function showVoiceInboxChip(transcript) {
+  const container = document.getElementById('focus-messages');
+  if (!container) return;
+
+  const chip = document.createElement('div');
+  chip.style.cssText = "display:flex;align-items:center;gap:8px;padding:8px 12px;background:#111827;border:1px solid #22c55e;border-radius:8px;margin-top:4px;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;font-size:11px;color:#9ca3af;";
+  chip.innerHTML = `
+    <span style="color:#4ade80;">?</span>
+    <span>Add to inbox?</span>
+    <button onclick="addVoiceNoteToInbox(this, ${JSON.stringify(transcript)})"
+      style="margin-left:auto;background:#22c55e;color:#000;border:none;border-radius:4px;padding:2px 10px;font-size:10px;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;cursor:pointer;font-weight:600;">
+      Yes
+    </button>
+    <button onclick="this.closest('div').remove()"
+      style="background:transparent;color:#4b5563;border:none;font-size:10px;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;cursor:pointer;">
+      No
+    </button>`;
+  container.appendChild(chip);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function addVoiceNoteToInbox(btn, transcript) {
+  btn.closest('div').remove();
+  try {
+    await fetch('/api/inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: transcript.length > 120 ? transcript.slice(0, 117) + '\u2026' : transcript,
+        source_type: 'manual',
+        source_metadata: { origin: 'voice_note', action_id: focusActionId },
+      }),
+    });
+    // Show confirmation inline
+    const container = document.getElementById('focus-messages');
+    if (container) {
+      const confirm = document.createElement('div');
+      confirm.style.cssText = "font-size:11px;color:#4ade80;font-family:'SF Mono','SFMono-Regular',Menlo,monospace;padding:4px 0;";
+      confirm.textContent = '\u2713 Added to inbox';
+      container.appendChild(confirm);
+      container.scrollTop = container.scrollHeight;
+    }
+  } catch {
+    // Fail silently — not a critical feature
+  }
+}
+
+// ============================================================
+// PHASE 2.2 — USER CONTEXT MEMORY
+// ============================================================
+
+let memoryPanelOpen = false;
+
+async function toggleMemoryPanel() {
+  memoryPanelOpen = !memoryPanelOpen;
+  const panel = document.getElementById('memory-panel');
+  if (panel) panel.style.display = memoryPanelOpen ? 'block' : 'none';
+  if (memoryPanelOpen) await loadMemoryPanel();
+}
+
+async function loadMemoryPanel() {
+  try {
+    const res = await fetch('/api/context');
+    const data = await res.json();
+    const entries = data.data || [];
+
+    const countEl = document.getElementById('memory-count');
+    if (countEl) countEl.textContent = entries.length;
+
+    renderMemoryList(entries);
+  } catch (e) {
+    console.warn('Failed to load memory:', e);
+  }
+}
+
+function renderMemoryList(entries) {
+  const list = document.getElementById('memory-list');
+  if (!list) return;
+
+  const taskEntries = entries.filter(e => e.category !== 'saved_output');
+  const savedOutputs = entries.filter(e => e.category === 'saved_output');
+
+  if (taskEntries.length === 0 && savedOutputs.length === 0) {
+    list.innerHTML = `<div style="font-size:10px;color:#d1d5db;padding:4px 0;">No memories yet. They'll be collected as you work.</div>`;
+    return;
+  }
+
+  let html = taskEntries.map(entry => `
+    <div style="display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid #f9fafb;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10px;font-weight:500;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(entry.key)}</div>
+        <div
+          contenteditable="true"
+          onblur="saveContextEdit(${entry.id}, this.textContent, '${escHtml(entry.category || '')}')"
+          style="font-size:10px;color:#6b7280;outline:none;cursor:text;"
+        >${escHtml(entry.value)}</div>
+      </div>
+      <button
+        onclick="deleteContextEntry(${entry.id})"
+        style="flex-shrink:0;background:transparent;border:none;color:#d1d5db;font-size:12px;cursor:pointer;padding:0 2px;line-height:1;"
+        title="Delete">×</button>
+    </div>
+  `).join('');
+
+  if (savedOutputs.length > 0) {
+    html += `<div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:10px;margin-bottom:4px;">Saved Outputs</div>`;
+    html += savedOutputs.map(entry => `
+      <div style="padding:6px 0;border-bottom:1px solid #f9fafb;">
+        <div style="font-size:10px;font-weight:500;color:#374151;margin-bottom:2px;">${escHtml(entry.key)}</div>
+        <div style="font-size:10px;color:#6b7280;white-space:pre-wrap;max-height:50px;overflow:hidden;">${escHtml((entry.value || '').slice(0, 120))}</div>
+        <div style="font-size:9px;color:#9ca3af;margin-top:2px;">${new Date(entry.created_at).toLocaleDateString()}</div>
+      </div>
+    `).join('');
+  }
+
+  list.innerHTML = html;
+}
+
+async function saveContextEdit(id, newValue, category) {
+  const value = (newValue || '').trim();
+  if (!value) return;
+  try {
+    await fetch(`/api/context/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value, category }),
+    });
+  } catch (e) {
+    console.warn('Failed to save context edit:', e);
+  }
+}
+
+async function deleteContextEntry(id) {
+  if (!confirm('Remove this memory?')) return;
+  try {
+    await fetch(`/api/context/${id}`, { method: 'DELETE' });
+    await loadMemoryPanel();
+  } catch (e) {
+    console.warn('Failed to delete context entry:', e);
+  }
+}
+
+function showAddContextForm() {
+  const list = document.getElementById('memory-list');
+  if (!list) return;
+  const form = document.createElement('div');
+  form.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:6px 0;border-bottom:1px solid #f3f4f6;margin-bottom:4px;';
+  form.innerHTML = `
+    <input id="new-ctx-key" placeholder="What (e.g. 150 dials)"
+      style="font-size:10px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;outline:none;" />
+    <input id="new-ctx-val" placeholder="Duration or note (e.g. 6 hours)"
+      style="font-size:10px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;outline:none;" />
+    <div style="display:flex;gap:4px;">
+      <button onclick="submitAddContext()" style="flex:1;font-size:10px;padding:3px;background:#111827;color:#fff;border:none;border-radius:4px;cursor:pointer;">Save</button>
+      <button onclick="this.closest('div').parentElement.remove()" style="font-size:10px;padding:3px 8px;background:transparent;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;color:#9ca3af;">Cancel</button>
+    </div>`;
+  list.insertBefore(form, list.firstChild);
+  document.getElementById('new-ctx-key')?.focus();
+}
+
+async function submitAddContext() {
+  const key   = document.getElementById('new-ctx-key')?.value.trim();
+  const value = document.getElementById('new-ctx-val')?.value.trim();
+  if (!key || !value) return;
+  try {
+    await fetch('/api/context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value, category: 'task_duration', source: 'manual' }),
+    });
+    await loadMemoryPanel();
+  } catch (e) {
+    console.warn('Failed to add context:', e);
+  }
+}
+
+async function saveContextFromFocus(userMessage, assistantResponse, chipEl) {
+  const key = userMessage.slice(0, 60).trim();
+  const match = assistantResponse.match(/(\d+[\s\-–]*(?:min(?:utes?)?|hours?|hrs?)[^.!?\n]*)/i);
+  const value = match ? match[1].trim() : assistantResponse.slice(0, 80).trim();
+
+  chipEl.disabled = true;
+  chipEl.textContent = 'Saving…';
+
+  try {
+    const res = await fetch('/api/context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key, value, category: 'task_duration', source: 'focus_mode',
+        source_action_id: focusActionId,
+      }),
+    });
+    if (res.ok) {
+      chipEl.textContent = 'Saved ✓';
+      chipEl.style.color = '#6b7280';
+      setTimeout(() => chipEl.remove(), 2000);
+    } else {
+      chipEl.textContent = 'Save failed';
+      chipEl.disabled = false;
+    }
+  } catch (e) {
+    chipEl.textContent = 'Save failed';
+    chipEl.disabled = false;
+  }
+}
+
+// Phase 2.5: save full assistant block to Library
+async function saveContextFromFocusBlock(btn) {
+  const content = btn.getAttribute('data-content') || '';
+  if (!content) return;
+  const key = content.trim().split(/\s+/).slice(0, 8).join(' ');
+  try {
+    const res = await fetch('/api/library', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: content, source: 'focus_mode' }),
+    });
+    if (res.ok) {
+      btn.textContent = 'Saved ✓';
+      btn.disabled = true;
+      btn.style.color = '#4ade80';
+    }
+  } catch (_) {
+    btn.textContent = 'Failed';
+  }
+}
+
+// ============================================================
+// PHASE 2.3 — AI BREAKDOWN QUESTIONS
+// ============================================================
+
+function renderBreakdownQuestions(questions, outcomeId, pendingActions) {
+  const content = document.getElementById('cmdPaletteContent');
+  if (!content) return;
+
+  const inputs = questions.map((q, i) => `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px;">${escHtml(q)}</div>
+      <input
+        id="breakdown-q-${i}"
+        type="text"
+        placeholder="Your answer…"
+        style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;box-sizing:border-box;"
+      />
+    </div>
+  `).join('');
+
+  content.innerHTML = `
+    <div style="padding:16px;">
+      <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;">
+        A couple of questions before I build your plan
+      </div>
+      ${inputs}
+      <button
+        onclick="submitBreakdownQuestions()"
+        style="width:100%;margin-top:4px;padding:8px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+        Continue →
+      </button>
+    </div>`;
+
+  window._pendingBreakdownQuestions  = questions;
+  window._pendingBreakdownActions    = pendingActions;
+  window._pendingBreakdownOutcomeId  = outcomeId;
+
+  setTimeout(() => document.getElementById('breakdown-q-0')?.focus(), 50);
+}
+
+async function submitBreakdownQuestions() {
+  const questions = window._pendingBreakdownQuestions || [];
+  const answers = questions.map((q, i) => ({
+    question: q,
+    answer: document.getElementById(`breakdown-q-${i}`)?.value.trim() || '',
+  }));
+
+  const saves = answers
+    .filter(a => a.answer)
+    .map(a => fetch('/api/context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: a.question.slice(0, 60),
+        value: a.answer,
+        category: 'task_duration',
+        source: 'ai_breakdown',
+      }),
+    }));
+
+  await Promise.all(saves).catch(() => {});
+
+  const pendingActions = window._pendingBreakdownActions || [];
+  window._pendingBreakdownQuestions = null;
+  window._pendingBreakdownActions   = null;
+  window._pendingBreakdownOutcomeId = null;
+
+  renderCmdBreak(pendingActions);
+}
+
+// ============================================================
+// PHASE 2.4 — SMART INBOX TRIAGE
+// ============================================================
+
+let triageSelectedIds = new Set();
+
+function toggleTriageItem(id, checked) {
+  if (checked) triageSelectedIds.add(id);
+  else triageSelectedIds.delete(id);
+
+  const count = triageSelectedIds.size;
+  const bar = document.getElementById('triage-batch-bar');
+  const countEl = document.getElementById('triage-count');
+  if (bar) bar.style.display = count > 0 ? 'block' : 'none';
+  if (countEl) countEl.textContent = count;
+}
+
+async function startBatchTriage() {
+  if (triageSelectedIds.size === 0) return;
+  const itemIds = [...triageSelectedIds];
+  showTriageLoadingState();
+
+  try {
+    const res = await fetch('/api/inbox/triage-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemIds }),
+    });
+    if (!res.ok) throw new Error('Triage failed');
+    const data = await res.json();
+    const { clusters, questions } = data.data;
+    hideTriageLoadingState();
+    if (questions && questions.length > 0) {
+      renderTriageQuestions(questions, clusters, itemIds);
+    } else {
+      renderTriagePreview(clusters, itemIds);
+    }
+  } catch (err) {
+    hideTriageLoadingState();
+    showToast('Triage failed — try again', 'warning');
+  }
+}
+
+function showTriageLoadingState() {
+  const btn = document.getElementById('start-batch-triage-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
+}
+
+function hideTriageLoadingState() {
+  const btn = document.getElementById('start-batch-triage-btn');
+  if (btn) { btn.disabled = false; btn.textContent = `Triage Selected (${triageSelectedIds.size}) →`; }
+}
+
+function renderTriageQuestions(questions, pendingClusters, itemIds) {
+  const container = document.getElementById('centerContent');
+  if (!container) return;
+
+  const inputs = questions.map((q, i) => `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px;">${escHtml(q.question || q)}</div>
+      <input id="triage-q-${i}" type="text" placeholder="Your answer…"
+        style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;box-sizing:border-box;" />
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div style="padding:20px;max-width:560px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:16px;text-transform:uppercase;letter-spacing:.05em;">Quick questions before I build your plan</div>
+      ${inputs}
+      <button onclick="submitTriageQuestions()"
+        style="width:100%;margin-top:4px;padding:10px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+        Next →
+      </button>
+    </div>`;
+
+  window._triagePendingQuestions = questions;
+  window._triagePendingClusters  = pendingClusters;
+  window._triagePendingItemIds   = itemIds;
+
+  setTimeout(() => document.getElementById('triage-q-0')?.focus(), 50);
+}
+
+async function submitTriageQuestions() {
+  const questions = window._triagePendingQuestions || [];
+  const clusters  = window._triagePendingClusters || [];
+  const itemIds   = window._triagePendingItemIds || [];
+
+  const saves = questions.map((q, i) => {
+    const answer = document.getElementById(`triage-q-${i}`)?.value.trim();
+    if (!answer) return Promise.resolve();
+    return fetch('/api/context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: (q.context_key || (q.question || q).slice(0, 60)),
+        value: answer,
+        category: 'task_duration',
+        source: 'inbox_triage',
+      }),
+    });
+  });
+
+  await Promise.all(saves).catch(() => {});
+
+  window._triagePendingQuestions = null;
+  window._triagePendingClusters  = null;
+  window._triagePendingItemIds   = null;
+
+  renderTriagePreview(clusters, itemIds);
+}
+
+function renderTriagePreview(clusters, itemIds) {
+  const container = document.getElementById('centerContent');
+  if (!container) return;
+
+  const projectOptions = PROJECTS.map(p =>
+    `<option value="${p.id}">${escHtml(p.name)}</option>`
+  ).join('');
+
+  const clusterCards = (clusters || []).map((cluster, ci) => {
+    const actionRows = (cluster.actions || []).map((a, ai) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f9fafb;">
+        <input type="text" value="${escHtml(a.title || '')}"
+          id="triage-action-title-${ci}-${ai}"
+          style="flex:1;border:none;outline:none;font-size:11px;color:#374151;background:transparent;" />
+        <input type="number" value="${a.time_estimate || ''}" min="1"
+          id="triage-action-time-${ci}-${ai}"
+          style="width:48px;border:1px solid #e5e7eb;border-radius:4px;padding:2px 4px;font-size:10px;text-align:center;" />
+        <span style="font-size:9px;color:#9ca3af;">min</span>
+        <button onclick="toggleTriageEnergy(${ci}, ${ai})" id="triage-energy-${ci}-${ai}"
+          style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid #e5e7eb;background:transparent;cursor:pointer;color:#6b7280;">
+          ${a.energy_type || 'deep'}
+        </button>
+        <button onclick="removeTriageAction(${ci}, ${ai})"
+          style="background:transparent;border:none;color:#d1d5db;font-size:12px;cursor:pointer;line-height:1;">×</button>
+      </div>
+    `).join('');
+
+    return `
+      <div id="triage-cluster-${ci}" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px;">
+        <input type="text" value="${escHtml(cluster.outcome_title || '')}"
+          id="triage-outcome-title-${ci}"
+          style="width:100%;border:none;outline:none;font-size:13px;font-weight:600;color:#111827;margin-bottom:8px;background:transparent;" />
+        <select id="triage-project-${ci}"
+          style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:11px;margin-bottom:8px;color:#374151;">
+          <option value="">— select project —</option>
+          ${projectOptions}
+        </select>
+        <div id="triage-actions-${ci}">${actionRows}</div>
+        <button onclick="removeTriageCluster(${ci})"
+          style="margin-top:8px;font-size:10px;color:#9ca3af;background:transparent;border:none;cursor:pointer;">
+          Remove this outcome
+        </button>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="padding:20px;max-width:560px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:16px;text-transform:uppercase;letter-spacing:.05em;">Review your plan</div>
+      <div id="triage-clusters">${clusterCards}</div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button onclick="confirmBatchTriage()"
+          style="flex:1;padding:10px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+          Create All
+        </button>
+        <button onclick="cancelBatchTriage()"
+          style="padding:10px 16px;background:transparent;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;color:#6b7280;cursor:pointer;">
+          Cancel
+        </button>
+      </div>
+    </div>`;
+
+  window._triageClusters = clusters;
+  window._triageItemIds  = itemIds;
+}
+
+function removeTriageCluster(ci) {
+  const el = document.getElementById(`triage-cluster-${ci}`);
+  if (el) el.remove();
+}
+
+function removeTriageAction(ci, ai) {
+  const titleEl = document.getElementById(`triage-action-title-${ci}-${ai}`);
+  if (titleEl) titleEl.closest('div[style]')?.remove();
+}
+
+function toggleTriageEnergy(ci, ai) {
+  const btn = document.getElementById(`triage-energy-${ci}-${ai}`);
+  if (!btn) return;
+  const current = btn.textContent.trim();
+  btn.textContent = current === 'deep' ? 'light' : 'deep';
+}
+
+async function confirmBatchTriage() {
+  const clusterEls = document.querySelectorAll('[id^="triage-cluster-"]');
+  const errors = [];
+
+  for (let ci = 0; ci < clusterEls.length; ci++) {
+    const el = clusterEls[ci];
+    if (!el || el.style.display === 'none') continue;
+
+    const titleEl = document.getElementById(`triage-outcome-title-${ci}`);
+    const projEl  = document.getElementById(`triage-project-${ci}`);
+    const title   = titleEl?.value.trim();
+    const projectId = projEl?.value;
+
+    if (!title || !projectId) {
+      errors.push(`Outcome ${ci + 1}: select a project and provide a title`);
+      continue;
+    }
+
+    try {
+      const outcomeRes = await fetch('/api/outcomes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, project_id: parseInt(projectId) }),
+      });
+      if (!outcomeRes.ok) throw new Error('outcome creation failed');
+      const outcomeData = await outcomeRes.json();
+      const outcomeId = outcomeData.data?.id;
+
+      let ai = 0;
+      while (document.getElementById(`triage-action-title-${ci}-${ai}`)) {
+        const actionTitle = document.getElementById(`triage-action-title-${ci}-${ai}`)?.value.trim();
+        const timeEstimate = parseInt(document.getElementById(`triage-action-time-${ci}-${ai}`)?.value) || null;
+        const energyType = document.getElementById(`triage-energy-${ci}-${ai}`)?.textContent.trim() || 'deep';
+
+        if (actionTitle && outcomeId) {
+          await fetch(`/api/outcomes/${outcomeId}/actions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: actionTitle,
+              time_estimate: timeEstimate,
+              energy_type: energyType,
+            }),
+          });
+        }
+        ai++;
+      }
+    } catch (e) {
+      errors.push(`Outcome ${ci + 1}: ${e.message}`);
+    }
+  }
+
+  const itemIds = window._triageItemIds || [];
+  await Promise.all(itemIds.map(id =>
+    fetch(`/api/inbox/${id}/dismiss`, { method: 'POST' }).catch(() => {})
+  ));
+
+  if (errors.length > 0) {
+    showToast(`Some items failed: ${errors[0]}`, 'warning');
+  } else {
+    showToast('Triage complete — outcomes and actions created', 'success');
+  }
+
+  triageSelectedIds = new Set();
+  window._triageClusters = null;
+  window._triageItemIds  = null;
+  await Promise.all([loadData(), loadInboxData()]);
+  renderAll();
+  updateInboxBadge();
+}
+
+function cancelBatchTriage() {
+  triageSelectedIds = new Set();
+  window._triageClusters = null;
+  window._triageItemIds  = null;
+  renderCenter();
+}
+
+// ============================================================
+// PHASE 2.6 — DELIGHT
+// ============================================================
+
+let soundEnabled = localStorage.getItem('waypoint_sound_enabled') === 'true';
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('waypoint_sound_enabled', String(soundEnabled));
+  const btn = document.getElementById('sound-toggle-btn');
+  if (btn) btn.textContent = soundEnabled ? 'On' : 'Off';
+}
+
+function playSound(type) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'check') {
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    } else if (type === 'complete') {
+      osc.frequency.value = 660;
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } else if (type === 'archive') {
+      osc.type = 'sine';
+      osc.frequency.value = 523;
+      osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.5);
+    }
+  } catch (_) {}
+}
+
+function showCompletionBanner(outcomeId, outcomeTitle) {
+  document.getElementById('completion-banner')?.remove();
+  const banner = document.createElement('div');
+  banner.id = 'completion-banner';
+  banner.style.cssText = `
+    position:sticky;top:0;z-index:100;
+    background:#16a34a;color:#fff;
+    padding:12px 16px;
+    display:flex;align-items:center;justify-content:space-between;
+    border-radius:8px;margin-bottom:8px;
+    animation:bannerSlideDown 300ms ease-out forwards;
+    box-shadow:0 4px 12px rgba(22,163,74,0.3);`;
+  banner.innerHTML = `
+    <span style="font-size:13px;font-weight:600;">✓ All done · ${escHtml(outcomeTitle)}</span>
+    <button
+      onclick="archiveOutcome(); document.getElementById('completion-banner')?.remove();"
+      style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:12px;">
+      Complete &amp; Close →
+    </button>`;
+
+  const actionsContainer = document.getElementById('centerContent');
+  if (actionsContainer) {
+    actionsContainer.insertBefore(banner, actionsContainer.firstChild);
+  }
+}
+
+function showArchiveOverlay(title, actionsDone, totalMinutes) {
+  document.getElementById('archive-overlay')?.remove();
+
+  const hours = totalMinutes >= 60
+    ? `${(totalMinutes / 60).toFixed(1)}h`
+    : `${totalMinutes}m`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'archive-overlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:999;
+    background:rgba(0,0,0,0.75);
+    display:flex;align-items:center;justify-content:center;
+    animation:overlayFadeIn 300ms ease-out forwards;
+    cursor:pointer;`;
+  overlay.onclick = () => overlay.remove();
+  overlay.innerHTML = `
+    <div style="text-align:center;color:#fff;padding:40px;" onclick="event.stopPropagation()">
+      <div style="font-size:48px;margin-bottom:16px;">✓</div>
+      <div style="font-size:22px;font-weight:700;margin-bottom:8px;">Outcome closed</div>
+      <div style="font-size:15px;color:rgba(255,255,255,0.8);margin-bottom:24px;max-width:320px;">${escHtml(title)}</div>
+      <div style="display:flex;gap:32px;justify-content:center;margin-bottom:24px;">
+        <div><div style="font-size:24px;font-weight:700;">${actionsDone}</div><div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.05em;">Actions</div></div>
+        <div><div style="font-size:24px;font-weight:700;">${hours}</div><div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.05em;">Work</div></div>
+      </div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.5);">Well done.</div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 2500);
+}
+
+// ============================================================
+// PHASE 3.1 — BRIEFINGS SETTINGS
+// ============================================================
+
+async function savePref(key, value) {
+  try {
+    await fetch(`/api/preferences/${key}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    });
+  } catch (e) {
+    console.warn('Failed to save preference:', e);
+  }
+}
+
+async function sendTestBrief() {
+  const btn = document.querySelector('[onclick="sendTestBrief()"]');
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/briefings/test', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) showToast('Test brief sent to Slack', 'success');
+    else showToast(data.error || 'Send failed', 'warning');
+  } catch (e) {
+    showToast('Send failed', 'warning');
+  }
+  if (btn) { btn.textContent = 'Send me a test brief now'; btn.disabled = false; }
+}
+
+async function loadBriefingsSettings() {
+  try {
+    const res = await fetch('/api/preferences');
+    const data = await res.json();
+    const prefs = data.data || {};
+    const toggle   = document.getElementById('briefings-toggle');
+    const slackId  = document.getElementById('briefings-slack-id');
+    const timezone = document.getElementById('briefings-timezone');
+    if (toggle)   toggle.checked = prefs.briefings_enabled === 'true';
+    if (slackId)  slackId.value  = prefs.briefing_slack_user_id || '';
+    if (timezone) timezone.value = prefs.timezone || 'America/Chicago';
+    const track = document.getElementById('briefings-toggle-track');
+    if (track) track.style.background = prefs.briefings_enabled === 'true' ? '#111827' : '#d1d5db';
+  } catch (e) {
+    console.warn('Failed to load briefings settings:', e);
+  }
+  loadInboundEmailDisplay();
+}
+
+function loadInboundEmailDisplay() {
+  const el = document.getElementById('inbound-email-display');
+  if (!el) return;
+  fetch('/api/inbox/inbound-email-address')
+    .then(r => r.json())
+    .then(d => { if (el) el.textContent = d.address || 'Set INBOUND_EMAIL_ADDRESS in .env'; })
+    .catch(() => { if (el) el.textContent = 'Set INBOUND_EMAIL_ADDRESS in .env'; });
+}
+
+// ============================================================
+// ADVISOR VIEW — Phase 4.3
+// ============================================================
+
+async function checkAdvisorDot() {
+  try {
+    const res = await fetch('/api/advisor/unread');
+    const data = await res.json();
+    const dot = document.getElementById('advisor-dot');
+    if (dot) dot.style.display = data.data.hasUnread ? 'block' : 'none';
+  } catch (_) {}
+}
+
+async function showAdvisorView() {
+  setViewActive('nav-advisor');
+
+  const center = document.getElementById('centerContent');
+  const right = document.getElementById('rightPanel');
+  if (right) right.innerHTML = '';
+
+  if (center) center.innerHTML = '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Loading advisor...</div>';
+
+  // Fetch all reviews
+  let reviews = [];
+  try {
+    const resp = await fetch('/api/advisor/reviews');
+    const json = await resp.json();
+    reviews = json.data || [];
+  } catch (_) {}
+
+  // Hide the amber dot
+  const dot = document.getElementById('advisor-dot');
+  if (dot) dot.style.display = 'none';
+
+  // Mark the most recent unread review as read
+  const unread = reviews.find(r => r.has_unread_observation === 1);
+  if (unread) {
+    try {
+      await fetch(`/api/advisor/reviews/${unread.id}/read`, { method: 'POST' });
+    } catch (_) {}
+  }
+
+  renderAdvisorView(reviews);
+}
+
+function renderAdvisorView(reviews) {
+  const center = document.getElementById('centerContent');
+  if (!center) return;
+
+  const mostRecent = reviews[0];
+  const history = reviews.slice(1);
+
+  center.innerHTML = `
+    <div style="padding:24px;max-width:720px;">
+
+      <div style="margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;color:#111827;">Advisor</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px;">Weekly retrospectives from Claude, based on your real data.</div>
+      </div>
+
+      ${mostRecent ? `
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.04);margin-bottom:24px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">
+              ${mostRecent.review_type === 'proactive' ? '● Proactive flag' : `Week of ${formatWeekOf(mostRecent.week_of)}`}
+            </div>
+            <div style="font-size:11px;color:#9ca3af;">${formatAdvisorDate(mostRecent.created_at)}</div>
+          </div>
+          <div style="font-size:13px;color:#374151;line-height:1.7;white-space:pre-wrap;">${escHtml(mostRecent.summary)}</div>
+          ${mostRecent.review_type !== 'proactive' ? `
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f3f4f6;font-size:11px;color:#9ca3af;font-style:italic;">
+            No action required. These are observations, not tasks.
+          </div>` : ''}
+        </div>
+      ` : `
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:24px;text-align:center;color:#6b7280;font-size:13px;">
+          No reviews yet. Your first retrospective will appear here on Friday at 5:30pm.
+        </div>
+      `}
+
+      ${history.length > 0 ? `
+        <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Previous reviews →</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${history.map(r => `
+            <div onclick="openAdvisorReview(${r.id})"
+              style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:12px;font-weight:500;color:#111827;">
+                  ${r.review_type === 'proactive' ? '● Proactive flag' : `Week of ${formatWeekOf(r.week_of)}`}
+                </div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;">${escHtml(r.summary.slice(0, 80))}…</div>
+              </div>
+              <div style="font-size:11px;color:#9ca3af;flex-shrink:0;margin-left:12px;">${formatAdvisorDate(r.created_at)}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+    </div>
+  `;
+}
+
+function openAdvisorReview(id) {
+  fetch(`/api/advisor/reviews/${id}`)
+    .then(r => r.json())
+    .then(data => {
+      const review = data.data;
+      const right = document.getElementById('rightPanel');
+      if (!right) return;
+      right.innerHTML = `
+        <div style="padding:20px;">
+          <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">
+            ${review.review_type === 'proactive' ? 'Proactive flag' : `Week of ${formatWeekOf(review.week_of)}`}
+          </div>
+          <div style="font-size:13px;color:#374151;line-height:1.7;white-space:pre-wrap;">${escHtml(review.summary)}</div>
+          ${review.review_type !== 'proactive' ? `
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f3f4f6;font-size:11px;color:#9ca3af;font-style:italic;">
+            No action required. These are observations, not tasks.
+          </div>` : ''}
+        </div>
+      `;
+    })
+    .catch(() => {});
+}
+
+function formatWeekOf(weekOf) {
+  // Returns "Feb 17–21" — Monday to Friday of that week
+  if (!weekOf) return '';
+  const monday = new Date(weekOf + 'T00:00:00');
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const monStr = monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // "Feb 17"
+  const friDay = friday.toLocaleDateString('en-US', { day: 'numeric' }); // "21"
+  return `${monStr}\u2013${friDay}`; // "Feb 17–21" using en dash
+}
+
+function formatAdvisorDate(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch (_) {
+    return '';
   }
 }
 

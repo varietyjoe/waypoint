@@ -10,6 +10,7 @@ const db = require('./index');
  * Uses try/catch because SQLite has no ALTER TABLE IF NOT EXISTS.
  */
 function initInboxMigrations() {
+    // Phase 1.2 — additive column migrations
     const migrations = [
         "ALTER TABLE inbox ADD COLUMN classification TEXT",
         "ALTER TABLE inbox ADD COLUMN suggested_outcome_id INTEGER REFERENCES outcomes(id)",
@@ -18,6 +19,48 @@ function initInboxMigrations() {
     for (const sql of migrations) {
         try { db.prepare(sql).run(); } catch (_) { /* column already exists */ }
     }
+
+    // Phase 4.0 — expand source_type CHECK constraint to include 'slack_command' and 'email_forward'
+    // SQLite does not support ALTER COLUMN, so we recreate the table if the constraint is still narrow.
+    // Detect the old constraint by checking the table SQL in sqlite_master.
+    try {
+        const schemaMeta = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='inbox'").get();
+        const hasNarrowCheck = schemaMeta && schemaMeta.sql.includes("source_type IN ('slack', 'grain', 'manual')");
+        if (hasNarrowCheck) {
+            db.exec(`
+                PRAGMA foreign_keys = OFF;
+
+                ALTER TABLE inbox RENAME TO inbox_old_phase40;
+
+                CREATE TABLE inbox (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    priority TEXT DEFAULT 'Medium' CHECK(priority IN ('Low', 'Medium', 'High')),
+                    due_date TEXT,
+                    source_type TEXT NOT NULL CHECK(source_type IN ('slack', 'grain', 'manual', 'slack_command', 'email_forward')),
+                    source_url TEXT,
+                    source_metadata TEXT,
+                    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    processed_at DATETIME,
+                    classification TEXT,
+                    suggested_outcome_id INTEGER REFERENCES outcomes(id),
+                    ai_reasoning TEXT
+                );
+
+                INSERT INTO inbox SELECT * FROM inbox_old_phase40;
+
+                DROP TABLE inbox_old_phase40;
+
+                PRAGMA foreign_keys = ON;
+            `);
+            console.log('✅ Inbox source_type CHECK constraint expanded (Phase 4.0)');
+        }
+    } catch (migErr) {
+        console.error('❌ Inbox Phase 4.0 migration failed:', migErr.message);
+    }
+
     console.log('✅ Inbox Phase 1.2 columns ready');
 }
 
@@ -44,8 +87,9 @@ async function addToInbox(suggestion) {
         throw new Error('title is required');
     }
 
-    if (!source_type || !['slack', 'grain', 'manual'].includes(source_type)) {
-        throw new Error('source_type must be "slack", "grain", or "manual"');
+    const VALID_SOURCE_TYPES = ['slack', 'grain', 'manual', 'slack_command', 'email_forward'];
+    if (!source_type || !VALID_SOURCE_TYPES.includes(source_type)) {
+        throw new Error(`source_type must be one of: ${VALID_SOURCE_TYPES.join(', ')}`);
     }
 
     const stmt = db.prepare(`
