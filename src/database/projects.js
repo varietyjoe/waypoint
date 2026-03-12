@@ -25,14 +25,16 @@ function initProjectsTable() {
         console.log('✅ Added view_mode column to projects table');
     }
 
-    // Add project_id to tasks table if it doesn't exist
-    const tableInfo = db.prepare("PRAGMA table_info(tasks)").all();
-    const hasProjectId = tableInfo.some(col => col.name === 'project_id');
-
-    if (!hasProjectId) {
-        db.exec(`ALTER TABLE tasks ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)`);
-        console.log('✅ Added project_id column to tasks table');
+    // Add project_id to tasks table if it exists (legacy migration — tasks table may not exist)
+    const tasksExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'").get();
+    if (tasksExists) {
+        const tableInfo = db.prepare("PRAGMA table_info(tasks)").all();
+        const hasProjectId = tableInfo.some(col => col.name === 'project_id');
+        if (!hasProjectId) {
+            db.exec(`ALTER TABLE tasks ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL`);
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)`);
+            console.log('✅ Added project_id column to tasks table');
+        }
     }
 
     // Create a default "My Tasks" project if no projects exist
