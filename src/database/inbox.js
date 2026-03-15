@@ -10,6 +10,26 @@ const db = require('./index');
  * Uses try/catch because SQLite has no ALTER TABLE IF NOT EXISTS.
  */
 function initInboxMigrations() {
+    // Ensure base table exists (fresh DB / Railway)
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS inbox (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            priority TEXT DEFAULT 'Medium' CHECK(priority IN ('Low', 'Medium', 'High')),
+            due_date TEXT,
+            source_type TEXT NOT NULL CHECK(source_type IN ('slack', 'grain', 'manual', 'slack_command', 'email_forward', 'capture')),
+            source_url TEXT,
+            source_metadata TEXT,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            processed_at DATETIME,
+            classification TEXT,
+            suggested_outcome_id INTEGER REFERENCES outcomes(id),
+            ai_reasoning TEXT
+        )
+    `);
+
     // Phase 1.2 — additive column migrations
     const migrations = [
         "ALTER TABLE inbox ADD COLUMN classification TEXT",
@@ -61,6 +81,45 @@ function initInboxMigrations() {
         console.error('❌ Inbox Phase 4.0 migration failed:', migErr.message);
     }
 
+    // Phase 4.1 — add 'capture' to source_type CHECK constraint
+    try {
+        const schemaMeta = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='inbox'").get();
+        const missingCapture = schemaMeta && !schemaMeta.sql.includes("'capture'");
+        if (missingCapture) {
+            db.exec(`
+                PRAGMA foreign_keys = OFF;
+
+                ALTER TABLE inbox RENAME TO inbox_old_phase41;
+
+                CREATE TABLE inbox (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    priority TEXT DEFAULT 'Medium' CHECK(priority IN ('Low', 'Medium', 'High')),
+                    due_date TEXT,
+                    source_type TEXT NOT NULL CHECK(source_type IN ('slack', 'grain', 'manual', 'slack_command', 'email_forward', 'capture')),
+                    source_url TEXT,
+                    source_metadata TEXT,
+                    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    processed_at DATETIME,
+                    classification TEXT,
+                    suggested_outcome_id INTEGER REFERENCES outcomes(id),
+                    ai_reasoning TEXT
+                );
+
+                INSERT INTO inbox SELECT * FROM inbox_old_phase41;
+
+                DROP TABLE inbox_old_phase41;
+
+                PRAGMA foreign_keys = ON;
+            `);
+            console.log('✅ Inbox source_type CHECK constraint expanded (Phase 4.1 — capture)');
+        }
+    } catch (migErr) {
+        console.error('❌ Inbox Phase 4.1 migration failed:', migErr.message);
+    }
+
     console.log('✅ Inbox Phase 1.2 columns ready');
 }
 
@@ -87,7 +146,7 @@ async function addToInbox(suggestion) {
         throw new Error('title is required');
     }
 
-    const VALID_SOURCE_TYPES = ['slack', 'grain', 'manual', 'slack_command', 'email_forward'];
+    const VALID_SOURCE_TYPES = ['slack', 'grain', 'manual', 'slack_command', 'email_forward', 'capture'];
     if (!source_type || !VALID_SOURCE_TYPES.includes(source_type)) {
         throw new Error(`source_type must be one of: ${VALID_SOURCE_TYPES.join(', ')}`);
     }
