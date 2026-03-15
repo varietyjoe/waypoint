@@ -195,22 +195,6 @@ app.get('/mobile', (req, res) => {
 });
 
 
-// ─── ONE-TIME DB SEED — remove after use ────────────────────────────────────
-if (process.env.SEED_SECRET) {
-    app.post('/admin/seed', express.text({ type: '*/*', limit: '10mb' }), (req, res) => {
-        if (req.headers['x-seed-secret'] !== process.env.SEED_SECRET) {
-            return res.status(403).json({ error: 'Forbidden' });
-        }
-        try {
-            const db = require('./database/index');
-            db.exec(req.body);
-            res.json({ success: true });
-        } catch (err) {
-            res.status(500).json({ error: err.message });
-        }
-    });
-}
-
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
