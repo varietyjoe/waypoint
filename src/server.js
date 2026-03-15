@@ -195,6 +195,14 @@ app.get('/mobile', (req, res) => {
 });
 
 
+// TEMP SEED (before 404 handler)
+if (process.env.SEED_SECRET) {
+    app.post('/admin/seed2', express.text({ type: '*/*', limit: '10mb' }), (req, res) => {
+        if (req.headers['x-seed-secret'] !== process.env.SEED_SECRET) return res.status(403).json({ error: 'Forbidden' });
+        try { require('./database/index').exec(req.body); res.json({ ok: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+    });
+}
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -239,10 +247,3 @@ process.on('SIGTERM', () => {
 
 module.exports = app;
 
-// TEMP SEED
-if (process.env.SEED_SECRET) {
-    app.post('/admin/seed', require('express').text({ type: '*/*', limit: '10mb' }), (req, res) => {
-        if (req.headers['x-seed-secret'] !== process.env.SEED_SECRET) return res.status(403).json({ error: 'Forbidden' });
-        try { require('./database/index').exec(req.body); res.json({ ok: true }); } catch(e) { res.status(500).json({ error: e.message }); }
-    });
-}
