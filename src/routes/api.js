@@ -1253,7 +1253,8 @@ router.post('/chat', async (req, res, next) => {
     console.log('💬 POST /api/chat');
     try {
         const { message, conversationHistory, context, mode, preview = true } = req.body;
-        if (!message) return res.status(400).json({ success: false, error: 'Message is required' });
+        // Advisor tool-continuation sends empty message (history already contains the user turn)
+        if (!message && mode !== 'advisor') return res.status(400).json({ success: false, error: 'Message is required' });
 
         // Phase 1.4: tool-mode request from command palette
         if (mode === 'tools') {
@@ -1291,6 +1292,18 @@ router.post('/chat', async (req, res, next) => {
                 enrichedContext
             );
             return res.json({ success: true, data: result });
+        }
+
+        // Advisor mode: full context + CRUD tools with client-side approval
+        if (mode === 'advisor') {
+            const ctx = assembleContext();
+            const contextSnapshot = formatContextForPrompt(ctx);
+            const result = await claudeService.sendAdvisorMessage(
+                message,
+                conversationHistory || [],
+                contextSnapshot
+            );
+            return res.json({ success: true, ...result });
         }
 
         // Mobile mode: inject full context snapshot into system prompt

@@ -7,6 +7,7 @@
 const actionsDb = require('../database/actions');
 const dailyEntriesDb = require('../database/daily-entries');
 const calendarDb = require('../database/calendar');
+const outcomesDb = require('../database/outcomes');
 
 function assembleContext() {
     // Open actions with outcome titles
@@ -26,11 +27,36 @@ function assembleContext() {
         calendar = [];
     }
 
+    // Active outcomes with progress computed from their actions
+    let outcomes = [];
+    try {
+        const rawOutcomes = outcomesDb.getAllOutcomes({ status: 'active' });
+        outcomes = rawOutcomes.map(o => {
+            const actions = actionsDb.getActionsByOutcome(o.id);
+            const actions_total = actions.length;
+            const actions_done  = actions.filter(a => a.done).length;
+            const progress_pct  = actions_total > 0 ? Math.round((actions_done / actions_total) * 100) : 0;
+            return {
+                id:            o.id,
+                title:         o.title,
+                status:        o.status,
+                deadline:      o.deadline || null,
+                priority:      o.priority,
+                progress_pct,
+                actions_total,
+                actions_done,
+            };
+        });
+    } catch {
+        outcomes = [];
+    }
+
     return {
         open_todos,
         completed_todos,
         daily_reviews,
         calendar,
+        outcomes,
         generated_at: new Date().toISOString(),
     };
 }
@@ -43,6 +69,17 @@ function formatContextForPrompt(ctx) {
 
     lines.push('=== WAYPOINT CONTEXT SNAPSHOT ===');
     lines.push(`Generated: ${ctx.generated_at}`);
+    lines.push('');
+
+    lines.push('--- OUTCOMES ---');
+    if (!ctx.outcomes || ctx.outcomes.length === 0) {
+        lines.push('(none)');
+    } else {
+        for (const o of ctx.outcomes) {
+            const deadline = o.deadline ? `deadline:${o.deadline}` : 'no deadline';
+            lines.push(`- [${o.id}] ${o.title} | ${o.status} | ${deadline} | ${o.progress_pct}% (${o.actions_done}/${o.actions_total} done)`);
+        }
+    }
     lines.push('');
 
     lines.push('--- OPEN TODOS ---');

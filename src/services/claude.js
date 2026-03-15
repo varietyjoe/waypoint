@@ -578,7 +578,127 @@ Respond with ONLY a JSON array. Each item: {"key": "short label (under 40 chars)
   }
 }
 
-module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates };
+// ============================================================
+// Advisor CRUD Tools
+// ============================================================
+
+const ADVISOR_TOOLS = [
+  {
+    name: 'mark_action_done',
+    description: 'Toggle an action as done or undone.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action_id:    { type: 'number', description: 'The numeric ID of the action' },
+        action_title: { type: 'string', description: 'Human-readable title for the confirmation prompt' },
+        done:         { type: 'boolean', description: 'true = mark done, false = mark undone' },
+      },
+      required: ['action_id', 'action_title', 'done'],
+    },
+  },
+  {
+    name: 'create_action',
+    description: 'Add a new action to an outcome.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        outcome_id:    { type: 'number', description: 'ID of the outcome to add the action to' },
+        outcome_title: { type: 'string', description: 'Human-readable outcome name for the confirmation prompt' },
+        title:         { type: 'string', description: 'Action title' },
+        time_estimate: { type: 'number', description: 'Estimated minutes (optional)' },
+      },
+      required: ['outcome_id', 'outcome_title', 'title'],
+    },
+  },
+  {
+    name: 'create_outcome',
+    description: 'Create a new outcome.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title:    { type: 'string' },
+        deadline: { type: 'string', description: 'ISO date string YYYY-MM-DD or null' },
+        priority: { type: 'string', enum: ['low', 'medium', 'high'] },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'update_outcome',
+    description: 'Update an existing outcome — title, deadline, or status.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        outcome_id:    { type: 'number' },
+        outcome_title: { type: 'string', description: 'Current title for confirmation prompt' },
+        updates: {
+          type: 'object',
+          description: 'Fields to update. Allowed: title, deadline, status, priority',
+          properties: {
+            title:    { type: 'string' },
+            deadline: { type: 'string' },
+            status:   { type: 'string' },
+            priority: { type: 'string' },
+          },
+        },
+      },
+      required: ['outcome_id', 'outcome_title', 'updates'],
+    },
+  },
+];
+
+/**
+ * Send a message to Claude in Advisor mode with CRUD tools.
+ * Returns either a tool_call (for client-side approval) or a plain message.
+ *
+ * @param {string} message              - The user's message (may be empty if continuing after tool_result)
+ * @param {Array}  conversationHistory  - Previous messages
+ * @param {string} contextSnapshot      - Formatted context string from formatContextForPrompt()
+ * @returns {Promise<Object>}
+ */
+async function sendAdvisorMessage(message, conversationHistory = [], contextSnapshot = '') {
+  // Only append user message if non-empty; if empty the last item in history is already the user turn
+  const messages = message
+    ? [...conversationHistory, { role: 'user', content: message }]
+    : [...conversationHistory];
+
+  const systemPrompt = `You are the Waypoint Advisor — a focused, direct thinking partner embedded in the user's execution OS. You have full context of their outcomes, actions, and daily reviews.
+
+You can take actions on the user's behalf using your tools. ALWAYS describe what you're about to do before calling a tool, so the user knows what to expect. Only call ONE tool at a time.
+
+When a user asks you to do something that maps to a tool, use the tool. When they're just asking questions or thinking out loud, respond conversationally.
+
+${contextSnapshot ? contextSnapshot : ''}`;
+
+  const response = await anthropic.messages.create({
+    model:       'claude-sonnet-4-6',
+    max_tokens:  1024,
+    system:      systemPrompt,
+    tools:       ADVISOR_TOOLS,
+    tool_choice: { type: 'auto' },
+    messages,
+  });
+
+  // If Claude used a tool, return the tool call for client-side approval
+  if (response.stop_reason === 'tool_use') {
+    const toolUse   = response.content.find(b => b.type === 'tool_use');
+    const textBefore = response.content.find(b => b.type === 'text')?.text || null;
+    return {
+      type:              'tool_call',
+      tool_use_id:       toolUse.id,
+      tool_name:         toolUse.name,
+      tool_input:        toolUse.input,
+      text_before:       textBefore,
+      assistant_content: response.content,
+    };
+  }
+
+  // Plain text response
+  return {
+    type: 'message',
+    text: response.content.find(b => b.type === 'text')?.text || '',
+  };
+}
 
 // ============================================================
 // Phase 3.0 — Today Plan Functions
@@ -682,3 +802,5 @@ Remaining tasks: ${remainingActionIds.length}`;
 
   return response.content.find(b => b.type === 'text')?.text?.trim() || '';
 }
+
+module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates, sendAdvisorMessage };

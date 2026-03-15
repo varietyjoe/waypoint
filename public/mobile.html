@@ -816,6 +816,53 @@
     }
     .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+    /* ════════════════════════════════════
+       ADVISOR CONFIRMATION CARD
+    ════════════════════════════════════ */
+    .advisor-confirm-card {
+      margin: 8px 0;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(99,102,241,0.07);
+      border: 1px solid rgba(99,102,241,0.18);
+      position: relative;
+    }
+    .advisor-confirm-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.4), transparent);
+    }
+    .confirm-header {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .confirm-pip {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #6366f1;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    .confirm-label {
+      font-size: 8.5px; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: #6366f1;
+    }
+    .confirm-description {
+      font-size: 13px; color: #e0e0e0; margin-bottom: 10px; line-height: 1.45;
+    }
+    .confirm-actions {
+      display: flex; gap: 8px;
+    }
+    .confirm-btn {
+      font-size: 11px; font-weight: 600; border-radius: 7px;
+      padding: 5px 14px; border: 1px solid; cursor: pointer;
+      background: transparent; font-family: inherit;
+    }
+    .confirm-approve {
+      color: #818cf8; border-color: rgba(99,102,241,0.3);
+      background: rgba(99,102,241,0.1);
+    }
+    .confirm-cancel {
+      color: #666; border-color: rgba(255,255,255,0.08);
+    }
+
   </style>
 </head>
 <body>
@@ -1745,6 +1792,9 @@ async function sendAdvisorMessage() {
   document.getElementById('compose-send').disabled = true;
 
   appendChatMessage('user', text);
+  // Push AFTER slicing history so the server doesn't receive the new turn twice.
+  // (sendAdvisorMessage in claude.js appends message to conversationHistory itself.)
+  const historySnapshot = chatHistory.slice(-20);
   chatHistory.push({ role: 'user', content: text });
   input.value = '';
   input.style.height = 'auto';
@@ -1755,14 +1805,12 @@ async function sendAdvisorMessage() {
       method: 'POST',
       body: JSON.stringify({
         message: text,
-        conversationHistory: chatHistory.slice(-10),
-        mode: 'mobile',
+        conversationHistory: historySnapshot,
+        mode: 'advisor',
       }),
     });
     showTyping(false);
-    const reply = res.response || 'Something went wrong.';
-    appendChatMessage('ai', reply);
-    chatHistory.push({ role: 'assistant', content: reply });
+    handleAdvisorResponse(res);
   } catch {
     showTyping(false);
     appendChatMessage('ai', 'Error reaching the server. Try again.');
@@ -1771,6 +1819,210 @@ async function sendAdvisorMessage() {
     document.getElementById('compose-send').disabled = false;
   }
 }
+
+/**
+ * Handle a response from the advisor API.
+ * If it's a plain message, render a bubble.
+ * If it's a tool_call, render a confirmation card.
+ */
+function handleAdvisorResponse(data) {
+  if (data.type === 'message') {
+    const reply = data.text || 'Something went wrong.';
+    appendChatMessage('ai', reply);
+    chatHistory.push({ role: 'assistant', content: reply });
+    return;
+  }
+
+  if (data.type === 'tool_call') {
+    // If Claude wrote text before the tool call, show it first.
+    // Do NOT push to chatHistory here — the full assistant_content (which
+    // includes this text block) is pushed when the confirm/cancel card is
+    // resolved, preserving the correct Anthropic message structure.
+    if (data.text_before) {
+      appendChatMessage('ai', data.text_before);
+    }
+    renderConfirmCard(data);
+    return;
+  }
+
+  // Fallback for legacy mobile-style responses
+  const reply = data.response || data.text || 'Something went wrong.';
+  appendChatMessage('ai', reply);
+  chatHistory.push({ role: 'assistant', content: reply });
+}
+
+/**
+ * Build a human-readable description for a tool call.
+ */
+function toolDescription(toolName, toolInput) {
+  switch (toolName) {
+    case 'mark_action_done':
+      return `Mark "${toolInput.action_title}" as ${toolInput.done ? 'done' : 'undone'}?`;
+    case 'create_action':
+      return `Add "${toolInput.title}" to ${toolInput.outcome_title}?`;
+    case 'create_outcome':
+      return `Create outcome "${toolInput.title}"${toolInput.deadline ? ' due ' + toolInput.deadline : ''}?`;
+    case 'update_outcome':
+      return `Update "${toolInput.outcome_title}": ${JSON.stringify(toolInput.updates)}`;
+    default:
+      return `Run tool: ${toolName}`;
+  }
+}
+
+/**
+ * Inject a confirmation card into the chat scroll area.
+ */
+function renderConfirmCard(data) {
+  const scroll = document.getElementById('chat-scroll');
+  const typingRow = document.getElementById('typing-row');
+
+  const card = document.createElement('div');
+  card.className = 'advisor-confirm-card';
+  card.dataset.toolUseId        = data.tool_use_id;
+  card.dataset.toolName         = data.tool_name;
+  card.dataset.toolInput        = JSON.stringify(data.tool_input);
+  card.dataset.assistantContent = JSON.stringify(data.assistant_content);
+
+  card.innerHTML = `
+    <div class="confirm-header">
+      <div class="confirm-pip"></div>
+      <span class="confirm-label">ACTION PENDING</span>
+    </div>
+    <div class="confirm-description">${esc(toolDescription(data.tool_name, data.tool_input))}</div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-approve">Confirm</button>
+      <button class="confirm-btn confirm-cancel">Cancel</button>
+    </div>
+  `;
+
+  scroll.insertBefore(card, typingRow);
+  scroll.scrollTop = scroll.scrollHeight;
+}
+
+/**
+ * Execute the API call for an approved tool.
+ * Returns { success: boolean, error?: string }
+ */
+async function executeToolCall(toolName, toolInput) {
+  try {
+    switch (toolName) {
+      case 'mark_action_done': {
+        // Use PUT with an explicit done value instead of toggle, so the
+        // operation is idempotent regardless of the action's current state.
+        await apiFetch(`/api/actions/${toolInput.action_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ done: toolInput.done }),
+        });
+        return { success: true };
+      }
+      case 'create_action': {
+        const body = { title: toolInput.title };
+        if (toolInput.time_estimate != null) body.time_estimate = toolInput.time_estimate;
+        await apiFetch(`/api/outcomes/${toolInput.outcome_id}/actions`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        return { success: true };
+      }
+      case 'create_outcome': {
+        await apiFetch('/api/outcomes', {
+          method: 'POST',
+          body: JSON.stringify({
+            title:      toolInput.title,
+            deadline:   toolInput.deadline || null,
+            priority:   toolInput.priority || 'medium',
+            project_id: 1,
+          }),
+        });
+        return { success: true };
+      }
+      case 'update_outcome': {
+        await apiFetch(`/api/outcomes/${toolInput.outcome_id}`, {
+          method: 'PUT',
+          body: JSON.stringify(toolInput.updates),
+        });
+        return { success: true };
+      }
+      default:
+        return { success: false, error: `Unknown tool: ${toolName}` };
+    }
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * After a tool result, send an empty message to get Claude's confirmation text.
+ */
+async function continueAfterToolResult() {
+  showTyping(true);
+  try {
+    const res = await apiFetch('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: '',
+        conversationHistory: chatHistory.slice(-30),
+        mode: 'advisor',
+      }),
+    });
+    showTyping(false);
+    handleAdvisorResponse(res);
+  } catch {
+    showTyping(false);
+    appendChatMessage('ai', 'Done. (Could not get a confirmation response.)');
+  }
+}
+
+// ── Confirmation card event delegation ──────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const chatScroll = document.getElementById('chat-scroll');
+  if (!chatScroll) return;
+
+  chatScroll.addEventListener('click', async (e) => {
+    const approveBtn = e.target.closest('.confirm-approve');
+    const cancelBtn  = e.target.closest('.confirm-cancel');
+    if (!approveBtn && !cancelBtn) return;
+
+    const card = e.target.closest('.advisor-confirm-card');
+    if (!card) return;
+
+    const toolUseId        = card.dataset.toolUseId;
+    const toolName         = card.dataset.toolName;
+    const toolInput        = JSON.parse(card.dataset.toolInput);
+    const assistantContent = JSON.parse(card.dataset.assistantContent);
+
+    card.remove();
+
+    if (approveBtn) {
+      // Execute the actual API call
+      const result = await executeToolCall(toolName, toolInput);
+
+      // Append assistant turn + tool_result to history
+      chatHistory.push({ role: 'assistant', content: assistantContent });
+      chatHistory.push({
+        role: 'user',
+        content: [{
+          type:        'tool_result',
+          tool_use_id: toolUseId,
+          content:     JSON.stringify(result.success ? { success: true } : { success: false, error: result.error }),
+        }],
+      });
+    } else {
+      // Cancelled — append tool_result with cancelled flag
+      chatHistory.push({ role: 'assistant', content: assistantContent });
+      chatHistory.push({
+        role: 'user',
+        content: [{
+          type:        'tool_result',
+          tool_use_id: toolUseId,
+          content:     JSON.stringify({ cancelled: true }),
+        }],
+      });
+    }
+
+    await continueAfterToolResult();
+  });
+});
 
 function setupCompose() {
   const input = document.getElementById('compose-input');
