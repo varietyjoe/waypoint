@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "start:bg": "node src/server.js > server.log 2>&1 & echo \"Waypoint server started in background (PID: $!). Logs: server.log\"",
-    "test": "node --test test/seed.test.js"
+    "test": "node --test test/seed.test.js",
+    "export-seed": "node scripts/export-seed.js"
   },
   "keywords": [],
   "author": "",
