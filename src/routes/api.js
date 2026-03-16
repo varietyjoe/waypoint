@@ -48,6 +48,10 @@ sharesDb.initSharesTable();
 advisorDb.initAdvisorTables();
 dailyEntriesDb.initDailyEntriesTable();
 
+// Auto-seed on empty DB (Railway volume reset recovery)
+const { runSeedIfEmpty } = require('../database/seeder');
+runSeedIfEmpty();
+
 // ============================================================
 // HELPERS
 // ============================================================

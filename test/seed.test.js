@@ -134,3 +134,91 @@ test('all actions in seed reference a valid outcome_title', () => {
     );
   }
 });
+
+// ── E2E HTTP test ─────────────────────────────────────────────────────────────
+
+/**
+ * Poll a URL until it responds or timeout expires.
+ */
+async function waitForServer(url, timeoutMs = 8000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch (_) {
+      // not ready yet
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  throw new Error(`Server at ${url} did not become ready within ${timeoutMs}ms`);
+}
+
+test('E2E: fresh DB auto-seeds on startup, GET /api/outcomes returns data', async () => {
+  const { spawn } = require('child_process');
+  const tmpPath = path.join(os.tmpdir(), `e2e-waypoint-${Date.now()}.db`);
+  const TEST_PORT = 19283;
+  const TEST_API_KEY = 'e2e-test-key';
+
+  // server.js calls `require('dotenv').config({ path: '<root>/.env', override: true })`,
+  // which overwrites any PORT/WAYPOINT_API_KEY we pass via spawn env. Work around by
+  // temporarily replacing the project .env with one containing our test values,
+  // then restoring the original in finally.
+  const projectRoot = path.join(__dirname, '..');
+  const envFilePath = path.join(projectRoot, '.env');
+  let originalEnv = null;
+  try { originalEnv = fs.readFileSync(envFilePath, 'utf8'); } catch (_) {}
+
+  const testEnvContent = [
+    `PORT=${TEST_PORT}`,
+    `WAYPOINT_API_KEY=${TEST_API_KEY}`,
+    `DATABASE_PATH=${tmpPath}`,
+    `NODE_ENV=test`,
+    // Preserve non-overridden vars from original .env (skip PORT/WAYPOINT_API_KEY/DATABASE_PATH/NODE_ENV)
+    ...(originalEnv ? originalEnv.split('\n').filter(line => {
+      const key = line.split('=')[0].trim();
+      return key && !['PORT', 'WAYPOINT_API_KEY', 'DATABASE_PATH', 'NODE_ENV'].includes(key);
+    }) : []),
+  ].join('\n');
+
+  fs.writeFileSync(envFilePath, testEnvContent, 'utf8');
+
+  const server = spawn('node', ['src/server.js'], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      DATABASE_PATH: tmpPath,
+      PORT: String(TEST_PORT),
+      WAYPOINT_API_KEY: TEST_API_KEY,
+      NODE_ENV: 'test',
+    },
+    stdio: 'pipe',
+  });
+
+  let serverErr = '';
+  server.stderr.on('data', d => { serverErr += d.toString(); });
+
+  try {
+    await waitForServer(`http://localhost:${TEST_PORT}/health`);
+
+    const res = await fetch(`http://localhost:${TEST_PORT}/api/outcomes`, {
+      headers: { 'x-api-key': TEST_API_KEY },
+    });
+
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+
+    const body = await res.json();
+    assert.equal(body.success, true, 'Response should have success: true');
+    assert.ok(Array.isArray(body.data), 'Response data should be an array');
+    assert.ok(body.data.length > 0, `Expected seeded outcomes, got 0. Server stderr: ${serverErr}`);
+  } finally {
+    server.kill('SIGTERM');
+    // Restore original .env
+    if (originalEnv !== null) {
+      fs.writeFileSync(envFilePath, originalEnv, 'utf8');
+    }
+    for (const ext of ['', '-shm', '-wal']) {
+      try { fs.unlinkSync(tmpPath + ext); } catch (_) {}
+    }
+  }
+});
