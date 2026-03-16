@@ -2,6 +2,7 @@
 'use strict';
 
 const defaultDb = require('./index');
+const seed = require('../../seeds/waypoint-seed');
 
 /**
  * Seed the DB with initial data if the outcomes table is empty.
@@ -21,8 +22,6 @@ function runSeedIfEmpty(db) {
   }
 
   console.log('🌱 DB is empty — running startup seed...');
-
-  const seed = require('../../seeds/waypoint-seed');
 
   _db.transaction(() => {
     // 1. Insert projects

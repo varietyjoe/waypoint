@@ -23,6 +23,9 @@ function makeTempDb() {
   const tmpPath = path.join(os.tmpdir(), `test-waypoint-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
   const db = new Database(tmpPath);
 
+  // Minimal schema — only columns the seeder actually writes to.
+  // If seeder.js is extended to write additional columns, update these CREATE TABLE statements
+  // to match. Real schema lives in src/database/{projects,outcomes,actions}.js.
   db.exec(`
     CREATE TABLE projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
