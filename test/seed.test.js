@@ -160,31 +160,8 @@ test('E2E: fresh DB auto-seeds on startup, GET /api/outcomes returns data', asyn
   const TEST_PORT = 19283;
   const TEST_API_KEY = 'e2e-test-key';
 
-  // server.js calls `require('dotenv').config({ path: '<root>/.env', override: true })`,
-  // which overwrites any PORT/WAYPOINT_API_KEY we pass via spawn env. Work around by
-  // temporarily replacing the project .env with one containing our test values,
-  // then restoring the original in finally.
-  const projectRoot = path.join(__dirname, '..');
-  const envFilePath = path.join(projectRoot, '.env');
-  let originalEnv = null;
-  try { originalEnv = fs.readFileSync(envFilePath, 'utf8'); } catch (_) {}
-
-  const testEnvContent = [
-    `PORT=${TEST_PORT}`,
-    `WAYPOINT_API_KEY=${TEST_API_KEY}`,
-    `DATABASE_PATH=${tmpPath}`,
-    `NODE_ENV=test`,
-    // Preserve non-overridden vars from original .env (skip PORT/WAYPOINT_API_KEY/DATABASE_PATH/NODE_ENV)
-    ...(originalEnv ? originalEnv.split('\n').filter(line => {
-      const key = line.split('=')[0].trim();
-      return key && !['PORT', 'WAYPOINT_API_KEY', 'DATABASE_PATH', 'NODE_ENV'].includes(key);
-    }) : []),
-  ].join('\n');
-
-  fs.writeFileSync(envFilePath, testEnvContent, 'utf8');
-
   const server = spawn('node', ['src/server.js'], {
-    cwd: projectRoot,
+    cwd: path.join(__dirname, '..'),
     env: {
       ...process.env,
       DATABASE_PATH: tmpPath,
@@ -213,10 +190,6 @@ test('E2E: fresh DB auto-seeds on startup, GET /api/outcomes returns data', asyn
     assert.ok(body.data.length > 0, `Expected seeded outcomes, got 0. Server stderr: ${serverErr}`);
   } finally {
     server.kill('SIGTERM');
-    // Restore original .env
-    if (originalEnv !== null) {
-      fs.writeFileSync(envFilePath, originalEnv, 'utf8');
-    }
     for (const ext of ['', '-shm', '-wal']) {
       try { fs.unlinkSync(tmpPath + ext); } catch (_) {}
     }

@@ -2,7 +2,9 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const cors = require('cors');
-require('dotenv').config({ path: path.join(__dirname, '../.env'), override: true });
+if (process.env.NODE_ENV !== 'test') {
+  require('dotenv').config({ path: path.join(__dirname, '../.env'), override: true });
+}
 
 const apiRoutes = require('./routes/api');
 const slackRoutes = require('./routes/slack');
