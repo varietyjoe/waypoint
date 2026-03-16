@@ -26,6 +26,7 @@ const sharesDb = require('../database/shares');
 const advisorDb = require('../database/advisor');
 const advisorService = require('../services/advisor');
 const dailyEntriesDb = require('../database/daily-entries');
+const { runSeedIfEmpty } = require('../database/seeder');
 const hubspotClient = require('../integrations/hubspot-client');
 const { formatSalesPulse } = require('../utils/sales-pulse-formatter');
 const { assembleContext, formatContextForPrompt } = require('../services/context-assembler');
@@ -49,7 +50,6 @@ advisorDb.initAdvisorTables();
 dailyEntriesDb.initDailyEntriesTable();
 
 // Auto-seed on empty DB (Railway volume reset recovery)
-const { runSeedIfEmpty } = require('../database/seeder');
 runSeedIfEmpty();
 
 // ============================================================
