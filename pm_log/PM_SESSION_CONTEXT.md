@@ -70,6 +70,48 @@ The target frontend is `public/waypoint-vision.html` — 14 screens, the exact e
 
 ## Where We Left Off
 
+**Session: Mar 15, 2026 — Railway deployment + Mobile redesign + Advisor upgrade**
+
+Major session covering three areas:
+
+### 1. Mobile Redesign (public/mobile.html)
+Full redesign of the mobile PWA based on spec at `docs/superpowers/specs/2026-03-14-mobile-redesign.md`. Replaced the old two-tab (Todos/Chat) layout with a premium 5-tab dark iOS design:
+- **Briefing** — date header, stat strip (Active/Done Today/Inbox/Streak), AI Coach card (3 states: nudge/momentum/urgent, cached in localStorage), Outcome Health rows with color bars + progress %, Up Next grouped by outcome
+- **Outcomes** — full list grouped In Motion / Someday / Recently Closed
+- **Capture** — bottom sheet with outcome picker, routes to `/api/inbox` or `/api/outcomes/:id/actions`
+- **Inbox** — amber badge, triage list, swipe-to-approve/dismiss
+- **Advisor** — indigo accent, context pills, Today's Snapshot card (one-shot /api/chat cached by date), full conversational chat
+
+Design tokens: `--bg: #0a0a0a`, SF Pro, grain texture overlay, frosted glass tab bar, ambient radial glows.
+
+### 2. Railway Deployment
+- Connected GitHub repo to Railway project `poetic-peace`
+- Set env vars: `NODE_ENV`, `WAYPOINT_API_KEY`, `ANTHROPIC_API_KEY`, `DATABASE_PATH=/app/database/waypoint.db`, `SESSION_SECRET`, `ALLOWED_ORIGIN`
+- Added Railway volume mounted at `/app/database` for SQLite persistence
+- Fixed `inbox` table not initializing on fresh DB (added `CREATE TABLE IF NOT EXISTS` to `initInboxMigrations()`)
+- Added `capture` to inbox `source_type` CHECK constraint
+- Backfilled 17 outcomes + all actions to Railway via temp seed endpoint (added/removed 3 times due to deployment issues)
+- **Known issue:** Data resets on some redeploys — volume appears mounted but DB occasionally re-initializes. Needs permanent fix (investigate volume mount reliability or move to a startup seed-check).
+
+### 3. Advisor Upgrade — Full Context + CRUD Tools
+Implemented in `scripts/vault-watcher.js`, `src/services/claude.js`, `src/services/context-assembler.js`, `src/routes/api.js`, `public/mobile.html`:
+
+**Context expansion:**
+- `context-assembler.js` now includes full outcomes list (id, title, status, deadline, progress_pct, actions_total, actions_done) at top of prompt
+- Vault watcher (`scripts/vault-watcher.js`) syncs Obsidian vault (`/Users/joetancula/Desktop/waypoint-os`) daily standups/reviews + project notes to `daily_entries` table via API
+
+**Advisor CRUD tools (mode='advisor'):**
+- New `ADVISOR_TOOLS` in `claude.js`: `mark_action_done`, `create_action`, `create_outcome`, `update_outcome`
+- New `sendAdvisorMessage()` function — returns `{ type: 'message' }` or `{ type: 'tool_call' }` with full assistant_content for round-trip
+- New `mode === 'advisor'` branch in `/api/chat`
+- Mobile Advisor tab renders confirmation cards for tool calls (indigo, approval required), executes REST API on confirm, sends tool_result back for Claude's follow-up
+
+**Vault watcher running:** PID 16626, env vars added to `~/.zshrc`, syncing to Railway. 7 vault entries synced.
+
+**Code review caught:** duplicate user turn bug (would have crashed Anthropic API), `module.exports` placement issue in claude.js, `mark_action_done` idempotency bug (toggle vs. PUT).
+
+---
+
 **Session: Feb 23, 2026 (autonomous Phase 4 build — 4.0 → 4.1 → 4.2 → 4.3)**
 
 Phase 4 build chain ran fully autonomously. All four phases approved:
@@ -185,3 +227,4 @@ Two tabs in the outcome detail view: "Actions" (default) | "Stats".
 | Feb 23, 2026 | Autonomous overnight run — Phases 3.0–3.3 complete. Full build+review chain executed autonomously. INCIDENT: Phase 3.3 engineer corrupted index.html (Python encoding error → git checkout → reverted to pre-2.1). Repair agent restored all Phase 2.1–3.2 frontend features (3,466 → 5,175 lines). PM patched 2 bugs post-review (archived_at streak, escHtml category). All 4 phases approved. Phase 3 complete. |
 | Feb 23, 2026 | Vision gap analysis session. Full screen-by-screen audit of waypoint-vision.html against all phases. Found 1 real gap ("Open in Focus →" from Library — stub in Phase 3.2, not wired in any Phase 4 handoff) and 2 minor Advisor deviations (missing "No action required" footer, week range format). Wrote Phase 4.0/4.1/4.2 engineer + code review handoffs (6 files). Patched Phase 4.0 handoff (Workstream 6: Library → Focus Mode wiring) and Phase 4.3 handoff (footer text, formatWeekOf week range). All 8 Phase 4 handoffs confirmed ready. Phase 4 autonomous run prompt written at top of this file. |
 | Feb 23, 2026 | Autonomous Phase 4 build — 4.0 → 4.1 → 4.2 → 4.3. PM created all 4 dev_tracker stubs. Engineer + code review agents chained sequentially. 4.0: 80/80 approved. 4.1: 66/66 approved. 4.2: 68/68 approved. 4.3: BLOCKED on formatWeekOf hardcoded day number — PM patched directly (`\u201321` → `\u2013${friDay}`), re-review confirmed 67/67 approved. Full vision shipped. |
+| Mar 15, 2026 | Mobile redesign (5-tab dark iOS PWA), Railway deployment (GitHub → Railway pipeline, volume, env vars, data seeded), Advisor upgrade (full outcomes context + CRUD tools with approval gate + Obsidian vault watcher). Code reviewed — 3 bugs caught and fixed. Known issue: Railway volume data resets intermittently. |
