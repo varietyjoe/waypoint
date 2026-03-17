@@ -32,15 +32,18 @@ Three signals, summed into one count per day:
 - Fill missing days with 0
 - `total` is the sum of counts across all 30 days
 
-**Response shape:**
+**Response shape** (follows project convention of `{ success, data }` wrapper):
 ```json
 {
-  "heatmap": {
-    "2026-03-16": 5,
-    "2026-03-15": 0,
-    "2026-03-14": 3
-  },
-  "total": 47
+  "success": true,
+  "data": {
+    "heatmap": {
+      "2026-03-16": 5,
+      "2026-03-15": 0,
+      "2026-03-14": 3
+    },
+    "total": 47
+  }
 }
 ```
 
