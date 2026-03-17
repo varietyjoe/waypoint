@@ -1015,6 +1015,71 @@
       color: #666; border-color: rgba(255,255,255,0.08);
     }
 
+    /* ════════════════════════════════════
+       JOURNAL TAB
+    ════════════════════════════════════ */
+    .journal-header {
+      padding: 14px 20px 12px;
+      padding-top: calc(14px + var(--safe-top));
+      flex-shrink: 0; border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .journal-eyebrow {
+      font-size: 10px; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--blue); margin-bottom: 4px;
+    }
+    .journal-eyebrow a { color: var(--blue); text-decoration: none; margin-left: 8px; font-weight: 500; }
+    .journal-title {
+      font-size: 24px; font-weight: 700; letter-spacing: -.6px; line-height: 1;
+    }
+    .journal-toggle {
+      display: flex; border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; margin: 14px 20px 0;
+    }
+    .journal-toggle-btn {
+      flex: 1; padding: 8px 0; text-align: center;
+      font-size: 12px; font-weight: 600; letter-spacing: .02em;
+      color: var(--text-ghost); background: transparent;
+      border: none; cursor: pointer; font-family: inherit;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .journal-toggle-btn.active {
+      background: rgba(var(--accent-rgb),0.14); color: var(--accent);
+    }
+    .journal-textarea {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 11px; padding: 13px 14px;
+      font-size: 16px; color: var(--text-primary); outline: none;
+      font-family: inherit; resize: none; line-height: 1.45; min-height: 120px;
+      transition: border-color 0.15s ease;
+    }
+    .journal-textarea:focus { border-color: rgba(var(--accent-rgb),0.4); }
+    .journal-textarea::placeholder { color: #333; }
+    .journal-save-btn {
+      width: 100%; padding: 12px; border-radius: 11px;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; border: none; background: var(--blue); color: white;
+      opacity: 0.35; transition: opacity 0.15s ease;
+    }
+    .journal-save-btn.enabled { opacity: 1; }
+    .journal-save-btn:active { opacity: 0.8; }
+    .journal-entry-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 11px; padding: 10px 13px; cursor: pointer;
+      transition: opacity 0.12s ease;
+    }
+    .journal-entry-card:active { opacity: 0.7; }
+    .journal-entry-date {
+      font-size: 10px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-ghost); margin-bottom: 3px;
+    }
+    .journal-entry-preview {
+      font-size: 12.5px; color: #888; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
   </style>
 </head>
 <body>
@@ -1139,6 +1204,27 @@
     </div>
   </div>
 
+  <!-- ═══════════ JOURNAL TAB ═══════════ -->
+  <div class="tab-panel" id="panel-journal">
+    <div class="journal-header">
+      <div class="journal-eyebrow" id="journal-eyebrow">TODAY</div>
+      <div class="journal-title">Journal</div>
+    </div>
+    <div class="scroll-area" style="padding: 0 20px 16px;">
+      <div class="journal-toggle" style="margin: 14px 0 0;">
+        <button class="journal-toggle-btn active" id="journal-btn-standup" onclick="setJournalType('standup')">Standup</button>
+        <button class="journal-toggle-btn" id="journal-btn-review" onclick="setJournalType('review')">Review</button>
+      </div>
+      <textarea class="journal-textarea" id="journal-input" placeholder="What are you working on today?" rows="4" style="margin-top: 14px;"></textarea>
+      <button class="journal-save-btn" id="journal-save-btn" onclick="saveJournalEntry()" style="margin-top:10px;">Save</button>
+      <div class="divider" style="margin: 16px 0;"></div>
+      <div class="s-head" style="padding: 0 0 8px;">
+        <span class="s-label">Recent</span>
+      </div>
+      <div id="journal-recent-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+    </div>
+  </div>
+
   <!-- ═══════════ ADVISOR TAB ═══════════ -->
   <div class="tab-panel tab-advisor" id="panel-advisor">
     <div class="adv-header">
@@ -1218,6 +1304,16 @@
         <div class="inbox-badge" id="inbox-badge"></div>
       </div>
       <span class="tab-label" id="tab-inbox-label">Inbox</span>
+    </div>
+
+    <div class="tab-item" id="tab-journal" onclick="switchTab('journal')">
+      <div class="tab-dot"></div>
+      <div class="tab-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="tab-svg">
+          <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+        </svg>
+      </div>
+      <span class="tab-label">Journal</span>
     </div>
 
     <div class="tab-item tab-advisor" id="tab-advisor" onclick="switchTab('advisor')">
@@ -2534,6 +2630,130 @@ function setupVisualViewport() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// JOURNAL
+// ═══════════════════════════════════════════════════════════════
+let journalType = 'standup';
+let journalCurrentId = null;
+let journalViewDate = today();
+
+function todayStr() { return today(); }
+
+function formatJournalDate(str) {
+  if (!str) return '';
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function updateJournalEyebrow() {
+  const eyebrow = document.getElementById('journal-eyebrow');
+  if (journalViewDate === todayStr()) {
+    eyebrow.innerHTML = formatJournalDate(journalViewDate).toUpperCase();
+  } else {
+    eyebrow.innerHTML = `${esc(formatJournalDate(journalViewDate).toUpperCase())} <a href="#" onclick="returnToJournalToday(event)">← Today</a>`;
+  }
+}
+
+function returnToJournalToday(e) {
+  e.preventDefault();
+  journalViewDate = todayStr();
+  journalCurrentId = null;
+  loadJournalEntry();
+}
+
+function setJournalType(type) {
+  journalType = type;
+  document.getElementById('journal-btn-standup').classList.toggle('active', type === 'standup');
+  document.getElementById('journal-btn-review').classList.toggle('active', type === 'review');
+  document.getElementById('journal-input').placeholder =
+    type === 'standup' ? 'What are you working on today?' : 'How did today go?';
+  journalViewDate = todayStr();
+  journalCurrentId = null;
+  loadJournalEntry();
+}
+
+async function loadJournalEntry() {
+  updateJournalEyebrow();
+  try {
+    const entries = await apiFetch(`/api/daily-entries?type=${journalType}&limit=10`);
+    const list = entries.data || [];
+    const match = list.find(e => e.date === journalViewDate);
+    const input = document.getElementById('journal-input');
+    if (match) {
+      input.value = match.content || '';
+      journalCurrentId = match.id;
+    } else {
+      input.value = '';
+      journalCurrentId = null;
+    }
+    toggleJournalSaveBtn();
+  } catch {}
+  loadJournalRecent();
+}
+
+async function loadJournalRecent() {
+  try {
+    const entries = await apiFetch(`/api/daily-entries?type=${journalType}&limit=5`);
+    const list = entries.data || [];
+    const container = document.getElementById('journal-recent-list');
+    if (!list.length) {
+      container.innerHTML = '<div style="color:var(--text-ghost);font-size:12px;padding:8px 0;">No entries yet</div>';
+      return;
+    }
+    container.innerHTML = list.map(e => `
+      <div class="journal-entry-card" onclick="loadJournalHistoricEntry(${e.id}, '${esc(e.date)}')">
+        <div class="journal-entry-date">${esc(formatJournalDate(e.date))}</div>
+        <div class="journal-entry-preview">${esc(e.content || '')}</div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function loadJournalHistoricEntry(id, date) {
+  try {
+    const res = await apiFetch(`/api/daily-entries/${id}`);
+    const entry = res.data;
+    if (entry) {
+      document.getElementById('journal-input').value = entry.content || '';
+      journalCurrentId = entry.id;
+      journalViewDate = date;
+      updateJournalEyebrow();
+      toggleJournalSaveBtn();
+    }
+  } catch {}
+}
+
+async function saveJournalEntry() {
+  const input = document.getElementById('journal-input');
+  const content = input.value.trim();
+  if (!content) return;
+  try {
+    await apiFetch('/api/daily-entries', {
+      method: 'POST',
+      body: JSON.stringify({ date: journalViewDate, type: journalType, content }),
+    });
+    showToast('Saved');
+    // Reload to get the ID for subsequent edits
+    const entries = await apiFetch(`/api/daily-entries?type=${journalType}&limit=10`);
+    const list = entries.data || [];
+    const saved = list.find(e => e.date === journalViewDate);
+    if (saved) journalCurrentId = saved.id;
+    loadJournalRecent();
+  } catch (e) {
+    showToast('Error saving');
+  }
+}
+
+function toggleJournalSaveBtn() {
+  const btn = document.getElementById('journal-save-btn');
+  const input = document.getElementById('journal-input');
+  btn.classList.toggle('enabled', input.value.trim().length > 0);
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'journal-input') toggleJournalSaveBtn();
+});
+
+// ═══════════════════════════════════════════════════════════════
 // TAB SWITCHING
 // ═══════════════════════════════════════════════════════════════
 function switchTab(tab) {
@@ -2551,6 +2771,15 @@ function switchTab(tab) {
       const scroll = document.getElementById('chat-scroll');
       scroll.scrollTop = scroll.scrollHeight;
     });
+  }
+
+  if (tab === 'journal') {
+    const todayCheck = todayStr();
+    if (journalViewDate !== todayCheck) {
+      journalViewDate = todayCheck;
+      journalCurrentId = null;
+    }
+    loadJournalEntry();
   }
 }
 
