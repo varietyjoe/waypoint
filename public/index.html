@@ -457,6 +457,15 @@
           </svg>
           <span style="font-size:11px;">Analytics</span>
         </div>
+        <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-journal" onclick="showJournalView()">
+          <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+            <line x1="8" y1="7" x2="16" y2="7" stroke-linecap="round"/>
+            <line x1="8" y1="11" x2="14" y2="11" stroke-linecap="round"/>
+          </svg>
+          <span style="font-size:11px;">Journal</span>
+        </div>
         <div class="sb-item flex items-center gap-2 px-2 py-1.5" id="nav-advisor" onclick="showAdvisorView()">
           <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346A3.16 3.16 0 0115.74 17H8.26a3.16 3.16 0 01-2.248-2.754l-.347-.346z"/>
@@ -4504,7 +4513,7 @@ async function submitFabAI() {
 // ============================================================
 
 function setViewActive(viewId) {
-  ['nav-today', 'nav-library', 'nav-analytics', 'nav-advisor', 'nav-memory'].forEach(id => {
+  ['nav-today', 'nav-library', 'nav-analytics', 'nav-journal', 'nav-advisor', 'nav-memory'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
@@ -6644,6 +6653,326 @@ function formatAdvisorDate(isoStr) {
   } catch (_) {
     return '';
   }
+}
+
+// ============================================================
+// JOURNAL VIEW
+// ============================================================
+
+let _journalType = 'standup';
+let _journalViewDate = null;
+let _journalCurrentId = null;
+
+function _todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function _fmtJournalDate(iso) {
+  if (!iso) return '';
+  const t = _todayISO();
+  if (iso === t) return 'Today';
+  const y = new Date(new Date(t).getTime() - 86400000).toISOString().slice(0,10);
+  if (iso === y) return 'Yesterday';
+  try { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+  catch(_) { return iso; }
+}
+
+async function showJournalView() {
+  setViewActive('nav-journal');
+  clearInterval(_clockInterval);
+  _journalViewDate = _todayISO();
+  _journalCurrentId = null;
+  _journalType = 'standup';
+
+  const center = document.getElementById('centerContent');
+  const right  = document.getElementById('rightPanel');
+
+  // ── Center panel ──
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  center.innerHTML = `
+    <div style="padding:24px 28px;">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;">${dateLabel}</div>
+          <h1 style="font-size:22px;font-weight:700;color:#111827;margin-top:2px;">Journal</h1>
+        </div>
+        <div style="display:flex;gap:0;background:#f3f4f6;border-radius:8px;padding:3px;width:200px;">
+          <button id="jv-btn-standup" onclick="_setJournalType('standup')" style="flex:1;padding:6px 16px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:white;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.06);transition:all 0.15s;">Standup</button>
+          <button id="jv-btn-review" onclick="_setJournalType('review')" style="flex:1;padding:6px 16px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:transparent;color:#6b7280;transition:all 0.15s;">Review</button>
+        </div>
+      </div>
+
+      <!-- Brain dump -->
+      <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin-bottom:16px;">
+        <div id="jv-prompt" style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">What are you working on today?</div>
+        <textarea id="jv-input" placeholder="Brain dump here — what's on your mind, what you're focused on, blockers, wins..."
+          rows="5" style="width:100%;min-height:120px;padding:12px 14px;font-size:14px;line-height:1.6;border:1px solid #e5e7eb;border-radius:10px;resize:vertical;font-family:inherit;color:#111827;background:white;outline:none;box-sizing:border-box;"
+          oninput="_toggleJournalSave()"
+          onfocus="this.style.borderColor='#9ca3af';this.style.boxShadow='0 0 0 2px rgba(156,163,175,0.15)'"
+          onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+          <button id="jv-save-btn" onclick="_saveJournalEntry()" style="background:#111827;color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;opacity:0.4;pointer-events:none;transition:opacity 0.15s;">Save</button>
+          <button id="jv-parse-btn" onclick="_parseJournalEntry()" style="background:linear-gradient(135deg,#7c3aed 0%,#6d28d9 100%);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;opacity:0.4;pointer-events:none;transition:opacity 0.15s;">
+            <span style="display:inline-flex;align-items:center;gap:5px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              Parse with AI
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AI parse result -->
+      <div id="jv-parse-result" style="display:none;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <svg width="14" height="14" style="color:#7c3aed;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <span style="font-size:12px;font-weight:700;color:#6d28d9;">AI Parse Results</span>
+        </div>
+        <div id="jv-parse-content"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+          <button onclick="_dismissJournalParse()" style="background:transparent;border:1px solid #e5e7eb;border-radius:10px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;color:#374151;">Dismiss</button>
+        </div>
+      </div>
+
+      <!-- Recent entries grid -->
+      <div style="margin-top:24px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;margin-bottom:10px;">Recent Entries</div>
+        <div id="jv-recent" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+      </div>
+    </div>
+  `;
+
+  // Load current entry + recent
+  await _loadJournalEntry();
+  _renderJournalRightPanel(right);
+}
+
+function _setJournalType(type) {
+  _journalType = type;
+  const bs = document.getElementById('jv-btn-standup');
+  const br = document.getElementById('jv-btn-review');
+  if (bs) { bs.style.background = type === 'standup' ? 'white' : 'transparent'; bs.style.color = type === 'standup' ? '#111827' : '#6b7280'; bs.style.boxShadow = type === 'standup' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'; }
+  if (br) { br.style.background = type === 'review' ? 'white' : 'transparent'; br.style.color = type === 'review' ? '#111827' : '#6b7280'; br.style.boxShadow = type === 'review' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'; }
+  const prompt = document.getElementById('jv-prompt');
+  const input = document.getElementById('jv-input');
+  if (prompt) prompt.textContent = type === 'standup' ? 'What are you working on today?' : 'How did today go?';
+  if (input) input.placeholder = type === 'standup'
+    ? "Brain dump here — what's on your mind, what you're focused on, blockers, wins..."
+    : 'Reflect on your day — what went well, what didn\'t, energy levels, learnings...';
+  _journalViewDate = _todayISO();
+  _journalCurrentId = null;
+  _loadJournalEntry();
+  _dismissJournalParse();
+}
+
+function _toggleJournalSave() {
+  const input = document.getElementById('jv-input');
+  const save = document.getElementById('jv-save-btn');
+  const parse = document.getElementById('jv-parse-btn');
+  const hasText = input && input.value.trim().length > 0;
+  if (save) { save.style.opacity = hasText ? '1' : '0.4'; save.style.pointerEvents = hasText ? 'auto' : 'none'; }
+  if (parse) { parse.style.opacity = hasText ? '1' : '0.4'; parse.style.pointerEvents = hasText ? 'auto' : 'none'; }
+}
+
+async function _loadJournalEntry() {
+  try {
+    const res = await fetch(`/api/daily-entries?type=${_journalType}&limit=10`);
+    const json = await res.json();
+    const list = json.data || [];
+    const match = list.find(e => e.date === _journalViewDate);
+    const input = document.getElementById('jv-input');
+    if (match) {
+      if (input) input.value = match.content || '';
+      _journalCurrentId = match.id;
+    } else {
+      if (input) input.value = '';
+      _journalCurrentId = null;
+    }
+    _toggleJournalSave();
+  } catch(e) { console.error('Journal load error:', e); }
+  _loadJournalRecent();
+}
+
+async function _loadJournalRecent() {
+  try {
+    const res = await fetch(`/api/daily-entries?type=${_journalType}&limit=8`);
+    const json = await res.json();
+    const list = json.data || [];
+    const container = document.getElementById('jv-recent');
+    if (!container) return;
+    if (!list.length) {
+      container.innerHTML = '<div style="color:#9ca3af;font-size:12px;grid-column:1/-1;">No entries yet</div>';
+      return;
+    }
+    const typeBadge = _journalType === 'standup'
+      ? '<span style="display:inline-block;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:600;background:#ede9fe;color:#6d28d9;">Standup</span>'
+      : '<span style="display:inline-block;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:600;background:#fef3c7;color:#92400e;">Review</span>';
+    container.innerHTML = list.map(e => {
+      const sel = e.id === _journalCurrentId ? 'border-color:#111827;' : '';
+      const preview = (e.content || '').length > 120 ? e.content.slice(0,120) + '…' : (e.content || '');
+      return `<div onclick="_selectJournalEntry(${e.id},'${e.date}')" style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;cursor:pointer;transition:box-shadow 0.15s;${sel}" onmouseover="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'" onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:12px;font-weight:600;color:#111827;">${_fmtJournalDate(e.date)}</span>
+            ${typeBadge}
+          </div>
+        </div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${preview.replace(/</g,'&lt;')}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('Journal recent error:', e); }
+}
+
+async function _selectJournalEntry(id, date) {
+  try {
+    const res = await fetch(`/api/daily-entries/${id}`);
+    const json = await res.json();
+    if (json.data) {
+      const input = document.getElementById('jv-input');
+      if (input) input.value = json.data.content || '';
+      _journalCurrentId = id;
+      _journalViewDate = date;
+      _toggleJournalSave();
+      _loadJournalRecent();
+    }
+  } catch(e) { console.error('Journal select error:', e); }
+}
+
+async function _saveJournalEntry() {
+  const input = document.getElementById('jv-input');
+  const content = input ? input.value.trim() : '';
+  if (!content) return;
+  const btn = document.getElementById('jv-save-btn');
+  try {
+    await fetch('/api/daily-entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: _journalViewDate, type: _journalType, content }),
+    });
+    if (btn) { btn.textContent = 'Saved ✓'; btn.style.background = '#059669'; }
+    setTimeout(() => { if (btn) { btn.textContent = 'Save'; btn.style.background = '#111827'; } }, 1500);
+    // Reload to get ID
+    const res = await fetch(`/api/daily-entries?type=${_journalType}&limit=10`);
+    const json = await res.json();
+    const saved = (json.data || []).find(e => e.date === _journalViewDate);
+    if (saved) _journalCurrentId = saved.id;
+    _loadJournalRecent();
+  } catch(e) {
+    console.error('Journal save error:', e);
+    if (btn) { btn.textContent = 'Error'; setTimeout(() => { btn.textContent = 'Save'; btn.style.background = '#111827'; }, 1500); }
+  }
+}
+
+async function _parseJournalEntry() {
+  const input = document.getElementById('jv-input');
+  const content = input ? input.value.trim() : '';
+  if (!content) return;
+  const btn = document.getElementById('jv-parse-btn');
+  const resultDiv = document.getElementById('jv-parse-result');
+  const contentDiv = document.getElementById('jv-parse-content');
+  if (btn) { btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;">Parsing…</span>'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
+  try {
+    const res = await fetch('/api/daily-entries/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: _journalType, content }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Parse failed');
+    const data = json.data;
+    let html = '';
+
+    // Actions
+    if (data.actions && data.actions.length) {
+      const label = _journalType === 'standup' ? 'Planned Actions' : 'Completed / Carry-forward';
+      html += `<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">${label}</div><div style="display:flex;flex-direction:column;gap:4px;">`;
+      data.actions.forEach(a => {
+        const proj = a.project ? `<span style="display:inline-block;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:600;background:#dbeafe;color:#1e40af;margin-left:6px;">${a.project}</span>` : '';
+        html += `<div style="font-size:12px;color:#111827;display:flex;align-items:center;gap:4px;"><span style="color:#7c3aed;">→</span> ${a.text.replace(/</g,'&lt;')}${proj}</div>`;
+      });
+      html += '</div></div>';
+    }
+
+    // Blockers
+    if (data.blockers && data.blockers.length) {
+      html += '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">Blockers</div>';
+      data.blockers.forEach(b => {
+        html += `<div style="font-size:12px;color:#dc2626;display:flex;align-items:center;gap:6px;">⚠ ${b.replace(/</g,'&lt;')}</div>`;
+      });
+      html += '</div>';
+    }
+
+    // Mood
+    if (data.mood) {
+      html += `<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">Mood / Energy</div>`;
+      html += `<div style="font-size:12px;color:#059669;display:flex;align-items:center;gap:6px;">● ${data.mood.replace(/</g,'&lt;')}</div></div>`;
+    }
+
+    // Learnings (review only)
+    if (data.learnings && data.learnings.length) {
+      html += '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">Learnings</div>';
+      data.learnings.forEach(l => {
+        html += `<div style="font-size:12px;color:#6b7280;display:flex;align-items:center;gap:6px;">💡 ${l.replace(/</g,'&lt;')}</div>`;
+      });
+      html += '</div>';
+    }
+
+    if (contentDiv) contentDiv.innerHTML = html || '<div style="font-size:12px;color:#6b7280;">No structured data extracted.</div>';
+    if (resultDiv) resultDiv.style.display = 'block';
+  } catch(e) {
+    console.error('Journal parse error:', e);
+    if (contentDiv) contentDiv.innerHTML = '<div style="font-size:12px;color:#dc2626;">Failed to parse entry. Please try again.</div>';
+    if (resultDiv) resultDiv.style.display = 'block';
+  } finally {
+    if (btn) {
+      btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Parse with AI</span>';
+      _toggleJournalSave();
+    }
+  }
+}
+
+function _dismissJournalParse() {
+  const el = document.getElementById('jv-parse-result');
+  if (el) el.style.display = 'none';
+}
+
+async function _renderJournalRightPanel(right) {
+  if (!right) return;
+  // Fetch active outcomes for context
+  let outcomes = [];
+  try {
+    const res = await fetch('/api/outcomes?status=active&limit=5');
+    const json = await res.json();
+    outcomes = json.data || [];
+  } catch(e) {}
+
+  const outcomeCards = outcomes.length
+    ? outcomes.map(o => {
+        const color = o.energy_type === 'deep' ? '#7c3aed' : '#3b82f6';
+        const proj = o.project_name || '';
+        return `<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+            <span style="font-size:12px;font-weight:500;color:#111827;">${(o.title||'').replace(/</g,'&lt;')}</span>
+          </div>
+          ${proj ? `<div style="font-size:10px;color:#9ca3af;margin-top:4px;margin-left:14px;">${proj.replace(/</g,'&lt;')}</div>` : ''}
+        </div>`;
+      }).join('')
+    : '<div style="font-size:12px;color:#9ca3af;">No active outcomes</div>';
+
+  right.innerHTML = `
+    <div style="padding:16px 14px;">
+      <div style="margin-bottom:20px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;margin-bottom:8px;">Active Outcomes</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">${outcomeCards}</div>
+      </div>
+      <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:10px;padding:10px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">Tip</div>
+        <div style="font-size:11px;color:#78716c;line-height:1.5;">Use <strong>Parse with AI</strong> to extract action items, blockers, and mood from your brain dump.</div>
+      </div>
+    </div>
+  `;
 }
 
 // ============================================================

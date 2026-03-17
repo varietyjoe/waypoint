@@ -803,4 +803,50 @@ Remaining tasks: ${remainingActionIds.length}`;
   return response.content.find(b => b.type === 'text')?.text?.trim() || '';
 }
 
-module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates, sendAdvisorMessage };
+/**
+ * Parse a journal entry (standup or review) into structured data.
+ * Returns { actions, blockers, mood, learnings }.
+ */
+async function parseJournalEntry(type, content, contextSnapshot) {
+  const contextBlock = contextSnapshot ? `\nUser context:\n${contextSnapshot}\n` : '';
+
+  const systemPrompts = {
+    standup: `You are a productivity assistant. Parse the user's standup journal entry and extract structured data. Return ONLY valid JSON, no markdown.${contextBlock}
+
+Extract:
+- "actions": array of { "text": string, "project": string|null } — planned tasks/actions mentioned
+- "blockers": array of strings — anything blocking progress
+- "mood": string|null — brief mood/energy description if mentioned
+
+Be concise. Only extract what's explicitly stated or clearly implied.`,
+
+    review: `You are a productivity assistant. Parse the user's end-of-day review journal entry and extract structured data. Return ONLY valid JSON, no markdown.${contextBlock}
+
+Extract:
+- "actions": array of { "text": string, "project": string|null } — completed items OR carry-forwards for tomorrow
+- "blockers": array of strings — unresolved blockers
+- "mood": string|null — brief mood/energy description if mentioned
+- "learnings": array of strings — insights, reflections, or takeaways
+
+Be concise. Only extract what's explicitly stated or clearly implied.`,
+  };
+
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1024,
+    system: systemPrompts[type] || systemPrompts.standup,
+    messages: [{ role: 'user', content }],
+  });
+
+  const text = response.content.find(b => b.type === 'text')?.text?.trim() || '{}';
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    // Try extracting JSON from markdown code block
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (match) return JSON.parse(match[1].trim());
+    return { actions: [], blockers: [], mood: null };
+  }
+}
+
+module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates, sendAdvisorMessage, parseJournalEntry };

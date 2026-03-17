@@ -2384,6 +2384,27 @@ router.get('/daily-entries/:id', (req, res, next) => {
 });
 
 /**
+ * POST /api/daily-entries/parse
+ * Body: { type, content }
+ * Returns structured parse of a journal entry via AI.
+ */
+router.post('/daily-entries/parse', async (req, res, next) => {
+  try {
+    const { type, content } = req.body || {};
+    if (!type || !content) {
+      return res.status(400).json({ success: false, error: 'type and content are required' });
+    }
+    if (!['standup', 'review'].includes(type)) {
+      return res.status(400).json({ success: false, error: 'type must be standup or review' });
+    }
+    const userContextDb = require('../database/user-context');
+    const contextSnapshot = userContextDb.getContextSnapshot();
+    const data = await claudeService.parseJournalEntry(type, content, contextSnapshot);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+/**
  * POST /api/daily-entries
  * Body: { date, type, content }
  * Upserts — if an entry for that date+type exists, it updates content.

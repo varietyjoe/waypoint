@@ -1154,7 +1154,17 @@
         <button class="journal-toggle-btn" id="journal-btn-review" onclick="setJournalType('review')">Review</button>
       </div>
       <textarea class="journal-textarea" id="journal-input" placeholder="What are you working on today?" rows="4" style="margin-top: 14px;"></textarea>
-      <button class="journal-save-btn" id="journal-save-btn" onclick="saveJournalEntry()" style="margin-top:10px;">Save</button>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="journal-save-btn" id="journal-save-btn" onclick="saveJournalEntry()" style="margin:0;flex:1;">Save</button>
+        <button id="journal-parse-btn" onclick="parseJournalEntry()" style="flex:1;padding:10px 0;border-radius:12px;border:none;font-size:14px;font-weight:600;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;cursor:pointer;opacity:0.4;pointer-events:none;transition:opacity 0.15s;">Parse with AI</button>
+      </div>
+      <div id="journal-parse-result" style="display:none;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px;margin-top:10px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:700;color:#6d28d9;">AI Parse Results</span>
+        </div>
+        <div id="journal-parse-content"></div>
+        <button onclick="document.getElementById('journal-parse-result').style.display='none'" style="margin-top:10px;padding:6px 14px;border-radius:10px;border:1px solid #e5e7eb;background:transparent;font-size:12px;font-weight:600;color:#374151;cursor:pointer;">Dismiss</button>
+      </div>
       <div class="divider" style="margin: 16px 0;"></div>
       <div class="s-head" style="padding: 0 0 8px;">
         <span class="s-label">Recent</span>
@@ -2908,8 +2918,59 @@ async function saveJournalEntry() {
 
 function toggleJournalSaveBtn() {
   const btn = document.getElementById('journal-save-btn');
+  const parseBtn = document.getElementById('journal-parse-btn');
   const input = document.getElementById('journal-input');
-  btn.classList.toggle('enabled', input.value.trim().length > 0);
+  const hasText = input.value.trim().length > 0;
+  btn.classList.toggle('enabled', hasText);
+  if (parseBtn) { parseBtn.style.opacity = hasText ? '1' : '0.4'; parseBtn.style.pointerEvents = hasText ? 'auto' : 'none'; }
+}
+
+async function parseJournalEntry() {
+  const input = document.getElementById('journal-input');
+  const content = input ? input.value.trim() : '';
+  if (!content) return;
+  const btn = document.getElementById('journal-parse-btn');
+  const resultDiv = document.getElementById('journal-parse-result');
+  const contentDiv = document.getElementById('journal-parse-content');
+  if (btn) { btn.textContent = 'Parsing…'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
+  try {
+    const json = await apiFetch('/api/daily-entries/parse', {
+      method: 'POST',
+      body: JSON.stringify({ type: journalType, content }),
+    });
+    if (!json.success) throw new Error(json.error || 'Parse failed');
+    const data = json.data;
+    let html = '';
+    if (data.actions && data.actions.length) {
+      const label = journalType === 'standup' ? 'Planned Actions' : 'Completed / Carry-forward';
+      html += `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">${label}</div>`;
+      data.actions.forEach(a => {
+        const proj = a.project ? `<span style="font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;background:#dbeafe;color:#1e40af;margin-left:6px;">${a.project}</span>` : '';
+        html += `<div style="font-size:13px;color:#111827;margin-bottom:3px;"><span style="color:#7c3aed;">→</span> ${a.text}${proj}</div>`;
+      });
+      html += '</div>';
+    }
+    if (data.blockers && data.blockers.length) {
+      html += '<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Blockers</div>';
+      data.blockers.forEach(b => { html += `<div style="font-size:13px;color:#dc2626;margin-bottom:3px;">⚠ ${b}</div>`; });
+      html += '</div>';
+    }
+    if (data.mood) {
+      html += `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Mood / Energy</div><div style="font-size:13px;color:#059669;">● ${data.mood}</div></div>`;
+    }
+    if (data.learnings && data.learnings.length) {
+      html += '<div><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Learnings</div>';
+      data.learnings.forEach(l => { html += `<div style="font-size:13px;color:#6b7280;margin-bottom:3px;">💡 ${l}</div>`; });
+      html += '</div>';
+    }
+    if (contentDiv) contentDiv.innerHTML = html || '<div style="font-size:13px;color:#6b7280;">No structured data extracted.</div>';
+    if (resultDiv) resultDiv.style.display = 'block';
+  } catch(e) {
+    if (contentDiv) contentDiv.innerHTML = '<div style="font-size:13px;color:#dc2626;">Failed to parse. Try again.</div>';
+    if (resultDiv) resultDiv.style.display = 'block';
+  } finally {
+    if (btn) { btn.textContent = 'Parse with AI'; toggleJournalSaveBtn(); }
+  }
 }
 
 document.addEventListener('input', e => {
