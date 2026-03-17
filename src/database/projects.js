@@ -83,18 +83,19 @@ function createProject(name, color = '#818cf8', icon = '📁') {
  * @returns {Array} Array of all projects with task counts
  */
 function getAllProjects() {
-    const stmt = db.prepare(`
-        SELECT
-            p.*,
-            COUNT(t.id) as task_count,
-            SUM(CASE WHEN t.status != 'Done' THEN 1 ELSE 0 END) as active_task_count
-        FROM projects p
-        LEFT JOIN tasks t ON t.project_id = p.id
-        GROUP BY p.id
-        ORDER BY p.created_at ASC
-    `);
-
-    return stmt.all();
+    const tasksExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'").get();
+    const query = tasksExists
+        ? `SELECT p.*,
+             COUNT(t.id) as task_count,
+             SUM(CASE WHEN t.status != 'Done' THEN 1 ELSE 0 END) as active_task_count
+           FROM projects p
+           LEFT JOIN tasks t ON t.project_id = p.id
+           GROUP BY p.id
+           ORDER BY p.created_at ASC`
+        : `SELECT p.*, 0 as task_count, 0 as active_task_count
+           FROM projects p
+           ORDER BY p.created_at ASC`;
+    return db.prepare(query).all();
 }
 
 /**
@@ -103,18 +104,19 @@ function getAllProjects() {
  * @returns {Object|null} Project or null
  */
 function getProjectById(id) {
-    const stmt = db.prepare(`
-        SELECT
-            p.*,
-            COUNT(t.id) as task_count,
-            SUM(CASE WHEN t.status != 'Done' THEN 1 ELSE 0 END) as active_task_count
-        FROM projects p
-        LEFT JOIN tasks t ON t.project_id = p.id
-        WHERE p.id = ?
-        GROUP BY p.id
-    `);
-
-    return stmt.get(id) || null;
+    const tasksExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'").get();
+    const query = tasksExists
+        ? `SELECT p.*,
+             COUNT(t.id) as task_count,
+             SUM(CASE WHEN t.status != 'Done' THEN 1 ELSE 0 END) as active_task_count
+           FROM projects p
+           LEFT JOIN tasks t ON t.project_id = p.id
+           WHERE p.id = ?
+           GROUP BY p.id`
+        : `SELECT p.*, 0 as task_count, 0 as active_task_count
+           FROM projects p
+           WHERE p.id = ?`;
+    return db.prepare(query).get(id) || null;
 }
 
 /**
@@ -170,7 +172,10 @@ function deleteProject(id) {
     }
 
     // Unassign all tasks from this project (set project_id to null)
-    db.prepare('UPDATE tasks SET project_id = NULL WHERE project_id = ?').run(id);
+    const tasksExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'").get();
+    if (tasksExists) {
+      db.prepare('UPDATE tasks SET project_id = NULL WHERE project_id = ?').run(id);
+    }
 
     // Delete the project
     db.prepare('DELETE FROM projects WHERE id = ?').run(id);
