@@ -24,12 +24,13 @@ Three signals, summed into one count per day:
 
 **Query logic:**
 - Compute date range: today minus 29 days through today (30 days inclusive)
-- Query 1: `SELECT DATE(done_at) as date, COUNT(*) as count FROM actions WHERE done = 1 AND done_at >= :startDate GROUP BY DATE(done_at)`
-- Query 2: `SELECT date, content FROM daily_entries WHERE date >= :startDate AND type = 'standup'`
-- Query 3: `SELECT date, content FROM daily_entries WHERE date >= :startDate AND type = 'review'`
-- For queries 2 and 3, count bullet lines per entry (lines matching `/^\s*[-*]\s/` after trim)
+- Query 1: `SELECT DATE(done_at) as date, COUNT(*) as count FROM actions WHERE done = 1 AND done_at >= :startDate AND DATE(done_at) <= :endDate GROUP BY DATE(done_at)`
+- Query 2: `SELECT date, content FROM daily_entries WHERE date >= :startDate AND date <= :endDate AND type = 'standup'`
+- Query 3: `SELECT date, content FROM daily_entries WHERE date >= :startDate AND date <= :endDate AND type = 'review'`
+- For queries 2 and 3, count bullet lines per entry — standard markdown bullets: `- text` or `* text` (regex: `/^\s*[-*]\s/`)
 - Merge all three into a single `{ [date]: count }` map
 - Fill missing days with 0
+- `total` is the sum of counts across all 30 days
 
 **Response shape:**
 ```json
@@ -73,7 +74,12 @@ Top of the Analytics tab, above the existing 4 stat cards. Rendered inside `rend
 
 ### Data fetching
 
-`showAnalyticsView()` already fetches `/api/analytics` and `/api/patterns`. Add a parallel fetch to `/api/analytics/heatmap` and pass the result to `renderAnalyticsView()`.
+`showAnalyticsView()` already fetches `/api/analytics` and `/api/patterns`. Add a parallel fetch to `/api/analytics/heatmap` with a `.catch(() => ({ heatmap: {}, total: 0 }))` fallback so a heatmap failure does not break the Analytics tab. Pass the result as a third argument: `renderAnalyticsView(stats, patterns, heatmapData)`.
+
+### Known limitations
+
+- Dates are UTC-based (`datetime('now')` in SQLite). An action completed at 11 PM local could show as the next day. This is a systemic Waypoint behavior, not specific to the heatmap.
+- Color thresholds (0, 1-2, 3-5, 6+) are initial guesses and may need tuning after seeing real data.
 
 ## Out of Scope
 
