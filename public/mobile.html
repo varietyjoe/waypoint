@@ -570,6 +570,13 @@
 
     .or-chevron { opacity: .2; flex-shrink: 0; }
 
+    .or-delete {
+      flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #333; cursor: pointer; transition: color 0.15s ease, background 0.15s ease;
+    }
+    .or-delete:active { color: #f87171; background: rgba(239,68,68,0.10); }
+
 
     /* ════════════════════════════════════
        INBOX TAB
@@ -2171,8 +2178,23 @@ function renderOutcomeRow(o, isArchived = false) {
       <div class="or-meta">${dueText}</div>
     </div>
     <div class="or-pct" style="color:${pctColor};font-variant-numeric:tabular-nums;">${p}%</div>
-    <svg class="or-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    <div class="or-delete" onclick="event.stopPropagation();confirmDeleteOutcomeMobile(${o.id}, '${esc(o.title).replace(/'/g, "\\'")}')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    </div>
   </div>`;
+}
+
+async function confirmDeleteOutcomeMobile(id, title) {
+  if (!confirm('Delete "' + title + '"? This cannot be undone.')) return;
+  try {
+    await apiFetch('/api/outcomes/' + id, { method: 'DELETE' });
+    outcomes = outcomes.filter(o => o.id !== id);
+    renderBriefing(outcomes);
+    renderOutcomesTab(outcomes);
+    showToast('Deleted');
+  } catch (e) {
+    showToast('Error deleting');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
