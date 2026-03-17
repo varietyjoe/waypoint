@@ -1948,6 +1948,67 @@ router.get('/analytics', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Heatmap: 30-day activity grid ───────────────────────────────────────────
+router.get('/analytics/heatmap', (req, res, next) => {
+  try {
+    const db = require('../database/index');
+
+    // Date range: today minus 29 days through today (30 days)
+    const endDate = new Date().toISOString().slice(0, 10);
+    const start = new Date();
+    start.setUTCDate(start.getUTCDate() - 29);
+    const startDate = start.toISOString().slice(0, 10);
+
+    // Initialize all 30 days to 0
+    const heatmap = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      heatmap[d.toISOString().slice(0, 10)] = 0;
+    }
+
+    // 1. Actions completed
+    const actionRows = db.prepare(`
+      SELECT DATE(done_at) as date, COUNT(*) as count
+      FROM actions
+      WHERE done = 1 AND done_at >= ? AND DATE(done_at) <= ?
+      GROUP BY DATE(done_at)
+    `).all(startDate, endDate);
+    for (const row of actionRows) {
+      if (row.date in heatmap) heatmap[row.date] += row.count;
+    }
+
+    // 2. Standup bullets
+    const standupRows = db.prepare(`
+      SELECT date, content FROM daily_entries
+      WHERE date >= ? AND date <= ? AND type = 'standup'
+    `).all(startDate, endDate);
+    for (const row of standupRows) {
+      if (row.date in heatmap) {
+        heatmap[row.date] += row.content
+          .split('\n')
+          .filter(line => /^\s*[-*]\s/.test(line)).length;
+      }
+    }
+
+    // 3. Review bullets
+    const reviewRows = db.prepare(`
+      SELECT date, content FROM daily_entries
+      WHERE date >= ? AND date <= ? AND type = 'review'
+    `).all(startDate, endDate);
+    for (const row of reviewRows) {
+      if (row.date in heatmap) {
+        heatmap[row.date] += row.content
+          .split('\n')
+          .filter(line => /^\s*[-*]\s/.test(line)).length;
+      }
+    }
+
+    const total = Object.values(heatmap).reduce((sum, n) => sum + n, 0);
+    res.json({ success: true, data: { heatmap, total } });
+  } catch (err) { next(err); }
+});
+
 router.get('/patterns', (req, res, next) => {
   try {
     const patterns = patternsDb.getAllPatterns();
