@@ -224,16 +224,37 @@ function getStreakDays() {
     return streak;
 }
 
-function getTodayStats() {
-    const outcomesArchivedToday = db.prepare(`
-        SELECT COUNT(*) as count FROM outcomes
-        WHERE status = 'archived' AND date(archived_at) = date('now', 'localtime')
-    `).get().count;
+function getTodayStats(projectId = null) {
+    let outcomesArchivedToday;
+    let actionsCompletedToday;
 
-    const actionsCompletedToday = db.prepare(`
-        SELECT COUNT(*) as count FROM actions
-        WHERE done = 1 AND date(done_at) = date('now', 'localtime')
-    `).get().count;
+    if (projectId) {
+        outcomesArchivedToday = db.prepare(`
+            SELECT COUNT(*) as count FROM outcomes
+            WHERE status = 'archived'
+              AND project_id = ?
+              AND date(archived_at) = date('now', 'localtime')
+        `).get(projectId).count;
+
+        actionsCompletedToday = db.prepare(`
+            SELECT COUNT(*) as count
+            FROM actions a
+            JOIN outcomes o ON o.id = a.outcome_id
+            WHERE a.done = 1
+              AND o.project_id = ?
+              AND date(a.done_at) = date('now', 'localtime')
+        `).get(projectId).count;
+    } else {
+        outcomesArchivedToday = db.prepare(`
+            SELECT COUNT(*) as count FROM outcomes
+            WHERE status = 'archived' AND date(archived_at) = date('now', 'localtime')
+        `).get().count;
+
+        actionsCompletedToday = db.prepare(`
+            SELECT COUNT(*) as count FROM actions
+            WHERE done = 1 AND date(done_at) = date('now', 'localtime')
+        `).get().count;
+    }
 
     return {
         outcomes_archived_today: outcomesArchivedToday,

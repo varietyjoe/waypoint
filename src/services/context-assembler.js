@@ -8,13 +8,21 @@ const actionsDb = require('../database/actions');
 const dailyEntriesDb = require('../database/daily-entries');
 const calendarDb = require('../database/calendar');
 const outcomesDb = require('../database/outcomes');
+const projectsDb = require('../database/projects');
 
-function assembleContext() {
+function assembleContext(options = {}) {
+    const projectId = options.projectId ? parseInt(options.projectId, 10) : null;
+    const selectedProject = projectId ? projectsDb.getProjectById(projectId) : null;
+
     // Open actions with outcome titles
-    const open_todos = actionsDb.getAllOpenActions();
+    const open_todos = actionsDb.getAllOpenActions().filter(t =>
+        !projectId || t.outcome_project_id === projectId
+    );
 
     // Recently completed actions (last 7 days, max 20)
-    const completed_todos = actionsDb.getRecentlyCompletedActions(7, 20);
+    const completed_todos = actionsDb.getRecentlyCompletedActions(7, 20).filter(t =>
+        !projectId || t.outcome_project_id === projectId
+    );
 
     // Last 10 daily entries (standups + reviews)
     const daily_reviews = dailyEntriesDb.getRecentEntries(10);
@@ -30,7 +38,7 @@ function assembleContext() {
     // Active outcomes with progress computed from their actions
     let outcomes = [];
     try {
-        const rawOutcomes = outcomesDb.getAllOutcomes({ status: 'active' });
+        const rawOutcomes = outcomesDb.getAllOutcomes({ status: 'active', project_id: projectId || undefined });
         outcomes = rawOutcomes.map(o => {
             const actions = actionsDb.getActionsByOutcome(o.id);
             const actions_total = actions.length;
@@ -40,6 +48,7 @@ function assembleContext() {
                 id:            o.id,
                 title:         o.title,
                 status:        o.status,
+                project_name:  o.project_name,
                 deadline:      o.deadline || null,
                 priority:      o.priority,
                 progress_pct,
@@ -57,6 +66,9 @@ function assembleContext() {
         daily_reviews,
         calendar,
         outcomes,
+        selected_project: selectedProject
+            ? { id: selectedProject.id, name: selectedProject.name, color: selectedProject.color, icon: selectedProject.icon }
+            : null,
         generated_at: new Date().toISOString(),
     };
 }
@@ -69,6 +81,11 @@ function formatContextForPrompt(ctx) {
 
     lines.push('=== WAYPOINT CONTEXT SNAPSHOT ===');
     lines.push(`Generated: ${ctx.generated_at}`);
+    if (ctx.selected_project) {
+        lines.push(`Workspace: Project "${ctx.selected_project.name}"`);
+    } else {
+        lines.push('Workspace: ALL projects');
+    }
     lines.push('');
 
     lines.push('--- OUTCOMES ---');
@@ -77,7 +94,8 @@ function formatContextForPrompt(ctx) {
     } else {
         for (const o of ctx.outcomes) {
             const deadline = o.deadline ? `deadline:${o.deadline}` : 'no deadline';
-            lines.push(`- [${o.id}] ${o.title} | ${o.status} | ${deadline} | ${o.progress_pct}% (${o.actions_done}/${o.actions_total} done)`);
+            const projectName = o.project_name ? `${o.project_name} | ` : '';
+            lines.push(`- [${o.id}] ${projectName}${o.title} | ${o.status} | ${deadline} | ${o.progress_pct}% (${o.actions_done}/${o.actions_total} done)`);
         }
     }
     lines.push('');

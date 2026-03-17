@@ -135,7 +135,8 @@ router.get('/outcomes/archived', (req, res, next) => {
  */
 router.get('/outcomes/stats/today', (req, res, next) => {
     try {
-        const stats = outcomesDb.getTodayStats();
+        const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+        const stats = outcomesDb.getTodayStats(projectId);
         res.json({ success: true, data: stats });
     } catch (err) {
         next(err);
@@ -1242,7 +1243,8 @@ router.delete('/library/:id', (req, res, next) => {
 router.get('/mobile/context', (req, res, next) => {
     console.log('📱 GET /api/mobile/context');
     try {
-        const ctx = assembleContext();
+        const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+        const ctx = assembleContext({ projectId });
         res.json({ success: true, data: ctx });
     } catch (err) {
         next(err);
@@ -1256,9 +1258,28 @@ router.get('/mobile/context', (req, res, next) => {
 router.post('/chat', async (req, res, next) => {
     console.log('💬 POST /api/chat');
     try {
-        const { message, conversationHistory, context, mode, preview = true } = req.body;
+        const { message, conversationHistory, context, mode, preview = true, workspace } = req.body;
         // Advisor tool-continuation sends empty message (history already contains the user turn)
         if (!message && mode !== 'advisor') return res.status(400).json({ success: false, error: 'Message is required' });
+
+        const workspaceProjectId = workspace?.mode === 'project' && workspace?.project_id
+            ? parseInt(workspace.project_id, 10)
+            : null;
+
+        const buildWorkspaceContext = () => {
+            const ctx = assembleContext({ projectId: workspaceProjectId });
+            let contextSnapshot = formatContextForPrompt(ctx);
+
+            if (workspace?.mode === 'project' && workspaceProjectId) {
+                const project = projectsDb.getProjectById(workspaceProjectId);
+                const projectName = project ? project.name : `Project ${workspaceProjectId}`;
+                contextSnapshot += `\n\n=== MOBILE WORKSPACE ===\nThe user is currently operating inside the "${projectName}" mobile workspace.\nPrioritize this project's outcomes, actions, and next steps. Shared memories and global context still persist, but do not default to other projects unless the user explicitly asks.\n=== END MOBILE WORKSPACE ===`;
+            } else if (workspace?.mode === 'all') {
+                contextSnapshot += `\n\n=== MOBILE WORKSPACE ===\nThe user is currently in the ALL workspace. Cross-project reasoning, braindumps, and global prioritization are appropriate.\n=== END MOBILE WORKSPACE ===`;
+            }
+
+            return contextSnapshot;
+        };
 
         // Phase 1.4: tool-mode request from command palette
         if (mode === 'tools') {
@@ -1300,8 +1321,7 @@ router.post('/chat', async (req, res, next) => {
 
         // Advisor mode: full context + CRUD tools with client-side approval
         if (mode === 'advisor') {
-            const ctx = assembleContext();
-            const contextSnapshot = formatContextForPrompt(ctx);
+            const contextSnapshot = buildWorkspaceContext();
             const result = await claudeService.sendAdvisorMessage(
                 message,
                 conversationHistory || [],
@@ -1312,8 +1332,7 @@ router.post('/chat', async (req, res, next) => {
 
         // Mobile mode: inject full context snapshot into system prompt
         if (mode === 'mobile') {
-            const ctx = assembleContext();
-            const contextSnapshot = formatContextForPrompt(ctx);
+            const contextSnapshot = buildWorkspaceContext();
             const response = await claudeService.sendMessage(message, conversationHistory || [], preview, contextSnapshot);
             return res.json({ success: true, response: response.text, actions: response.actions || [] });
         }

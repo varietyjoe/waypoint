@@ -142,7 +142,7 @@ function snoozeAction(id) {
 
 function getAllOpenActions() {
     return db.prepare(`
-        SELECT a.*, o.title AS outcome_title
+        SELECT a.*, o.title AS outcome_title, o.project_id AS outcome_project_id
         FROM actions a
         LEFT JOIN outcomes o ON a.outcome_id = o.id
         WHERE a.done = 0
@@ -152,7 +152,7 @@ function getAllOpenActions() {
 
 function getRecentlyCompletedActions(days = 7, limit = 20) {
     return db.prepare(`
-        SELECT a.*, o.title AS outcome_title
+        SELECT a.*, o.title AS outcome_title, o.project_id AS outcome_project_id
         FROM actions a
         LEFT JOIN outcomes o ON a.outcome_id = o.id
         WHERE a.done = 1

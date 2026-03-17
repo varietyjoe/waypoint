@@ -26,6 +26,10 @@
       --text-secondary: #aaa;
       --text-tertiary: #444;
       --text-ghost: #2e2e2e;
+      --accent: #3b82f6;
+      --accent-rgb: 59,130,246;
+      --advisor-accent: #6366f1;
+      --advisor-accent-rgb: 99,102,241;
       --blue: #3b82f6;
       --blue-dim: rgba(59,130,246,0.12);
       --green: #22c55e;
@@ -60,6 +64,154 @@
       display: flex; flex-direction: column;
       position: relative; overflow: hidden;
     }
+
+    .workspace-bar {
+      flex-shrink: 0;
+      padding: calc(10px + var(--safe-top)) 14px 10px;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0)),
+        radial-gradient(circle at top center, rgba(var(--accent-rgb),0.20), transparent 62%);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .workspace-switcher {
+      width: 100%;
+      border: 1px solid rgba(var(--accent-rgb),0.18);
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-family: inherit;
+    }
+
+    .workspace-switcher:active { opacity: 0.85; }
+
+    .workspace-meta { display: flex; align-items: center; gap: 11px; min-width: 0; }
+
+    .workspace-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 5px rgba(var(--accent-rgb),0.12);
+      flex-shrink: 0;
+    }
+
+    .workspace-copy { min-width: 0; text-align: left; }
+
+    .workspace-label {
+      font-size: 9px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: rgba(var(--accent-rgb),0.95);
+      margin-bottom: 3px;
+    }
+
+    .workspace-name {
+      font-size: 14px; font-weight: 600; letter-spacing: -.02em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .workspace-sub {
+      font-size: 11px; color: var(--text-ghost); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .workspace-chevron {
+      color: rgba(var(--accent-rgb),0.95);
+      flex-shrink: 0;
+    }
+
+    .workspace-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.58);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      z-index: 90; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .workspace-backdrop.visible { opacity: 1; pointer-events: all; }
+
+    .workspace-sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      z-index: 91;
+      background: #121212;
+      border-top: 1px solid rgba(var(--accent-rgb),0.15);
+      border-radius: 22px 22px 0 0;
+      padding: 18px 18px calc(20px + var(--safe-bottom));
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 -24px 64px rgba(0,0,0,0.45);
+    }
+    .workspace-sheet.open { transform: translateY(0); }
+
+    .workspace-sheet-title {
+      font-size: 16px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 4px;
+    }
+
+    .workspace-sheet-sub {
+      font-size: 12px; color: var(--text-ghost); line-height: 1.5; margin-bottom: 16px;
+    }
+
+    .workspace-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .workspace-option {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.025);
+      border-radius: 16px;
+      padding: 13px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: inherit;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .workspace-option.active {
+      border-color: rgba(var(--accent-rgb),0.28);
+      background: rgba(var(--accent-rgb),0.10);
+    }
+
+    .workspace-option-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
+
+    .workspace-icon {
+      width: 36px; height: 36px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .workspace-option.active .workspace-icon {
+      background: rgba(var(--accent-rgb),0.12);
+      border-color: rgba(var(--accent-rgb),0.18);
+    }
+
+    .workspace-option-copy { min-width: 0; text-align: left; }
+
+    .workspace-option-name {
+      font-size: 14px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .workspace-option-sub {
+      font-size: 11px; color: var(--text-ghost); margin-top: 3px;
+    }
+
+    .workspace-check {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 1px solid rgba(var(--accent-rgb),0.35);
+      background: rgba(var(--accent-rgb),0.12);
+      display: none;
+      align-items: center; justify-content: center;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .workspace-option.active .workspace-check { display: flex; }
 
     /* ── Tab panels ── */
     .tab-panel {
@@ -178,7 +330,7 @@
       letter-spacing: 0.5px; margin-bottom: 10px;
       transition: border-color 0.15s ease;
     }
-    .auth-input:focus { border-color: rgba(59,130,246,0.5); }
+    .auth-input:focus { border-color: rgba(var(--accent-rgb),0.5); }
     .auth-input::placeholder { color: #333; letter-spacing: normal; }
 
     .auth-btn {
@@ -210,7 +362,7 @@
       content: '';
       position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
       width: 240px; height: 140px;
-      background: radial-gradient(ellipse, rgba(59,130,246,0.10) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(var(--accent-rgb),0.10) 0%, transparent 70%);
       pointer-events: none;
     }
 
@@ -272,11 +424,11 @@
     }
 
     .coach-card.nudge {
-      background: rgba(99,102,241,0.07);
-      border: 1px solid rgba(99,102,241,0.14);
+      background: rgba(var(--advisor-accent-rgb),0.07);
+      border: 1px solid rgba(var(--advisor-accent-rgb),0.14);
     }
     .coach-card.nudge::before {
-      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.45), transparent);
+      background: linear-gradient(90deg, transparent, rgba(var(--advisor-accent-rgb),0.45), transparent);
     }
 
     .coach-card.momentum {
@@ -327,7 +479,7 @@
     }
     .coach-cta:active { opacity: 0.7; }
 
-    .cta-indigo { color: #818cf8; background: rgba(99,102,241,0.10); border-color: rgba(99,102,241,0.20); }
+    .cta-indigo { color: var(--advisor-accent); background: rgba(var(--advisor-accent-rgb),0.10); border-color: rgba(var(--advisor-accent-rgb),0.20); }
     .cta-green  { color: #4ade80; background: rgba(34,197,94,0.10); border-color: rgba(34,197,94,0.15); }
     .cta-amber  { color: #fbbf24; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.15); }
 
@@ -349,7 +501,7 @@
 
     .oc-bar { width: 2px; height: 100%; position: absolute; left: 0; top: 0; border-radius: 0 2px 2px 0; }
 
-    .oc.status-active { background: rgba(59,130,246,0.05); border-color: rgba(59,130,246,0.10); }
+    .oc.status-active { background: rgba(var(--accent-rgb),0.05); border-color: rgba(var(--accent-rgb),0.10); }
     .oc.status-active .oc-bar { background: var(--blue); }
 
     .oc.status-warn { background: rgba(245,158,11,0.05); border-color: rgba(245,158,11,0.10); }
@@ -461,7 +613,7 @@
     }
     .outcome-row:active { opacity: 0.7; }
 
-    .outcome-row.active-row { background: rgba(59,130,246,0.05); border-color: rgba(59,130,246,0.10); }
+    .outcome-row.active-row { background: rgba(var(--accent-rgb),0.05); border-color: rgba(var(--accent-rgb),0.10); }
     .outcome-row.warn-row   { background: rgba(245,158,11,0.04); border-color: rgba(245,158,11,0.08); }
 
     .or-bar { width: 2px; height: 32px; border-radius: 2px; flex-shrink: 0; }
@@ -561,7 +713,7 @@
       content: '';
       position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
       width: 200px; height: 130px;
-      background: radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(var(--advisor-accent-rgb),0.12) 0%, transparent 70%);
       pointer-events: none;
     }
 
@@ -598,7 +750,7 @@
     /* Snapshot card */
     .snapshot-card {
       background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(99,102,241,0.12);
+      border: 1px solid rgba(var(--advisor-accent-rgb),0.12);
       border-radius: 11px; padding: 11px 13px;
       align-self: flex-start; max-width: 92%;
     }
@@ -643,8 +795,8 @@
     }
 
     .msg-user {
-      background: rgba(59,130,246,0.14);
-      border: 1px solid rgba(59,130,246,0.18);
+      background: rgba(var(--accent-rgb),0.14);
+      border: 1px solid rgba(var(--accent-rgb),0.18);
       color: #a8c4f8; border-radius: 12px 12px 3px 12px;
       align-self: flex-end;
     }
@@ -662,7 +814,7 @@
 
     .typing-avatar {
       width: 22px; height: 22px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--indigo), #8b5cf6);
+      background: linear-gradient(135deg, var(--advisor-accent), rgba(var(--advisor-accent-rgb),0.7));
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
 
@@ -702,7 +854,7 @@
       border-radius: 20px; padding: 9px 14px;
       transition: border-color 0.15s ease;
     }
-    .compose-wrap:focus-within { border-color: rgba(99,102,241,0.35); }
+    .compose-wrap:focus-within { border-color: rgba(var(--advisor-accent-rgb),0.35); }
 
     .compose-input {
       width: 100%; background: none; border: none; outline: none;
@@ -760,7 +912,7 @@
       font-family: inherit; resize: none; line-height: 1.45; min-height: 80px;
       transition: border-color 0.15s ease;
     }
-    .capture-textarea:focus { border-color: rgba(59,130,246,0.4); }
+    .capture-textarea:focus { border-color: rgba(var(--accent-rgb),0.4); }
     .capture-textarea::placeholder { color: #333; }
 
     .outcome-picker-label {
@@ -783,7 +935,7 @@
       transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
     }
     .outcome-pill.selected {
-      background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.25);
+      background: rgba(var(--accent-rgb),0.12); border-color: rgba(var(--accent-rgb),0.25);
       color: #93c5fd;
     }
 
@@ -823,26 +975,26 @@
       margin: 8px 0;
       padding: 12px 14px;
       border-radius: 12px;
-      background: rgba(99,102,241,0.07);
-      border: 1px solid rgba(99,102,241,0.18);
+      background: rgba(var(--advisor-accent-rgb),0.07);
+      border: 1px solid rgba(var(--advisor-accent-rgb),0.18);
       position: relative;
     }
     .advisor-confirm-card::before {
       content: '';
       position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.4), transparent);
+      background: linear-gradient(90deg, transparent, rgba(var(--advisor-accent-rgb),0.4), transparent);
     }
     .confirm-header {
       display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
     }
     .confirm-pip {
       width: 5px; height: 5px; border-radius: 50%;
-      background: #6366f1;
+      background: var(--advisor-accent);
       animation: pulse 2.4s ease-in-out infinite;
     }
     .confirm-label {
       font-size: 8.5px; font-weight: 600; letter-spacing: .1em;
-      text-transform: uppercase; color: #6366f1;
+      text-transform: uppercase; color: var(--advisor-accent);
     }
     .confirm-description {
       font-size: 13px; color: #e0e0e0; margin-bottom: 10px; line-height: 1.45;
@@ -856,8 +1008,8 @@
       background: transparent; font-family: inherit;
     }
     .confirm-approve {
-      color: #818cf8; border-color: rgba(99,102,241,0.3);
-      background: rgba(99,102,241,0.1);
+      color: var(--advisor-accent); border-color: rgba(var(--advisor-accent-rgb),0.3);
+      background: rgba(var(--advisor-accent-rgb),0.1);
     }
     .confirm-cancel {
       color: #666; border-color: rgba(255,255,255,0.08);
@@ -888,31 +1040,46 @@
 
 <!-- ── Main App ── -->
 <div id="app">
+  <div class="workspace-bar">
+    <button class="workspace-switcher" id="workspace-switcher" onclick="openWorkspaceSheet()">
+      <div class="workspace-meta">
+        <div class="workspace-dot" id="workspace-dot"></div>
+        <div class="workspace-copy">
+          <div class="workspace-label" id="workspace-label">Workspace</div>
+          <div class="workspace-name" id="workspace-name">ALL</div>
+          <div class="workspace-sub" id="workspace-sub">Everything, inbox, and cross-project chat</div>
+        </div>
+      </div>
+      <svg class="workspace-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+  </div>
 
   <!-- ═══════════ BRIEFING TAB ═══════════ -->
   <div class="tab-panel active" id="panel-briefing">
     <div class="brief-header">
       <div class="brief-eyebrow" id="brief-eyebrow">—</div>
-      <div class="brief-title">Briefing</div>
+      <div class="brief-title" id="brief-title">Briefing</div>
       <div class="brief-sub" id="brief-sub">Loading…</div>
     </div>
 
     <div class="stat-strip" id="stat-strip">
       <div class="stat-item">
         <div class="stat-num blue skel" id="stat-active" style="width:24px;height:19px;margin:0 auto 4px;">—</div>
-        <div class="stat-lbl">Active</div>
+        <div class="stat-lbl" id="stat-label-active">Active</div>
       </div>
       <div class="stat-item">
         <div class="stat-num muted" id="stat-done">—</div>
-        <div class="stat-lbl">Done Today</div>
+        <div class="stat-lbl" id="stat-label-done">Done Today</div>
       </div>
       <div class="stat-item">
         <div class="stat-num muted" id="stat-inbox">—</div>
-        <div class="stat-lbl">Inbox</div>
+        <div class="stat-lbl" id="stat-label-third">Inbox</div>
       </div>
       <div class="stat-item">
         <div class="stat-num muted" id="stat-streak">—</div>
-        <div class="stat-lbl">Streak</div>
+        <div class="stat-lbl" id="stat-label-fourth">Streak</div>
       </div>
     </div>
 
@@ -952,8 +1119,8 @@
   <!-- ═══════════ OUTCOMES TAB ═══════════ -->
   <div class="tab-panel" id="panel-outcomes">
     <div class="outcomes-header">
-      <div class="outcomes-eyebrow">Execution OS</div>
-      <div class="outcomes-title">Outcomes</div>
+      <div class="outcomes-eyebrow" id="outcomes-eyebrow">Execution OS</div>
+      <div class="outcomes-title" id="outcomes-title">Outcomes</div>
     </div>
     <div class="scroll-area">
       <div id="outcomes-list" style="padding-bottom:16px;"></div>
@@ -963,8 +1130,8 @@
   <!-- ═══════════ INBOX TAB ═══════════ -->
   <div class="tab-panel" id="panel-inbox">
     <div class="inbox-header">
-      <div class="inbox-eyebrow">Triage</div>
-      <div class="inbox-title">Inbox</div>
+      <div class="inbox-eyebrow" id="inbox-eyebrow">Triage</div>
+      <div class="inbox-title" id="inbox-title">Inbox</div>
       <div class="inbox-sub" id="inbox-sub">Loading…</div>
     </div>
     <div class="scroll-area">
@@ -975,9 +1142,9 @@
   <!-- ═══════════ ADVISOR TAB ═══════════ -->
   <div class="tab-panel tab-advisor" id="panel-advisor">
     <div class="adv-header">
-      <div class="adv-eyebrow">AI · Context-Aware</div>
-      <div class="adv-title">Advisor</div>
-      <div class="adv-sub">Knows your outcomes &amp; history</div>
+      <div class="adv-eyebrow" id="adv-eyebrow">AI · Context-Aware</div>
+      <div class="adv-title" id="adv-title">Advisor</div>
+      <div class="adv-sub" id="adv-sub">Knows your outcomes &amp; history</div>
     </div>
 
     <div class="context-pills-row" id="context-pills"></div>
@@ -1050,7 +1217,7 @@
         </svg>
         <div class="inbox-badge" id="inbox-badge"></div>
       </div>
-      <span class="tab-label">Inbox</span>
+      <span class="tab-label" id="tab-inbox-label">Inbox</span>
     </div>
 
     <div class="tab-item tab-advisor" id="tab-advisor" onclick="switchTab('advisor')">
@@ -1066,11 +1233,19 @@
 
 </div><!-- end app -->
 
+<div class="workspace-backdrop" id="workspace-backdrop" onclick="closeWorkspaceSheet()"></div>
+<div class="workspace-sheet" id="workspace-sheet">
+  <div class="sheet-handle"></div>
+  <div class="workspace-sheet-title">Switch workspace</div>
+  <div class="workspace-sheet-sub">Choose ALL for braindumps and cross-project thinking, or drop into a single project workspace.</div>
+  <div class="workspace-list" id="workspace-list"></div>
+</div>
+
 <!-- Backdrop + Capture Sheet -->
 <div class="backdrop" id="backdrop" onclick="closeCapture()"></div>
 <div class="capture-sheet" id="capture-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Capture</div>
+  <div class="sheet-title" id="capture-title">Capture</div>
   <textarea class="capture-textarea" id="capture-input"
     placeholder="What's on your mind?" rows="3"></textarea>
   <div class="outcome-picker-label">Route to outcome (optional)</div>
@@ -1090,12 +1265,15 @@
 // ═══════════════════════════════════════════════════════════════
 let apiKey = null;
 let currentTab = 'briefing';
+let projects = [];
 let outcomes = [];
 let inboxItems = [];
 let inboxCount = 0;
 let chatHistory = [];
 let isAdvisorSending = false;
 let captureOutcomeId = null;
+let workspace = { mode: 'all', projectId: null };
+let currentProject = null;
 
 // ═══════════════════════════════════════════════════════════════
 // UTILITIES
@@ -1149,6 +1327,236 @@ async function apiFetch(path, opts = {}) {
   return res.json();
 }
 
+function normalizeWorkspace(raw) {
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  const mode = parsed?.mode === 'project' ? 'project' : 'all';
+  const projectId = parsed?.project_id ?? parsed?.projectId ?? null;
+  const normalized = {
+    mode,
+    projectId: mode === 'project' && projectId != null ? Number(projectId) : null,
+  };
+
+  if (normalized.mode === 'project' && !projects.some(p => Number(p.id) === normalized.projectId)) {
+    return { mode: 'all', projectId: null };
+  }
+
+  return normalized;
+}
+
+function workspaceStorageKey() {
+  return workspace.mode === 'project' && workspace.projectId ? `project_${workspace.projectId}` : 'all';
+}
+
+function workspaceQuery() {
+  return workspace.mode === 'project' && workspace.projectId
+    ? `?project_id=${encodeURIComponent(workspace.projectId)}`
+    : '';
+}
+
+function workspacePayload() {
+  return {
+    mode: workspace.mode,
+    project_id: workspace.mode === 'project' ? workspace.projectId : null,
+  };
+}
+
+function getCurrentProject() {
+  return workspace.mode === 'project'
+    ? (projects.find(p => Number(p.id) === Number(workspace.projectId)) || null)
+    : null;
+}
+
+function hexToRgb(hex) {
+  const normalized = String(hex || '').replace('#', '').trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return [59, 130, 246];
+  return [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16),
+  ];
+}
+
+function applyWorkspaceTheme() {
+  currentProject = getCurrentProject();
+
+  const accent = currentProject?.color || '#3b82f6';
+  const advisorAccent = currentProject?.color || '#6366f1';
+  const [accentR, accentG, accentB] = hexToRgb(accent);
+  const [advisorR, advisorG, advisorB] = hexToRgb(advisorAccent);
+  const root = document.documentElement;
+
+  root.style.setProperty('--accent', accent);
+  root.style.setProperty('--accent-rgb', `${accentR},${accentG},${accentB}`);
+  root.style.setProperty('--advisor-accent', advisorAccent);
+  root.style.setProperty('--advisor-accent-rgb', `${advisorR},${advisorG},${advisorB}`);
+  root.style.setProperty('--blue', accent);
+  root.style.setProperty('--indigo', advisorAccent);
+
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) {
+    themeMeta.setAttribute('content', workspace.mode === 'project' ? accent : '#0a0a0a');
+  }
+}
+
+function renderWorkspaceSheet() {
+  const list = document.getElementById('workspace-list');
+  const allActive = workspace.mode === 'all';
+
+  const allRow = `
+    <button class="workspace-option${allActive ? ' active' : ''}" onclick="selectWorkspace('all')">
+      <div class="workspace-option-main">
+        <div class="workspace-icon">ALL</div>
+        <div class="workspace-option-copy">
+          <div class="workspace-option-name">All Workspaces</div>
+          <div class="workspace-option-sub">Brain dumps, inbox, and cross-project advisor</div>
+        </div>
+      </div>
+      <div class="workspace-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </button>`;
+
+  const projectRows = projects.map(project => {
+    const active = workspace.mode === 'project' && Number(workspace.projectId) === Number(project.id);
+    const [r, g, b] = hexToRgb(project.color || '#3b82f6');
+    return `
+      <button class="workspace-option${active ? ' active' : ''}" onclick="selectWorkspace('project', ${project.id})">
+        <div class="workspace-option-main">
+          <div class="workspace-icon" style="background:rgba(${r},${g},${b},0.14);border-color:rgba(${r},${g},${b},0.22);">${esc(project.icon || '•')}</div>
+          <div class="workspace-option-copy">
+            <div class="workspace-option-name">${esc(project.name)}</div>
+            <div class="workspace-option-sub">Theme + focus this app around ${esc(project.name)}</div>
+          </div>
+        </div>
+        <div class="workspace-check">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      </button>`;
+  }).join('');
+
+  list.innerHTML = allRow + projectRows;
+}
+
+function renderWorkspaceChrome() {
+  const workspaceName = document.getElementById('workspace-name');
+  const workspaceSub = document.getElementById('workspace-sub');
+  const briefTitle = document.getElementById('brief-title');
+  const outcomesEyebrow = document.getElementById('outcomes-eyebrow');
+  const outcomesTitle = document.getElementById('outcomes-title');
+  const inboxEyebrow = document.getElementById('inbox-eyebrow');
+  const inboxTitle = document.getElementById('inbox-title');
+  const advEyebrow = document.getElementById('adv-eyebrow');
+  const advSub = document.getElementById('adv-sub');
+  const inboxTabLabel = document.getElementById('tab-inbox-label');
+  const captureTitle = document.getElementById('capture-title');
+  const captureInput = document.getElementById('capture-input');
+
+  if (workspace.mode === 'project' && currentProject) {
+    workspaceName.textContent = currentProject.name;
+    workspaceSub.textContent = 'Project workspace. Advisor and briefing stay focused here.';
+    briefTitle.textContent = currentProject.name;
+    outcomesEyebrow.textContent = currentProject.name.toUpperCase();
+    outcomesTitle.textContent = 'Outcomes';
+    inboxEyebrow.textContent = 'ALL Workspace';
+    inboxTitle.textContent = 'Global';
+    advEyebrow.textContent = `${currentProject.name.toUpperCase()} · Advisor`;
+    advSub.textContent = `Shared memory persists, but advice is centered on ${currentProject.name}.`;
+    inboxTabLabel.textContent = 'All';
+    captureTitle.textContent = `Capture for ${currentProject.name}`;
+    captureInput.placeholder = `New outcome or action for ${currentProject.name}`;
+  } else {
+    workspaceName.textContent = 'ALL';
+    workspaceSub.textContent = 'Everything, inbox, and cross-project chat';
+    briefTitle.textContent = 'Briefing';
+    outcomesEyebrow.textContent = 'Execution OS';
+    outcomesTitle.textContent = 'Outcomes';
+    inboxEyebrow.textContent = 'Triage';
+    inboxTitle.textContent = 'Inbox';
+    advEyebrow.textContent = 'AI · Context-Aware';
+    advSub.textContent = 'Knows your outcomes & history';
+    inboxTabLabel.textContent = 'Inbox';
+    captureTitle.textContent = 'Capture';
+    captureInput.placeholder = "What's on your mind?";
+  }
+
+  renderWorkspaceSheet();
+}
+
+function openWorkspaceSheet() {
+  renderWorkspaceSheet();
+  document.getElementById('workspace-backdrop').classList.add('visible');
+  document.getElementById('workspace-sheet').classList.add('open');
+}
+
+function closeWorkspaceSheet() {
+  document.getElementById('workspace-backdrop').classList.remove('visible');
+  document.getElementById('workspace-sheet').classList.remove('open');
+}
+
+function resetAdvisorView() {
+  chatHistory = [];
+  advisorSnapshotLoaded = false;
+  advisorSnapshotKeyLoaded = null;
+  const chatScroll = document.getElementById('chat-scroll');
+  const typingRow = document.getElementById('typing-row');
+  if (!chatScroll || !typingRow) return;
+  chatScroll.querySelectorAll('.snapshot-card, .msg, .advisor-confirm-card').forEach(el => el.remove());
+  typingRow.classList.remove('visible');
+}
+
+async function persistWorkspacePreference() {
+  const value = JSON.stringify({
+    mode: workspace.mode,
+    project_id: workspace.mode === 'project' ? workspace.projectId : null,
+  });
+
+  localStorage.setItem('waypoint_mobile_workspace', value);
+  await apiFetch('/api/preferences/mobile_workspace', {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  }).catch(() => {});
+}
+
+async function selectWorkspace(mode, projectId = null) {
+  const nextWorkspace = normalizeWorkspace({
+    mode,
+    project_id: mode === 'project' ? projectId : null,
+  });
+
+  workspace = nextWorkspace;
+  currentProject = getCurrentProject();
+  applyWorkspaceTheme();
+  renderWorkspaceChrome();
+  closeWorkspaceSheet();
+  closeCapture();
+  resetAdvisorView();
+  await persistWorkspacePreference();
+  await loadAll();
+}
+
+async function bootstrapWorkspace() {
+  const [projectsRes, prefRes] = await Promise.all([
+    apiFetch('/api/projects'),
+    apiFetch('/api/preferences').catch(() => ({ data: {} })),
+  ]);
+
+  projects = projectsRes.data || [];
+  const stored = localStorage.getItem('waypoint_mobile_workspace');
+  const prefValue = prefRes.data?.mobile_workspace || stored;
+  workspace = normalizeWorkspace(prefValue);
+  currentProject = getCurrentProject();
+  applyWorkspaceTheme();
+  renderWorkspaceChrome();
+}
+
 // ═══════════════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════════════
@@ -1183,11 +1591,16 @@ document.getElementById('api-key-input').addEventListener('keydown', e => {
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
-function init() {
+async function init() {
   updateEyebrow();
-  loadAll();
   setupCompose();
   setupVisualViewport();
+  try {
+    await bootstrapWorkspace();
+    await loadAll();
+  } catch {
+    document.getElementById('brief-sub').textContent = 'Error loading workspace';
+  }
 }
 
 function updateEyebrow() {
@@ -1199,15 +1612,18 @@ function updateEyebrow() {
 
 async function loadAll() {
   try {
+    const query = workspaceQuery();
     const [statsRes, outcomesRes, inboxRes] = await Promise.all([
-      apiFetch('/api/outcomes/stats/today'),
-      apiFetch('/api/outcomes'),
-      apiFetch('/api/inbox'),
+      apiFetch(`/api/outcomes/stats/today${query}`),
+      apiFetch(`/api/outcomes${query}`),
+      workspace.mode === 'all' ? apiFetch('/api/inbox') : Promise.resolve({ items: [], count: 0 }),
     ]);
 
     const stats = statsRes.data;
     outcomes = outcomesRes.data || [];
     inboxItems = inboxRes.items || [];
+    advisorSnapshotLoaded = false;
+    advisorSnapshotKeyLoaded = null;
     inboxCount = inboxRes.count || 0;
 
     renderStats(stats);
@@ -1229,6 +1645,7 @@ function renderStats(stats) {
   const active = outcomes.filter(o => o.status === 'active').length;
   const done   = stats.actions_completed_today || 0;
   const streak = stats.streak_days || 0;
+  const openActions = outcomes.reduce((sum, o) => sum + (o.actions || []).filter(a => !a.done).length, 0);
 
   const el = (id) => document.getElementById(id);
 
@@ -1238,15 +1655,29 @@ function renderStats(stats) {
   el('stat-done').textContent  = done;
   el('stat-done').className    = `stat-num ${done > 0 ? 'green' : 'muted'}`;
 
-  el('stat-inbox').textContent = inboxCount;
-  el('stat-inbox').className   = `stat-num ${inboxCount > 0 ? 'amber' : 'muted'}`;
+  if (workspace.mode === 'project') {
+    el('stat-inbox').textContent = openActions;
+    el('stat-inbox').className   = `stat-num ${openActions > 0 ? 'blue' : 'muted'}`;
+    el('stat-label-third').textContent = 'Open Actions';
+  } else {
+    el('stat-inbox').textContent = inboxCount;
+    el('stat-inbox').className   = `stat-num ${inboxCount > 0 ? 'amber' : 'muted'}`;
+    el('stat-label-third').textContent = 'Inbox';
+  }
 
   el('stat-streak').textContent = streak > 0 ? `${streak}d` : '—';
   el('stat-streak').className   = `stat-num ${streak > 0 ? 'green' : 'muted'}`;
 
   const active_count = outcomes.filter(o => o.status === 'active').length;
-  document.getElementById('brief-sub').textContent =
-    active_count === 1 ? '1 outcome in motion' : `${active_count} outcomes in motion`;
+  if (workspace.mode === 'project' && currentProject) {
+    document.getElementById('brief-sub').textContent =
+      active_count === 1
+        ? `${currentProject.name} has 1 outcome in motion`
+        : `${currentProject.name} has ${active_count} outcomes in motion`;
+  } else {
+    document.getElementById('brief-sub').textContent =
+      active_count === 1 ? '1 outcome in motion' : `${active_count} outcomes in motion`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1254,7 +1685,7 @@ function renderStats(stats) {
 // ═══════════════════════════════════════════════════════════════
 function coachCacheKey(outcomes) {
   const ids = outcomes.filter(o => o.status === 'active').map(o => o.id).sort().join('-');
-  return `coach_${today()}_${ids}`;
+  return `coach_${workspaceStorageKey()}_${today()}_${ids}`;
 }
 
 async function loadCoachCard(stats, outcomes) {
@@ -1300,7 +1731,7 @@ async function loadCoachCard(stats, outcomes) {
   try {
     const res = await apiFetch('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ message: prompt, mode: 'mobile' }),
+      body: JSON.stringify({ message: prompt, mode: 'mobile', workspace: workspacePayload() }),
     });
 
     let parsed;
@@ -1323,8 +1754,9 @@ async function loadCoachCard(stats, outcomes) {
 function renderCoachCard(data) {
   const card = document.getElementById('coach-card');
   const state = data.state || 'nudge';
+  const advisorAccent = getComputedStyle(document.documentElement).getPropertyValue('--advisor-accent').trim() || '#6366f1';
 
-  const pipColor  = state === 'momentum' ? '#22c55e' : state === 'urgent' ? '#f59e0b' : '#6366f1';
+  const pipColor  = state === 'momentum' ? '#22c55e' : state === 'urgent' ? '#f59e0b' : advisorAccent;
   const ctaClass  = state === 'momentum' ? 'cta-green' : state === 'urgent' ? 'cta-amber' : 'cta-indigo';
 
   card.className = `coach-card ${state}`;
@@ -1357,11 +1789,13 @@ function outcomeStatus(o) {
 }
 
 function outcomeBarColor(status) {
-  return status === 'warn' ? '#f59e0b' : status === 'active' ? '#3b82f6' : '#222';
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6';
+  return status === 'warn' ? '#f59e0b' : status === 'active' ? accent : '#222';
 }
 
 function outcomePctColor(status) {
-  return status === 'warn' ? '#f59e0b' : status === 'active' ? '#3b82f6' : '#2a2a2a';
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6';
+  return status === 'warn' ? '#f59e0b' : status === 'active' ? accent : '#2a2a2a';
 }
 
 function renderBriefing(outcomes) {
@@ -1438,9 +1872,7 @@ async function toggleAction(el, id) {
 
   try {
     await apiFetch(`/api/actions/${id}/toggle`, { method: 'PATCH' });
-    // Refresh stats after toggle
-    const statsRes = await apiFetch('/api/outcomes/stats/today');
-    renderStats(statsRes.data);
+    await loadAll();
   } catch {
     // Revert
     chk.classList.toggle('done', isDone);
@@ -1475,7 +1907,13 @@ function renderOutcomesTab(outcomes) {
     html += archived.map(o => renderOutcomeRow(o, true)).join('');
   }
 
-  if (!html) html = `<div style="padding:48px 20px;text-align:center;font-size:13px;color:var(--text-ghost);">No outcomes yet.</div>`;
+  if (!html) {
+    html = `<div style="padding:48px 20px;text-align:center;font-size:13px;color:var(--text-ghost);">${
+      workspace.mode === 'project' && currentProject
+        ? `No outcomes yet in ${esc(currentProject.name)}.`
+        : 'No outcomes yet.'
+    }</div>`;
+  }
 
   list.innerHTML = html;
 }
@@ -1505,14 +1943,21 @@ function renderOutcomeRow(o, isArchived = false) {
 // ═══════════════════════════════════════════════════════════════
 function updateInboxBadge() {
   const badge = document.getElementById('inbox-badge');
-  badge.classList.toggle('visible', inboxCount > 0);
+  badge.classList.toggle('visible', workspace.mode === 'all' && inboxCount > 0);
 }
 
 function renderInbox(items) {
   const sub = document.getElementById('inbox-sub');
+  const list = document.getElementById('inbox-list');
+
+  if (workspace.mode === 'project' && currentProject) {
+    sub.textContent = 'Brain dumps and cross-project triage live in ALL';
+    list.innerHTML = `<div class="inbox-empty">You're inside <strong>${esc(currentProject.name)}</strong>.<br>Switch to ALL for inbox capture, braindumps, and cross-project chat.<br><br><button class="cap-btn cap-save" style="max-width:180px;" onclick="selectWorkspace('all')">Open ALL</button></div>`;
+    return;
+  }
+
   sub.textContent = items.length ? `${items.length} item${items.length !== 1 ? 's' : ''} waiting` : 'All clear';
 
-  const list = document.getElementById('inbox-list');
   if (!items.length) {
     list.innerHTML = `<div class="inbox-empty">Inbox is clear.<br>Capture something to get it here.</div>`;
     return;
@@ -1520,7 +1965,9 @@ function renderInbox(items) {
 
   list.innerHTML = items.map(item => {
     const source = item.source_type || 'manual';
-    const sourceColor = source === 'ai' ? 'color:#6366f1;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.12)'
+    const advisorAccent = getComputedStyle(document.documentElement).getPropertyValue('--advisor-accent').trim() || '#6366f1';
+    const advisorRgb = getComputedStyle(document.documentElement).getPropertyValue('--advisor-accent-rgb').trim() || '99,102,241';
+    const sourceColor = source === 'ai' ? `color:${advisorAccent};background:rgba(${advisorRgb},0.08);border:1px solid rgba(${advisorRgb},0.12)`
       : source === 'slack' ? 'color:#4ade80;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.10)'
       : 'color:#555;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)';
 
@@ -1621,13 +2068,21 @@ function renderOutcomePills() {
   pills.innerHTML = active.map(o =>
     `<div class="outcome-pill" data-id="${o.id}" onclick="selectCapturePill(this, ${o.id})">${esc(o.title)}</div>`
   ).join('');
+
+  const btn = document.getElementById('cap-save-btn');
+  if (workspace.mode === 'project' && currentProject) {
+    btn.textContent = 'Create Outcome';
+  } else {
+    btn.textContent = 'Send to Inbox';
+  }
 }
 
 function selectCapturePill(el, id) {
   document.querySelectorAll('.outcome-pill').forEach(p => p.classList.remove('selected'));
   if (captureOutcomeId === id) {
     captureOutcomeId = null;
-    document.getElementById('cap-save-btn').textContent = 'Send to Inbox';
+    document.getElementById('cap-save-btn').textContent =
+      workspace.mode === 'project' && currentProject ? 'Create Outcome' : 'Send to Inbox';
   } else {
     el.classList.add('selected');
     captureOutcomeId = id;
@@ -1646,30 +2101,38 @@ async function saveCapture() {
       await apiFetch(`/api/outcomes/${captureOutcomeId}/actions`, {
         method: 'POST', body: JSON.stringify({ title: text }),
       });
+    } else if (workspace.mode === 'project' && workspace.projectId) {
+      await apiFetch('/api/outcomes', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: text,
+          project_id: workspace.projectId,
+          priority: 'medium',
+        }),
+      });
     } else {
       await apiFetch('/api/inbox', {
         method: 'POST', body: JSON.stringify({ title: text, source_type: 'capture' }),
       });
     }
     closeCapture();
-    showToast(captureOutcomeId ? 'Action added ✓' : 'Sent to inbox ✓');
-    // Refresh
-    const [outcomesRes, inboxRes] = await Promise.all([
-      apiFetch('/api/outcomes'),
-      apiFetch('/api/inbox'),
-    ]);
-    outcomes = outcomesRes.data || [];
-    inboxItems = inboxRes.items || [];
-    inboxCount = inboxRes.count || 0;
-    renderBriefing(outcomes);
-    renderOutcomesTab(outcomes);
-    renderInbox(inboxItems);
-    updateInboxBadge();
+    showToast(
+      captureOutcomeId
+        ? 'Action added ✓'
+        : workspace.mode === 'project'
+        ? 'Outcome created ✓'
+        : 'Sent to inbox ✓'
+    );
+    await loadAll();
   } catch {
     showToast('Failed to save');
   } finally {
     btn.disabled = false;
-    btn.textContent = captureOutcomeId ? 'Add to Outcome' : 'Send to Inbox';
+    btn.textContent = captureOutcomeId
+      ? 'Add to Outcome'
+      : workspace.mode === 'project' && currentProject
+      ? 'Create Outcome'
+      : 'Send to Inbox';
   }
 }
 
@@ -1680,6 +2143,7 @@ function updateContextPills(stats, outcomes) {
   const active = outcomes.filter(o => o.status === 'active');
   const streak = stats.streak_days || 0;
   const pills  = [
+    workspace.mode === 'project' && currentProject ? currentProject.name : 'ALL',
     `${active.length} active outcome${active.length !== 1 ? 's' : ''}`,
     ...active.slice(0, 2).map(o => o.title.slice(0, 20) + (o.title.length > 20 ? '…' : '')),
     streak > 0 ? `${streak}d streak` : null,
@@ -1690,12 +2154,31 @@ function updateContextPills(stats, outcomes) {
 }
 
 let advisorSnapshotLoaded = false;
+let advisorSnapshotKeyLoaded = null;
+
+function buildAdvisorSnapshotKey(doneCount) {
+  const activeOcs = outcomes
+    .filter(o => o.status === 'active')
+    .map(o => {
+      const deadline = o.deadline || '';
+      const updated = o.updated_at || '';
+      return `${o.id}:${o.status}:${pct(o)}:${deadline}:${updated}`;
+    })
+    .sort()
+    .join('|');
+
+  return `advisor_snapshot_${workspaceStorageKey()}_${today()}_${doneCount}_${activeOcs}`;
+}
 
 async function loadAdvisorSnapshot() {
-  if (advisorSnapshotLoaded) return;
-  advisorSnapshotLoaded = true;
+  const statsRes = await apiFetch(`/api/outcomes/stats/today${workspaceQuery()}`).catch(() => ({ data: {} }));
+  const done = (statsRes.data || {}).actions_completed_today || 0;
+  const key = buildAdvisorSnapshotKey(done);
 
-  const key = `advisor_snapshot_${today()}`;
+  if (advisorSnapshotLoaded && advisorSnapshotKeyLoaded === key) return;
+  advisorSnapshotLoaded = true;
+  advisorSnapshotKeyLoaded = key;
+
   const cached = localStorage.getItem(key);
   if (cached) {
     try { renderSnapshot(JSON.parse(cached)); return; } catch {}
@@ -1712,15 +2195,12 @@ async function loadAdvisorSnapshot() {
     return `"${o.title}" ${p}% ${urgency}${d !== null ? ` (${d}d)` : ''}`;
   }).join('; ');
 
-  const statsRes = await apiFetch('/api/outcomes/stats/today').catch(() => ({ data: {} }));
-  const done = (statsRes.data || {}).actions_completed_today || 0;
-
   const prompt = `You are an execution advisor. Outcomes: ${ocContext || 'none'}. Actions done today: ${done}. Respond ONLY with a JSON array (no markdown): [{"dot":"amber|blue|green","text":"<one concise sentence referencing a specific outcome>"},{"dot":"...","text":"..."},{"dot":"...","text":"..."}]`;
 
   try {
     const res = await apiFetch('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ message: prompt, mode: 'mobile' }),
+      body: JSON.stringify({ message: prompt, mode: 'mobile', workspace: workspacePayload() }),
     });
 
     let bullets;
@@ -1746,13 +2226,14 @@ async function loadAdvisorSnapshot() {
 function renderSnapshot(bullets) {
   const scroll = document.getElementById('chat-scroll');
   const typing = document.getElementById('typing-row');
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6';
 
   const card = document.createElement('div');
   card.className = 'snapshot-card';
   card.innerHTML = `<div class="snapshot-label">Today's Snapshot</div>` +
     bullets.map(b => {
       const colors = { amber: '#f59e0b', blue: '#3b82f6', green: '#22c55e' };
-      const c = colors[b.dot] || '#666';
+      const c = b.dot === 'blue' ? accent : (colors[b.dot] || '#666');
       return `<div class="snapshot-row">
         <div class="snapshot-dot" style="background:${c};"></div>
         <span>${renderMd(esc(b.text))}</span>
@@ -1807,6 +2288,7 @@ async function sendAdvisorMessage() {
         message: text,
         conversationHistory: historySnapshot,
         mode: 'advisor',
+        workspace: workspacePayload(),
       }),
     });
     showTyping(false);
@@ -1925,13 +2407,16 @@ async function executeToolCall(toolName, toolInput) {
         return { success: true };
       }
       case 'create_outcome': {
+        if (workspace.mode !== 'project' || !workspace.projectId) {
+          return { success: false, error: 'Switch into a project workspace before creating an outcome.' };
+        }
         await apiFetch('/api/outcomes', {
           method: 'POST',
           body: JSON.stringify({
             title:      toolInput.title,
             deadline:   toolInput.deadline || null,
             priority:   toolInput.priority || 'medium',
-            project_id: 1,
+            project_id: workspace.projectId,
           }),
         });
         return { success: true };
@@ -1963,6 +2448,7 @@ async function continueAfterToolResult() {
         message: '',
         conversationHistory: chatHistory.slice(-30),
         mode: 'advisor',
+        workspace: workspacePayload(),
       }),
     });
     showTyping(false);
