@@ -65,153 +65,97 @@
       position: relative; overflow: hidden;
     }
 
-    .workspace-bar {
-      flex-shrink: 0;
-      padding: calc(10px + var(--safe-top)) 14px 10px;
-      background:
-        linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0)),
-        radial-gradient(circle at top center, rgba(var(--accent-rgb),0.20), transparent 62%);
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+    /* ── Project avatar ── */
+    .project-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; cursor: pointer;
+      transition: transform 0.15s ease;
     }
+    .project-avatar:active { transform: scale(0.92); }
+    .project-avatar svg { width: 20px; height: 20px; }
 
-    .workspace-switcher {
-      width: 100%;
-      border: 1px solid rgba(var(--accent-rgb),0.18);
-      background: rgba(255,255,255,0.03);
-      border-radius: 16px;
-      padding: 11px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      cursor: pointer;
-      color: var(--text-primary);
-      font-family: inherit;
+    /* ── Project sheet ── */
+    .project-row {
+      border: 1px solid var(--border); background: rgba(255,255,255,0.025);
+      border-radius: 14px; padding: 11px 12px; display: flex; align-items: center;
+      gap: 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s ease;
     }
-
-    .workspace-switcher:active { opacity: 0.85; }
-
-    .workspace-meta { display: flex; align-items: center; gap: 11px; min-width: 0; }
-
-    .workspace-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 5px rgba(var(--accent-rgb),0.12);
-      flex-shrink: 0;
-    }
-
-    .workspace-copy { min-width: 0; text-align: left; }
-
-    .workspace-label {
-      font-size: 9px; font-weight: 700; letter-spacing: .12em;
-      text-transform: uppercase; color: rgba(var(--accent-rgb),0.95);
-      margin-bottom: 3px;
-    }
-
-    .workspace-name {
-      font-size: 14px; font-weight: 600; letter-spacing: -.02em;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    .workspace-sub {
-      font-size: 11px; color: var(--text-ghost); margin-top: 2px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    .workspace-chevron {
-      color: rgba(var(--accent-rgb),0.95);
-      flex-shrink: 0;
-    }
-
-    .workspace-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.58);
-      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      z-index: 90; opacity: 0; pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-    .workspace-backdrop.visible { opacity: 1; pointer-events: all; }
-
-    .workspace-sheet {
-      position: fixed; left: 0; right: 0; bottom: 0;
-      z-index: 91;
-      background: #121212;
-      border-top: 1px solid rgba(var(--accent-rgb),0.15);
-      border-radius: 22px 22px 0 0;
-      padding: 18px 18px calc(20px + var(--safe-bottom));
-      transform: translateY(100%);
-      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
-      box-shadow: 0 -24px 64px rgba(0,0,0,0.45);
-    }
-    .workspace-sheet.open { transform: translateY(0); }
-
-    .workspace-sheet-title {
-      font-size: 16px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 4px;
-    }
-
-    .workspace-sheet-sub {
-      font-size: 12px; color: var(--text-ghost); line-height: 1.5; margin-bottom: 16px;
-    }
-
-    .workspace-list { display: flex; flex-direction: column; gap: 8px; }
-
-    .workspace-option {
-      width: 100%;
-      border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.025);
-      border-radius: 16px;
-      padding: 13px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      color: inherit;
-      font-family: inherit;
-      cursor: pointer;
-    }
-
-    .workspace-option.active {
+    .project-row:active { opacity: 0.7; }
+    .project-row.active-row {
       border-color: rgba(var(--accent-rgb),0.28);
       background: rgba(var(--accent-rgb),0.10);
     }
-
-    .workspace-option-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
-
-    .workspace-icon {
-      width: 36px; height: 36px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
-      font-size: 16px;
-      flex-shrink: 0;
+    .project-row-icon {
+      width: 34px; height: 34px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .project-row-icon svg { width: 16px; height: 16px; }
+    .project-row-body { flex: 1; min-width: 0; }
+    .project-row-name { font-size: 13px; font-weight: 600; color: #ddd; }
+    .project-row-sub { font-size: 10px; color: var(--text-ghost); margin-top: 1px; }
+    .project-row-menu {
+      width: 28px; height: 28px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
     }
 
-    .workspace-option.active .workspace-icon {
-      background: rgba(var(--accent-rgb),0.12);
-      border-color: rgba(var(--accent-rgb),0.18);
+    /* ── Project create/edit form ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      font-size: 10px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-ghost); margin-bottom: 6px; display: block;
     }
-
-    .workspace-option-copy { min-width: 0; text-align: left; }
-
-    .workspace-option-name {
-      font-size: 14px; font-weight: 600;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    .form-input {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 11px; padding: 12px 14px; font-size: 15px;
+      color: var(--text-primary); outline: none; font-family: inherit;
     }
+    .form-input:focus { border-color: rgba(var(--accent-rgb),0.4); }
+    .form-input::placeholder { color: #333; }
 
-    .workspace-option-sub {
-      font-size: 11px; color: var(--text-ghost); margin-top: 3px;
+    .icon-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+    .icon-option {
+      width: 40px; height: 40px; border-radius: 10px; display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+      background: rgba(255,255,255,0.03); border: 1.5px solid transparent;
+      transition: all 0.15s ease;
     }
-
-    .workspace-check {
-      width: 18px; height: 18px; border-radius: 50%;
-      border: 1px solid rgba(var(--accent-rgb),0.35);
-      background: rgba(var(--accent-rgb),0.12);
-      display: none;
-      align-items: center; justify-content: center;
-      color: var(--accent);
-      flex-shrink: 0;
+    .icon-option:active { transform: scale(0.9); }
+    .icon-option.selected {
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.08);
     }
+    .icon-option svg { width: 20px; height: 20px; }
 
-    .workspace-option.active .workspace-check { display: flex; }
+    .color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+    .color-swatch {
+      width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .color-swatch:active { transform: scale(0.9); }
+    .color-swatch.selected { border-color: white; transform: scale(1.1); }
+
+    .form-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+    /* ── Context menu ── */
+    .context-menu {
+      position: fixed; z-index: 95; background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 4px; min-width: 160px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: none;
+    }
+    .context-menu.visible { display: block; }
+    .context-item {
+      padding: 10px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text-primary); background: none; border: none;
+      width: 100%; font-family: inherit;
+    }
+    .context-item:active { background: rgba(255,255,255,0.06); }
+    .context-item.danger { color: #f87171; }
 
     /* ── Tab panels ── */
     .tab-panel {
@@ -1105,28 +1049,15 @@
 
 <!-- ── Main App ── -->
 <div id="app">
-  <div class="workspace-bar">
-    <button class="workspace-switcher" id="workspace-switcher" onclick="openWorkspaceSheet()">
-      <div class="workspace-meta">
-        <div class="workspace-dot" id="workspace-dot"></div>
-        <div class="workspace-copy">
-          <div class="workspace-label" id="workspace-label">Workspace</div>
-          <div class="workspace-name" id="workspace-name">ALL</div>
-          <div class="workspace-sub" id="workspace-sub">Everything, inbox, and cross-project chat</div>
-        </div>
-      </div>
-      <svg class="workspace-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
-    </button>
-  </div>
-
   <!-- ═══════════ BRIEFING TAB ═══════════ -->
   <div class="tab-panel active" id="panel-briefing">
-    <div class="brief-header">
-      <div class="brief-eyebrow" id="brief-eyebrow">—</div>
-      <div class="brief-title" id="brief-title">Briefing</div>
-      <div class="brief-sub" id="brief-sub">Loading…</div>
+    <div class="brief-header" style="display:flex;align-items:center;gap:12px;">
+      <div class="project-avatar" id="project-avatar" onclick="openProjectSheet()"></div>
+      <div style="flex:1;">
+        <div class="brief-eyebrow" id="brief-eyebrow">—</div>
+        <div class="brief-title" id="brief-title">Briefing</div>
+        <div class="brief-sub" id="brief-sub">Loading…</div>
+      </div>
     </div>
 
     <div class="stat-strip" id="stat-strip">
@@ -1329,13 +1260,6 @@
 
 </div><!-- end app -->
 
-<div class="workspace-backdrop" id="workspace-backdrop" onclick="closeWorkspaceSheet()"></div>
-<div class="workspace-sheet" id="workspace-sheet">
-  <div class="sheet-handle"></div>
-  <div class="workspace-sheet-title">Switch workspace</div>
-  <div class="workspace-sheet-sub">Choose ALL for braindumps and cross-project thinking, or drop into a single project workspace.</div>
-  <div class="workspace-list" id="workspace-list"></div>
-</div>
 
 <!-- Backdrop + Capture Sheet -->
 <div class="backdrop" id="backdrop" onclick="closeCapture()"></div>
@@ -1355,6 +1279,51 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Project Sheet -->
+<div class="backdrop" id="project-backdrop" onclick="closeProjectSheet()"></div>
+<div class="capture-sheet" id="project-sheet" style="max-height:75vh;overflow-y:auto;">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div style="font-size:16px;font-weight:700;letter-spacing:-.02em;">Projects</div>
+    <button class="cap-btn cap-save" style="flex:none;width:auto;padding:6px 14px;font-size:12px;" onclick="openProjectCreateForm()">+ New</button>
+  </div>
+  <div id="project-list"></div>
+</div>
+
+<!-- Project Create/Edit Sheet -->
+<div class="capture-sheet" id="project-form-sheet" style="max-height:80vh;overflow-y:auto;z-index:52;">
+  <div class="sheet-handle"></div>
+  <div style="font-size:16px;font-weight:700;letter-spacing:-.02em;margin-bottom:14px;" id="project-form-title">New Project</div>
+  <div class="form-group">
+    <label class="form-label">Name</label>
+    <input class="form-input" id="project-form-name" placeholder="Project name" />
+  </div>
+  <div class="form-group">
+    <label class="form-label">Icon</label>
+    <div class="icon-picker" id="project-icon-picker"></div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Color</label>
+    <div class="color-picker" id="project-color-picker"></div>
+  </div>
+  <div class="form-actions">
+    <button class="cap-btn cap-cancel" onclick="closeProjectFormSheet()">Cancel</button>
+    <button class="cap-btn cap-save" id="project-form-save-btn" onclick="saveProject()">Create</button>
+  </div>
+</div>
+
+<!-- Project Context Menu -->
+<div class="context-menu" id="project-context-menu">
+  <button class="context-item" onclick="editContextProject()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Edit
+  </button>
+  <button class="context-item danger" onclick="deleteContextProject()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    Delete
+  </button>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -1370,6 +1339,34 @@ let isAdvisorSending = false;
 let captureOutcomeId = null;
 let workspace = { mode: 'all', projectId: null };
 let currentProject = null;
+let projectFormEditing = null;
+let projectContextTarget = null;
+let formSelectedIcon = 'folder';
+let formSelectedColor = '#3b82f6';
+
+// ═══════════════════════════════════════════════════════════════
+// SVG ICON REGISTRY (flat monochrome line icons for projects)
+// ═══════════════════════════════════════════════════════════════
+const PROJECT_ICONS = {
+  folder:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
+  rocket:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+  dollar:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+  target:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  home:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  bulb:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 018.91 14"/></svg>',
+  zap:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  flame:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></svg>',
+  chart:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  wrench:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>',
+  seedling: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0010-10v0a10 10 0 0110 10h-3"/><path d="M7 15c0-2.21 2.69-4 5-4s5 1.79 5 4"/></svg>',
+  flask:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 9V3"/><path d="M14 9V3"/><path d="M10 9l-4.5 7.5A2 2 0 007.2 20h9.6a2 2 0 001.7-3.5L14 9"/></svg>',
+  phone:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+  bot:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
+  globe:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+  palette:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+};
+const PROJECT_ICON_KEYS = Object.keys(PROJECT_ICONS);
+const PROJECT_COLORS = ['#3b82f6','#818cf8','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
 
 // ═══════════════════════════════════════════════════════════════
 // UTILITIES
@@ -1500,50 +1497,29 @@ function applyWorkspaceTheme() {
   if (themeMeta) {
     themeMeta.setAttribute('content', workspace.mode === 'project' ? accent : '#0a0a0a');
   }
+
+  renderProjectAvatar();
 }
 
-function renderWorkspaceSheet() {
-  const list = document.getElementById('workspace-list');
-  const allActive = workspace.mode === 'all';
-
-  const allRow = `
-    <button class="workspace-option${allActive ? ' active' : ''}" onclick="selectWorkspace('all')">
-      <div class="workspace-option-main">
-        <div class="workspace-icon">ALL</div>
-        <div class="workspace-option-copy">
-          <div class="workspace-option-name">All Workspaces</div>
-          <div class="workspace-option-sub">Brain dumps, inbox, and cross-project advisor</div>
-        </div>
-      </div>
-      <div class="workspace-check">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-    </button>`;
-
-  const projectRows = projects.map(project => {
-    const active = workspace.mode === 'project' && Number(workspace.projectId) === Number(project.id);
-    const [r, g, b] = hexToRgb(project.color || '#3b82f6');
-    return `
-      <button class="workspace-option${active ? ' active' : ''}" onclick="selectWorkspace('project', ${project.id})">
-        <div class="workspace-option-main">
-          <div class="workspace-icon" style="background:rgba(${r},${g},${b},0.14);border-color:rgba(${r},${g},${b},0.22);">${esc(project.icon || '•')}</div>
-          <div class="workspace-option-copy">
-            <div class="workspace-option-name">${esc(project.name)}</div>
-            <div class="workspace-option-sub">Theme + focus this app around ${esc(project.name)}</div>
-          </div>
-        </div>
-        <div class="workspace-check">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      </button>`;
-  }).join('');
-
-  list.innerHTML = allRow + projectRows;
+function renderProjectAvatar() {
+  const avatar = document.getElementById('project-avatar');
+  if (!avatar) return;
+  const p = getCurrentProject();
+  if (p) {
+    const [r, g, b] = hexToRgb(p.color || '#3b82f6');
+    avatar.style.background = `rgba(${r},${g},${b},0.12)`;
+    avatar.style.border = `1.5px solid rgba(${r},${g},${b},0.3)`;
+    avatar.style.color = p.color;
+    avatar.innerHTML = PROJECT_ICONS[p.icon] || PROJECT_ICONS.folder;
+  } else {
+    avatar.style.background = 'rgba(255,255,255,0.06)';
+    avatar.style.border = '1.5px solid rgba(255,255,255,0.1)';
+    avatar.style.color = '#666';
+    avatar.innerHTML = PROJECT_ICONS.globe;
+  }
 }
 
 function renderWorkspaceChrome() {
-  const workspaceName = document.getElementById('workspace-name');
-  const workspaceSub = document.getElementById('workspace-sub');
   const briefTitle = document.getElementById('brief-title');
   const outcomesEyebrow = document.getElementById('outcomes-eyebrow');
   const outcomesTitle = document.getElementById('outcomes-title');
@@ -1556,8 +1532,6 @@ function renderWorkspaceChrome() {
   const captureInput = document.getElementById('capture-input');
 
   if (workspace.mode === 'project' && currentProject) {
-    workspaceName.textContent = currentProject.name;
-    workspaceSub.textContent = 'Project workspace. Advisor and briefing stay focused here.';
     briefTitle.textContent = currentProject.name;
     outcomesEyebrow.textContent = currentProject.name.toUpperCase();
     outcomesTitle.textContent = 'Outcomes';
@@ -1569,8 +1543,6 @@ function renderWorkspaceChrome() {
     captureTitle.textContent = `Capture for ${currentProject.name}`;
     captureInput.placeholder = `New outcome or action for ${currentProject.name}`;
   } else {
-    workspaceName.textContent = 'ALL';
-    workspaceSub.textContent = 'Everything, inbox, and cross-project chat';
     briefTitle.textContent = 'Briefing';
     outcomesEyebrow.textContent = 'Execution OS';
     outcomesTitle.textContent = 'Outcomes';
@@ -1583,18 +1555,187 @@ function renderWorkspaceChrome() {
     captureInput.placeholder = "What's on your mind?";
   }
 
-  renderWorkspaceSheet();
+  renderProjectAvatar();
 }
 
-function openWorkspaceSheet() {
-  renderWorkspaceSheet();
-  document.getElementById('workspace-backdrop').classList.add('visible');
-  document.getElementById('workspace-sheet').classList.add('open');
+// ═══════════════════════════════════════════════════════════════
+// PROJECT SHEET + CRUD
+// ═══════════════════════════════════════════════════════════════
+function openProjectSheet() {
+  renderProjectList();
+  document.getElementById('project-backdrop').classList.add('visible');
+  document.getElementById('project-sheet').classList.add('open');
 }
 
-function closeWorkspaceSheet() {
-  document.getElementById('workspace-backdrop').classList.remove('visible');
-  document.getElementById('workspace-sheet').classList.remove('open');
+function closeProjectSheet() {
+  document.getElementById('project-backdrop').classList.remove('visible');
+  document.getElementById('project-sheet').classList.remove('open');
+  document.getElementById('project-context-menu').classList.remove('visible');
+}
+
+function renderProjectList() {
+  const list = document.getElementById('project-list');
+  const isAll = workspace.mode === 'all';
+
+  let html = `
+    <div class="project-row ${isAll ? 'active-row' : ''}" onclick="selectWorkspace('all')">
+      <div class="project-row-icon" style="background:rgba(255,255,255,0.06);color:#666;">
+        ${PROJECT_ICONS.globe}
+      </div>
+      <div class="project-row-body">
+        <div class="project-row-name">All Workspaces</div>
+        <div class="project-row-sub">Cross-project view</div>
+      </div>
+    </div>`;
+
+  projects.forEach(p => {
+    const isActive = workspace.mode === 'project' && Number(workspace.projectId) === Number(p.id);
+    const [r, g, b] = hexToRgb(p.color || '#3b82f6');
+    const outcomeCount = outcomes.filter(o => Number(o.project_id) === Number(p.id)).length;
+    const activeCount = outcomes.filter(o => Number(o.project_id) === Number(p.id) && o.status === 'active').length;
+    html += `
+      <div class="project-row ${isActive ? 'active-row' : ''}" onclick="selectWorkspace('project', ${p.id})">
+        <div class="project-row-icon" style="background:rgba(${r},${g},${b},0.15);border:1px solid rgba(${r},${g},${b},0.25);color:${p.color};">
+          ${PROJECT_ICONS[p.icon] || PROJECT_ICONS.folder}
+        </div>
+        <div class="project-row-body">
+          <div class="project-row-name">${esc(p.name)}</div>
+          <div class="project-row-sub">${outcomeCount} outcome${outcomeCount !== 1 ? 's' : ''} · ${activeCount} active</div>
+        </div>
+        <div class="project-row-menu" onclick="event.stopPropagation();openProjectContextMenu(event, ${p.id})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2.5"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+        </div>
+      </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+function openProjectContextMenu(e, projectId) {
+  projectContextTarget = projects.find(p => Number(p.id) === projectId);
+  const menu = document.getElementById('project-context-menu');
+  const rect = e.target.closest('.project-row-menu').getBoundingClientRect();
+  menu.style.left = (rect.left - 130) + 'px';
+  menu.style.top = rect.bottom + 'px';
+  menu.classList.add('visible');
+  setTimeout(() => {
+    document.addEventListener('click', closeProjectContextMenu, { once: true });
+  }, 0);
+}
+
+function closeProjectContextMenu() {
+  document.getElementById('project-context-menu').classList.remove('visible');
+}
+
+function editContextProject() {
+  closeProjectContextMenu();
+  openProjectEditForm(projectContextTarget);
+}
+
+async function deleteContextProject() {
+  closeProjectContextMenu();
+  if (!projectContextTarget) return;
+  const name = projectContextTarget.name;
+  try {
+    await apiFetch('/api/projects/' + projectContextTarget.id, { method: 'DELETE' });
+    if (workspace.mode === 'project' && Number(workspace.projectId) === Number(projectContextTarget.id)) {
+      await selectWorkspace('all');
+    } else {
+      projects = projects.filter(p => Number(p.id) !== Number(projectContextTarget.id));
+      renderProjectList();
+    }
+    showToast('Deleted "' + name + '"');
+  } catch (e) {
+    showToast('Error deleting project');
+  }
+  projectContextTarget = null;
+}
+
+function openProjectCreateForm() {
+  projectFormEditing = null;
+  formSelectedIcon = 'folder';
+  formSelectedColor = PROJECT_COLORS[0];
+  document.getElementById('project-form-name').value = '';
+  document.getElementById('project-form-title').textContent = 'New Project';
+  document.getElementById('project-form-save-btn').textContent = 'Create';
+  renderProjectFormPickers();
+  document.getElementById('project-sheet').classList.remove('open');
+  setTimeout(() => document.getElementById('project-form-sheet').classList.add('open'), 100);
+}
+
+function openProjectEditForm(project) {
+  projectFormEditing = project;
+  formSelectedIcon = project.icon || 'folder';
+  formSelectedColor = project.color || PROJECT_COLORS[0];
+  document.getElementById('project-form-name').value = project.name;
+  document.getElementById('project-form-title').textContent = 'Edit Project';
+  document.getElementById('project-form-save-btn').textContent = 'Save';
+  renderProjectFormPickers();
+  document.getElementById('project-sheet').classList.remove('open');
+  setTimeout(() => document.getElementById('project-form-sheet').classList.add('open'), 100);
+}
+
+function closeProjectFormSheet() {
+  document.getElementById('project-form-sheet').classList.remove('open');
+  projectFormEditing = null;
+  setTimeout(() => {
+    renderProjectList();
+    document.getElementById('project-sheet').classList.add('open');
+  }, 150);
+}
+
+function renderProjectFormPickers() {
+  const iconPicker = document.getElementById('project-icon-picker');
+  iconPicker.innerHTML = PROJECT_ICON_KEYS.map(k =>
+    `<div class="icon-option ${k === formSelectedIcon ? 'selected' : ''}" onclick="selectProjectIcon('${k}')" style="color:${formSelectedColor};">${PROJECT_ICONS[k]}</div>`
+  ).join('');
+
+  const colorPicker = document.getElementById('project-color-picker');
+  colorPicker.innerHTML = PROJECT_COLORS.map(c =>
+    `<div class="color-swatch ${c === formSelectedColor ? 'selected' : ''}" style="background:${c};" onclick="selectProjectColor('${c}')"></div>`
+  ).join('');
+}
+
+function selectProjectIcon(k) { formSelectedIcon = k; renderProjectFormPickers(); }
+function selectProjectColor(c) { formSelectedColor = c; renderProjectFormPickers(); }
+
+async function saveProject() {
+  const name = document.getElementById('project-form-name').value.trim();
+  if (!name) { document.getElementById('project-form-name').style.borderColor = '#ef4444'; return; }
+
+  try {
+    if (projectFormEditing) {
+      await apiFetch('/api/projects/' + projectFormEditing.id, {
+        method: 'PUT',
+        body: JSON.stringify({ name, icon: formSelectedIcon, color: formSelectedColor }),
+      });
+      showToast('Updated "' + name + '"');
+    } else {
+      await apiFetch('/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({ name, icon: formSelectedIcon, color: formSelectedColor }),
+      });
+      showToast('Created "' + name + '"');
+    }
+
+    const projectsRes = await apiFetch('/api/projects');
+    projects = projectsRes.data || [];
+
+    if (projectFormEditing && workspace.mode === 'project' && Number(workspace.projectId) === Number(projectFormEditing.id)) {
+      currentProject = getCurrentProject();
+      applyWorkspaceTheme();
+      renderWorkspaceChrome();
+    }
+
+    document.getElementById('project-form-sheet').classList.remove('open');
+    projectFormEditing = null;
+    setTimeout(() => {
+      renderProjectList();
+      document.getElementById('project-sheet').classList.add('open');
+    }, 150);
+  } catch (e) {
+    showToast('Error saving project');
+  }
 }
 
 function resetAdvisorView() {
@@ -1631,7 +1772,7 @@ async function selectWorkspace(mode, projectId = null) {
   currentProject = getCurrentProject();
   applyWorkspaceTheme();
   renderWorkspaceChrome();
-  closeWorkspaceSheet();
+  closeProjectSheet();
   closeCapture();
   resetAdvisorView();
   await persistWorkspacePreference();
