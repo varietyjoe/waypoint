@@ -1591,8 +1591,8 @@ function renderProjectList() {
   projects.forEach(p => {
     const isActive = workspace.mode === 'project' && Number(workspace.projectId) === Number(p.id);
     const [r, g, b] = hexToRgb(p.color || '#3b82f6');
-    const outcomeCount = outcomes.filter(o => Number(o.project_id) === Number(p.id)).length;
-    const activeCount = outcomes.filter(o => Number(o.project_id) === Number(p.id) && o.status === 'active').length;
+    const outcomeCount = p.outcome_count || 0;
+    const activeCount = p.active_outcome_count || 0;
     html += `
       <div class="project-row ${isActive ? 'active-row' : ''}" onclick="selectWorkspace('project', ${p.id})">
         <div class="project-row-icon" style="background:rgba(${r},${g},${b},0.15);border:1px solid rgba(${r},${g},${b},0.25);color:${p.color};">
