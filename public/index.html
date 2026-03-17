@@ -5194,20 +5194,21 @@ async function showAnalyticsView() {
   if (center) center.innerHTML = '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Loading analytics...</div>';
 
   try {
-    const [statsRes, patternsRes] = await Promise.all([
+    const [statsRes, patternsRes, heatmapData] = await Promise.all([
       fetch('/api/analytics').then(r => r.json()),
       fetch('/api/patterns').then(r => r.json()),
+      fetch('/api/analytics/heatmap').then(r => r.json()).then(r => r.data || { heatmap: {}, total: 0 }).catch(() => ({ heatmap: {}, total: 0 })),
     ]);
     const stats = statsRes.data || {};
     const patterns = patternsRes.data || [];
-    renderAnalyticsView(stats, patterns);
+    renderAnalyticsView(stats, patterns, heatmapData);
   } catch (err) {
     const center2 = document.getElementById('centerContent');
     if (center2) center2.innerHTML = '<div style="padding:32px;text-align:center;color:#ef4444;font-size:13px;">Failed to load analytics.</div>';
   }
 }
 
-function renderAnalyticsView(stats, patterns) {
+function renderAnalyticsView(stats, patterns, heatmapData) {
   const center = document.getElementById('centerContent');
   if (!center) return;
 
@@ -5215,6 +5216,33 @@ function renderAnalyticsView(stats, patterns) {
 
   center.innerHTML = `
     <div style="padding:24px;max-width:720px;">
+      <!-- Heatmap: 30-day activity -->
+      ${(() => {
+        const hm = (heatmapData && heatmapData.heatmap) || {};
+        const total = (heatmapData && heatmapData.total) || 0;
+        const dates = Object.keys(hm).sort();
+        if (dates.length === 0) return '';
+
+        function heatColor(count) {
+          if (count === 0) return '#ebedf0';
+          if (count <= 2) return '#9be9a8';
+          if (count <= 5) return '#40c463';
+          return '#216e39';
+        }
+
+        const squares = dates.map(date => {
+          const count = hm[date] || 0;
+          return '<div style="width:14px;height:14px;border-radius:2px;background:' + heatColor(count) + ';" title="' + date + ': ' + count + '"></div>';
+        }).join('');
+
+        return '<div style="margin-bottom:24px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">' +
+            '<div style="font-size:11px;color:#6b7280;">Last 30 days</div>' +
+            '<div style="font-size:11px;color:#6b7280;">' + total + ' contributions</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:2px;flex-wrap:wrap;">' + squares + '</div>' +
+        '</div>';
+      })()}
       <div style="margin-bottom:24px;">
         <div style="font-size:15px;font-weight:600;color:#111827;">Execution Analytics</div>
         <div style="font-size:12px;color:#6b7280;margin-top:2px;">Based on ${totalClosed || 0} closed outcomes.</div>
