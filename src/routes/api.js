@@ -30,6 +30,7 @@ const { runSeedIfEmpty } = require('../database/seeder');
 const hubspotClient = require('../integrations/hubspot-client');
 const { formatSalesPulse } = require('../utils/sales-pulse-formatter');
 const { assembleContext, formatContextForPrompt } = require('../services/context-assembler');
+const timelineDb    = require('../database/timeline');
 
 // Initialize tables on startup
 projectsDb.initProjectsTable();
@@ -48,6 +49,7 @@ dependenciesDb.initDependenciesTable();
 sharesDb.initSharesTable();
 advisorDb.initAdvisorTables();
 dailyEntriesDb.initDailyEntriesTable();
+timelineDb.initTimelineTable();
 
 // Auto-seed on empty DB (Railway volume reset recovery)
 runSeedIfEmpty();
@@ -2390,7 +2392,7 @@ router.get('/daily-entries/:id', (req, res, next) => {
  */
 router.post('/daily-entries/parse', async (req, res, next) => {
   try {
-    const { type, content } = req.body || {};
+    const { type, content, id } = req.body || {};
     if (!type || !content) {
       return res.status(400).json({ success: false, error: 'type and content are required' });
     }
@@ -2399,7 +2401,27 @@ router.post('/daily-entries/parse', async (req, res, next) => {
     }
     const userContextDb = require('../database/user-context');
     const contextSnapshot = userContextDb.getContextSnapshot();
-    const data = await claudeService.parseJournalEntry(type, content, contextSnapshot);
+
+    // Fetch prior entry for context chaining
+    let priorParsed = null;
+    try {
+      if (type === 'review') {
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const standup = dailyEntriesDb.getDailyEntryByDateType(todayISO, 'standup');
+        if (standup?.parsed_data) priorParsed = JSON.parse(standup.parsed_data);
+      } else {
+        const recentReviews = dailyEntriesDb.getDailyEntries({ type: 'review', limit: 1 });
+        if (recentReviews[0]?.parsed_data) priorParsed = JSON.parse(recentReviews[0].parsed_data);
+      }
+    } catch (_) {}
+
+    const data = await claudeService.parseJournalEntry(type, content, contextSnapshot, priorParsed);
+
+    // Persist if id provided (re-parse)
+    if (id) {
+      dailyEntriesDb.updateParsedData(parseInt(id, 10), data);
+    }
+
     res.json({ success: true, data });
   } catch (err) { next(err); }
 });
@@ -2409,7 +2431,7 @@ router.post('/daily-entries/parse', async (req, res, next) => {
  * Body: { date, type, content }
  * Upserts — if an entry for that date+type exists, it updates content.
  */
-router.post('/daily-entries', (req, res, next) => {
+router.post('/daily-entries', async (req, res, next) => {
   try {
     const { date, type, content } = req.body || {};
     if (!date || !type || !content) {
@@ -2418,8 +2440,130 @@ router.post('/daily-entries', (req, res, next) => {
     if (!['standup', 'review'].includes(type)) {
       return res.status(400).json({ success: false, error: 'type must be standup or review' });
     }
+    // Save immediately
     const entry = dailyEntriesDb.upsertDailyEntry({ date, type, content });
-    res.json({ success: true, data: entry });
+
+    // Auto-parse with context chaining (non-blocking on save)
+    let parsed = null;
+    try {
+      const userContextDb = require('../database/user-context');
+      const contextSnapshot = userContextDb.getContextSnapshot();
+
+      // Fetch prior entry for context
+      let priorParsed = null;
+      if (type === 'review') {
+        const standup = dailyEntriesDb.getDailyEntryByDateType(date, 'standup');
+        if (standup?.parsed_data) priorParsed = JSON.parse(standup.parsed_data);
+      } else {
+        const recentReviews = dailyEntriesDb.getDailyEntries({ type: 'review', limit: 1 });
+        if (recentReviews[0]?.parsed_data) priorParsed = JSON.parse(recentReviews[0].parsed_data);
+      }
+
+      parsed = await claudeService.parseJournalEntry(type, content, contextSnapshot, priorParsed);
+      dailyEntriesDb.updateParsedData(entry.id, parsed);
+    } catch (parseErr) {
+      console.error('Journal auto-parse failed (entry saved):', parseErr.message);
+    }
+
+    // Return entry with parsed data
+    const updated = dailyEntriesDb.getDailyEntry(entry.id);
+    res.json({ success: true, data: updated, parsed });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/analytics/mood-trend
+ * Returns mood scores from parsed journal entries for trend visualization.
+ */
+router.get('/analytics/mood-trend', (req, res, next) => {
+  try {
+    const entries = dailyEntriesDb.getDailyEntries({ limit: 60 });
+    const trend = entries
+      .filter(e => e.parsed_data)
+      .map(e => {
+        try {
+          const pd = JSON.parse(e.parsed_data);
+          const reconciled = pd.reconciled || [];
+          const doneCount = reconciled.filter(r => r.status === 'done').length;
+          return {
+            date: e.date,
+            type: e.type,
+            mood: pd.mood || null,
+            mood_score: pd.mood_score || null,
+            action_count: (pd.actions || []).length,
+            carry_forward_count: (pd.carry_forwards || []).length,
+            reconciled_total: reconciled.length,
+            reconciled_done: doneCount,
+          };
+        } catch (_) { return null; }
+      })
+      .filter(Boolean);
+    res.json({ success: true, data: trend });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// OUTCOME TIMELINE (Right Sidebar)
+// ============================================================
+
+/**
+ * GET /api/outcomes/:id/timeline
+ * Returns timeline entries for an outcome (newest first)
+ */
+router.get('/outcomes/:id/timeline', (req, res, next) => {
+  try {
+    const entries = timelineDb.getTimelineByOutcome(parseInt(req.params.id));
+    const outcome = outcomesDb.getOutcomeById(parseInt(req.params.id));
+    res.json({ success: true, data: { entries, ai_summary: outcome?.ai_summary || null } });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/outcomes/:id/timeline
+ * Add a new timeline entry and regenerate AI summary
+ */
+router.post('/outcomes/:id/timeline', async (req, res, next) => {
+  try {
+    const outcomeId = parseInt(req.params.id);
+    const { content } = req.body;
+    if (!content || !content.trim()) return res.status(400).json({ error: 'content is required' });
+
+    const entry = timelineDb.addTimelineEntry(outcomeId, content);
+
+    // Regenerate AI summary in background
+    const outcome = outcomesDb.getOutcomeById(outcomeId);
+    const allEntries = timelineDb.getTimelineByOutcome(outcomeId);
+    const entriesText = allEntries.map(e => `[${e.created_at}] ${e.content}`).reverse().join('\n');
+
+    claudeService.sendMessage(
+      `You are a concise project assistant. Summarize the following timeline of updates for the outcome "${outcome.title}" into 1-3 sentences. Focus on current state, key milestones, and what's remaining. Be factual and direct.\n\nTimeline:\n${entriesText}`
+    ).then(summary => {
+      timelineDb.updateOutcomeSummary(outcomeId, summary);
+    }).catch(err => console.error('Timeline summary generation failed:', err));
+
+    res.status(201).json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/timeline/recent
+ * Returns latest entry per active outcome (for the feed)
+ */
+router.get('/timeline/recent', (req, res, next) => {
+  try {
+    const recent = timelineDb.getRecentTimeline();
+    res.json({ success: true, data: recent });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/actions/completed-today
+ * Returns actions completed today
+ */
+router.get('/actions/completed-today', (req, res, next) => {
+  try {
+    const completed = timelineDb.getCompletedToday();
+    res.json({ success: true, data: completed });
   } catch (err) { next(err); }
 });
 
