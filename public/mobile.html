@@ -983,20 +983,142 @@
     .journal-title {
       font-size: 24px; font-weight: 700; letter-spacing: -.6px; line-height: 1;
     }
-    .journal-toggle {
-      display: flex; border: 1px solid var(--border); border-radius: 10px;
-      overflow: hidden; margin: 14px 20px 0;
+    /* Filter pills */
+    .journal-pill {
+      padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--border); background: transparent; color: #444;
+      cursor: pointer; font-family: inherit; transition: all 0.15s ease;
     }
-    .journal-toggle-btn {
-      flex: 1; padding: 8px 0; text-align: center;
-      font-size: 12px; font-weight: 600; letter-spacing: .02em;
-      color: var(--text-ghost); background: transparent;
-      border: none; cursor: pointer; font-family: inherit;
-      transition: background 0.15s ease, color 0.15s ease;
+    .journal-pill.active {
+      background: rgba(255,255,255,0.08); color: var(--text-primary);
+      border-color: rgba(255,255,255,0.15);
     }
-    .journal-toggle-btn.active {
-      background: rgba(var(--accent-rgb),0.14); color: var(--accent);
+    .journal-pill.active-standup {
+      background: rgba(124,58,237,0.12); color: #a78bfa;
+      border-color: rgba(124,58,237,0.25);
     }
+    .journal-pill.active-review {
+      background: rgba(245,158,11,0.12); color: #fbbf24;
+      border-color: rgba(245,158,11,0.25);
+    }
+    /* Timeline */
+    .journal-timeline {
+      position: relative; padding-left: 28px;
+    }
+    .journal-timeline::before {
+      content: ''; position: absolute; left: 7px; top: 0; bottom: 0;
+      width: 1px; background: rgba(255,255,255,0.06);
+    }
+    .journal-tl-node {
+      position: relative; padding: 10px 0 6px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .journal-tl-node::before {
+      content: ''; position: absolute; left: -24px; top: 16px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #222; border: 2px solid #444;
+    }
+    .journal-tl-node.today::before {
+      background: var(--blue); border-color: var(--blue);
+      box-shadow: 0 0 8px rgba(59,130,246,0.3);
+    }
+    .journal-tl-date { font-size: 12px; font-weight: 700; color: #ccc; }
+    .journal-tl-wk { font-size: 10px; color: #444; }
+    /* Accent bar cards */
+    .journal-ac-card {
+      position: relative; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 11px;
+      padding: 12px 14px 12px 18px; margin-bottom: 8px;
+      overflow: hidden; cursor: pointer; transition: opacity 0.12s ease;
+    }
+    .journal-ac-card:active { opacity: 0.7; }
+    .journal-ac-card::after {
+      content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+      width: 3px; border-radius: 2px;
+    }
+    .journal-ac-card.standup::after { background: var(--purple); }
+    .journal-ac-card.review::after { background: var(--amber); }
+    /* Type labels */
+    .journal-ac-type {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; margin-bottom: 5px;
+    }
+    .journal-ac-type.standup { color: var(--purple); }
+    .journal-ac-type.review { color: var(--amber); }
+    .journal-ac-summary { font-size: 12px; color: #888; line-height: 1.4; }
+    .journal-ac-summary strong { color: #ccc; font-weight: 600; }
+    .journal-ac-summary .mood-i { color: var(--green); }
+    .journal-ac-summary .block-i { color: var(--red); }
+    .journal-ac-preview { font-size: 11px; color: #444; margin-top: 4px; }
+    /* Detail view: parsed block */
+    .journal-parsed-block {
+      background: rgba(124,58,237,0.05); border: 1px solid rgba(124,58,237,0.12);
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+    }
+    .journal-parsed-hdr {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: #7c3aed; margin-bottom: 10px;
+    }
+    .journal-ps { margin-bottom: 10px; }
+    .journal-ps:last-child { margin-bottom: 0; }
+    .journal-ps-title {
+      font-size: 9px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: #444; margin-bottom: 5px;
+    }
+    .journal-ps-action {
+      font-size: 12px; color: var(--text-primary); margin-bottom: 4px;
+      display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;
+    }
+    .journal-ps-action .arr { color: var(--purple); flex-shrink: 0; }
+    .journal-ptag {
+      display: inline-block; font-size: 8px; padding: 2px 6px; border-radius: 8px;
+      font-weight: 600; background: rgba(59,130,246,0.12); color: var(--blue); margin-left: 4px;
+    }
+    .journal-ps-mood {
+      font-size: 12px; color: var(--green); display: flex; align-items: center; gap: 6px;
+    }
+    .journal-ps-blocker {
+      font-size: 12px; color: var(--red); margin-bottom: 3px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .journal-ps-learning {
+      font-size: 12px; color: #888; margin-bottom: 3px;
+      display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;
+    }
+    /* Reconciliation */
+    .journal-recon-item {
+      font-size: 12px; margin-bottom: 5px; display: flex;
+      align-items: flex-start; gap: 7px; line-height: 1.4;
+    }
+    .journal-recon-done { color: var(--green); }
+    .journal-recon-partial { color: var(--amber); }
+    .journal-recon-miss { color: var(--red); }
+    .journal-recon-status {
+      font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .journal-st-done { background: rgba(34,197,94,0.10); color: var(--green); }
+    .journal-st-partial { background: rgba(245,158,11,0.10); color: var(--amber); }
+    .journal-st-miss { background: rgba(239,68,68,0.10); color: var(--red); }
+    /* Carry-forward section */
+    .journal-cf-section {
+      background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.12);
+      border-radius: 11px; padding: 12px 14px;
+    }
+    .journal-cf-label {
+      font-size: 9px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--amber); margin-bottom: 8px;
+    }
+    .journal-cf-item {
+      font-size: 12px; color: #999; margin-bottom: 4px;
+      display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;
+    }
+    .journal-cf-item .arr { color: var(--amber); flex-shrink: 0; }
+    .journal-cf-blocker {
+      font-size: 12px; color: var(--red); margin-bottom: 4px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    /* Textarea + save (kept) */
     .journal-textarea {
       width: 100%; background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
@@ -1015,20 +1137,17 @@
     }
     .journal-save-btn.enabled { opacity: 1; }
     .journal-save-btn:active { opacity: 0.8; }
-    .journal-entry-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 11px; padding: 10px 13px; cursor: pointer;
-      transition: opacity 0.12s ease;
+    /* Re-parse button */
+    .journal-reparse-btn {
+      padding: 10px 16px; border-radius: 11px; font-size: 12px; font-weight: 600;
+      border: 1px solid rgba(124,58,237,0.25); background: rgba(124,58,237,0.10);
+      color: #a78bfa; cursor: pointer; font-family: inherit; transition: opacity 0.15s;
     }
-    .journal-entry-card:active { opacity: 0.7; }
-    .journal-entry-date {
-      font-size: 10px; font-weight: 600; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--text-ghost); margin-bottom: 3px;
-    }
-    .journal-entry-preview {
-      font-size: 12.5px; color: #888; line-height: 1.4;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden;
+    .journal-reparse-btn:active { opacity: 0.7; }
+    /* Detail back button */
+    .journal-back-btn {
+      color: var(--blue); background: none; border: none; font-size: 12px;
+      font-weight: 600; cursor: pointer; font-family: inherit; padding: 0;
     }
 
   </style>
@@ -1148,28 +1267,25 @@
       <div class="journal-eyebrow" id="journal-eyebrow">TODAY</div>
       <div class="journal-title">Journal</div>
     </div>
-    <div class="scroll-area" style="padding: 0 20px 16px;">
-      <div class="journal-toggle" style="margin: 14px 0 0;">
-        <button class="journal-toggle-btn active" id="journal-btn-standup" onclick="setJournalType('standup')">Standup</button>
-        <button class="journal-toggle-btn" id="journal-btn-review" onclick="setJournalType('review')">Review</button>
+    <!-- List view -->
+    <div id="journal-list-view">
+      <div style="display:flex;gap:8px;padding:12px 20px 0;" id="journal-pills">
+        <!-- pills rendered by JS -->
       </div>
-      <textarea class="journal-textarea" id="journal-input" placeholder="What are you working on today?" rows="4" style="margin-top: 14px;"></textarea>
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button class="journal-save-btn" id="journal-save-btn" onclick="saveJournalEntry()" style="margin:0;flex:1;">Save</button>
-        <button id="journal-parse-btn" onclick="parseJournalEntry()" style="flex:1;padding:10px 0;border-radius:12px;border:none;font-size:14px;font-weight:600;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;cursor:pointer;opacity:0.4;pointer-events:none;transition:opacity 0.15s;">Parse with AI</button>
-      </div>
-      <div id="journal-parse-result" style="display:none;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px;margin-top:10px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          <span style="font-size:13px;font-weight:700;color:#6d28d9;">AI Parse Results</span>
+      <div class="scroll-area" style="padding:0 20px 16px;">
+        <div id="journal-cf-section" style="display:none;margin-top:12px;"></div>
+        <textarea class="journal-textarea" id="journal-input" placeholder="What are you working on today?" rows="4" style="margin-top:14px;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="journal-save-btn" id="journal-save-btn" onclick="saveJournalEntry()" style="margin:0;flex:1;">Save</button>
         </div>
-        <div id="journal-parse-content"></div>
-        <button onclick="document.getElementById('journal-parse-result').style.display='none'" style="margin-top:10px;padding:6px 14px;border-radius:10px;border:1px solid #e5e7eb;background:transparent;font-size:12px;font-weight:600;color:#374151;cursor:pointer;">Dismiss</button>
+        <div class="divider" style="margin:16px 0;"></div>
+        <div class="s-head" style="padding:0 0 8px;"><span class="s-label">Recent</span></div>
+        <div id="journal-timeline"></div>
       </div>
-      <div class="divider" style="margin: 16px 0;"></div>
-      <div class="s-head" style="padding: 0 0 8px;">
-        <span class="s-label">Recent</span>
-      </div>
-      <div id="journal-recent-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+    </div>
+    <!-- Detail view -->
+    <div id="journal-detail-view" style="display:none;">
+      <div class="scroll-area" style="padding:0 20px 16px;" id="journal-detail-content"></div>
     </div>
   </div>
 
@@ -1365,22 +1481,50 @@ let formSelectedColor = '#3b82f6';
 // SVG ICON REGISTRY (flat monochrome line icons for projects)
 // ═══════════════════════════════════════════════════════════════
 const PROJECT_ICONS = {
-  folder:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
-  rocket:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
-  dollar:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
-  target:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
-  home:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-  bulb:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 018.91 14"/></svg>',
-  zap:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
-  flame:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></svg>',
-  chart:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-  wrench:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>',
-  seedling: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0010-10v0a10 10 0 0110 10h-3"/><path d="M7 15c0-2.21 2.69-4 5-4s5 1.79 5 4"/></svg>',
-  flask:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 9V3"/><path d="M14 9V3"/><path d="M10 9l-4.5 7.5A2 2 0 007.2 20h9.6a2 2 0 001.7-3.5L14 9"/></svg>',
-  phone:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
-  bot:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
-  globe:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
-  palette:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+  folder:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
+  briefcase:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>',
+  archive:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+  clipboard:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+  layers:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  rocket:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+  zap:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  flame:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></svg>',
+  seedling:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0010-10v0a10 10 0 0110 10h-3"/><path d="M7 15c0-2.21 2.69-4 5-4s5 1.79 5 4"/></svg>',
+  trending:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  target:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  compass:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+  flag:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+  award:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>',
+  dollar:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+  shopping:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>',
+  creditcard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+  bulb:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 018.91 14"/></svg>',
+  palette:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+  pen:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>',
+  camera:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  music:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  chart:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  piechart:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg>',
+  database:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+  wrench:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>',
+  flask:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 9V3"/><path d="M14 9V3"/><path d="M10 9l-4.5 7.5A2 2 0 007.2 20h9.6a2 2 0 001.7-3.5L14 9"/></svg>',
+  code:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  cpu:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+  terminal:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+  users:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+  megaphone:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+  mail:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
+  phone:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+  home:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  globe:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+  map:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>',
+  heart:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+  sun:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+  star:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  shield:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  bot:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
+  gift:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>',
+  lock:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
 };
 const PROJECT_ICON_KEYS = Object.keys(PROJECT_ICONS);
 const PROJECT_COLORS = ['#3b82f6','#818cf8','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
@@ -1395,7 +1539,8 @@ function esc(s) {
 }
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
 function daysUntil(dateStr) {
@@ -2805,9 +2950,10 @@ function setupVisualViewport() {
 // ═══════════════════════════════════════════════════════════════
 // JOURNAL
 // ═══════════════════════════════════════════════════════════════
-let journalType = 'standup';
+let journalFilter = 'all';       // 'all', 'standup', 'review'
 let journalCurrentId = null;
 let journalViewDate = today();
+let journalEntries = [];          // cached entries for filtering
 
 function todayStr() { return today(); }
 
@@ -2817,160 +2963,394 @@ function formatJournalDate(str) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function updateJournalEyebrow() {
+// ── Journal: init ──
+function initJournalView() {
   const eyebrow = document.getElementById('journal-eyebrow');
-  if (journalViewDate === todayStr()) {
-    eyebrow.innerHTML = formatJournalDate(journalViewDate).toUpperCase();
-  } else {
-    eyebrow.innerHTML = `${esc(formatJournalDate(journalViewDate).toUpperCase())} <a href="#" onclick="returnToJournalToday(event)">← Today</a>`;
+  if (eyebrow) eyebrow.textContent = formatJournalDate(todayStr()).toUpperCase();
+  journalViewDate = todayStr();
+  renderJournalPills();
+  loadJournalEntries();
+  loadCarryForwards();
+  showJournalList();
+}
+
+// ── Journal: filter pills ──
+function setJournalFilter(type) {
+  journalFilter = type;
+  renderJournalPills();
+  renderJournalTimeline();
+}
+
+function renderJournalPills() {
+  const container = document.getElementById('journal-pills');
+  if (!container) return;
+  const pills = [
+    { key: 'all', label: 'All' },
+    { key: 'standup', label: 'Standup' },
+    { key: 'review', label: 'Review' },
+  ];
+  container.innerHTML = pills.map(p => {
+    let cls = 'journal-pill';
+    if (journalFilter === p.key) {
+      cls += p.key === 'all' ? ' active' : ` active-${p.key}`;
+    }
+    return `<button class="${cls}" onclick="setJournalFilter('${p.key}')">${p.label}</button>`;
+  }).join('');
+}
+
+// ── Journal: load entries ──
+async function loadJournalEntries() {
+  try {
+    const res = await apiFetch('/api/daily-entries?limit=30');
+    journalEntries = res.data || [];
+  } catch { journalEntries = []; }
+  renderJournalTimeline();
+}
+
+// ── Journal: render timeline ──
+function renderJournalTimeline() {
+  const container = document.getElementById('journal-timeline');
+  if (!container) return;
+
+  const filtered = journalFilter === 'all'
+    ? journalEntries
+    : journalEntries.filter(e => e.type === journalFilter);
+
+  if (!filtered.length) {
+    container.innerHTML = '<div style="color:var(--text-ghost);font-size:12px;padding:8px 0;">No entries yet</div>';
+    return;
   }
+
+  // Group by date
+  const groups = {};
+  filtered.forEach(e => {
+    if (!groups[e.date]) groups[e.date] = [];
+    groups[e.date].push(e);
+  });
+
+  const todayISO = todayStr();
+  const yesterdayISO = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
+  let html = '<div class="journal-timeline">';
+
+  Object.keys(groups).sort((a, b) => b.localeCompare(a)).forEach(date => {
+    const isToday = date === todayISO;
+    const isYesterday = date === yesterdayISO;
+    const dateLabel = isToday ? 'Today' : isYesterday ? 'Yesterday' : formatJournalDate(date);
+    const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+
+    html += `<div class="journal-tl-node${isToday ? ' today' : ''}">
+      <span class="journal-tl-date">${esc(dateLabel)}</span>
+      <span class="journal-tl-wk">${esc(dayName)}</span>
+    </div>`;
+
+    groups[date].forEach(entry => {
+      html += renderJournalCard(entry);
+    });
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
 }
 
-function returnToJournalToday(e) {
-  e.preventDefault();
-  journalViewDate = todayStr();
-  journalCurrentId = null;
-  loadJournalEntry();
-}
+function renderJournalCard(entry) {
+  const type = entry.type || 'standup';
+  let parsed = null;
+  if (entry.parsed_data) {
+    try { parsed = typeof entry.parsed_data === 'string' ? JSON.parse(entry.parsed_data) : entry.parsed_data; } catch {}
+  }
 
-function setJournalType(type) {
-  journalType = type;
-  document.getElementById('journal-btn-standup').classList.toggle('active', type === 'standup');
-  document.getElementById('journal-btn-review').classList.toggle('active', type === 'review');
-  document.getElementById('journal-input').placeholder =
-    type === 'standup' ? 'What are you working on today?' : 'How did today go?';
-  journalViewDate = todayStr();
-  journalCurrentId = null;
-  loadJournalEntry();
-}
+  let summaryHtml = '';
+  let previewHtml = '';
 
-async function loadJournalEntry() {
-  updateJournalEyebrow();
-  try {
-    const entries = await apiFetch(`/api/daily-entries?type=${journalType}&limit=10`);
-    const list = entries.data || [];
-    const match = list.find(e => e.date === journalViewDate);
-    const input = document.getElementById('journal-input');
-    if (match) {
-      input.value = match.content || '';
-      journalCurrentId = match.id;
-    } else {
-      input.value = '';
-      journalCurrentId = null;
+  if (parsed) {
+    // Build summary line
+    const parts = [];
+    if (parsed.reconciled && parsed.reconciled.length) {
+      const done = parsed.reconciled.filter(r => r.status === 'done').length;
+      const total = parsed.reconciled.length;
+      parts.push(`<strong>${done}/${total} done</strong>`);
+    } else if (parsed.actions && parsed.actions.length) {
+      parts.push(`<strong>${parsed.actions.length} action${parsed.actions.length > 1 ? 's' : ''}</strong>`);
     }
-    toggleJournalSaveBtn();
-  } catch {}
-  loadJournalRecent();
+    if (parsed.mood) parts.push(`<span class="mood-i">${esc(parsed.mood)}</span>`);
+    if (parsed.mood_score) parts.push(`<span class="mood-i">${parsed.mood_score}/5</span>`);
+    if (parsed.blockers && parsed.blockers.length) parts.push(`<span class="block-i">${parsed.blockers.length} blocker${parsed.blockers.length > 1 ? 's' : ''}</span>`);
+    if (parsed.carry_forwards && parsed.carry_forwards.length) parts.push(`<span style="color:var(--amber)">${parsed.carry_forwards.length} carry-fwd</span>`);
+    summaryHtml = parts.join(' · ');
+
+    // Build preview (first 2 action texts)
+    const actions = parsed.actions || parsed.reconciled || [];
+    const previews = actions.slice(0, 2).map(a => esc(a.text || a.action || '')).filter(Boolean);
+    if (previews.length) previewHtml = previews.join(' · ');
+  } else {
+    // No parsed data — show raw text preview
+    const raw = (entry.content || '').trim();
+    summaryHtml = `<span style="color:#555">${esc(raw.slice(0, 80))}${raw.length > 80 ? '…' : ''}</span>`;
+  }
+
+  return `<div class="journal-ac-card ${esc(type)}" onclick="showJournalDetail(${entry.id})">
+    <div class="journal-ac-type ${esc(type)}">${esc(type)}</div>
+    <div class="journal-ac-summary">${summaryHtml}</div>
+    ${previewHtml ? `<div class="journal-ac-preview">${previewHtml}</div>` : ''}
+  </div>`;
 }
 
-async function loadJournalRecent() {
-  try {
-    const entries = await apiFetch(`/api/daily-entries?type=${journalType}&limit=5`);
-    const list = entries.data || [];
-    const container = document.getElementById('journal-recent-list');
-    if (!list.length) {
-      container.innerHTML = '<div style="color:var(--text-ghost);font-size:12px;padding:8px 0;">No entries yet</div>';
-      return;
-    }
-    container.innerHTML = list.map(e => `
-      <div class="journal-entry-card" onclick="loadJournalHistoricEntry(${e.id}, '${esc(e.date)}')">
-        <div class="journal-entry-date">${esc(formatJournalDate(e.date))}</div>
-        <div class="journal-entry-preview">${esc(e.content || '')}</div>
-      </div>
-    `).join('');
-  } catch {}
-}
+// ── Journal: detail view ──
+async function showJournalDetail(id) {
+  const listView = document.getElementById('journal-list-view');
+  const detailView = document.getElementById('journal-detail-view');
+  const detailContent = document.getElementById('journal-detail-content');
+  if (!listView || !detailView || !detailContent) return;
 
-async function loadJournalHistoricEntry(id, date) {
+  listView.style.display = 'none';
+  detailView.style.display = 'block';
+  detailContent.innerHTML = '<div style="color:#555;font-size:13px;padding:20px 0;">Loading…</div>';
+
   try {
     const res = await apiFetch(`/api/daily-entries/${id}`);
     const entry = res.data;
-    if (entry) {
-      document.getElementById('journal-input').value = entry.content || '';
-      journalCurrentId = entry.id;
-      journalViewDate = date;
-      updateJournalEyebrow();
-      toggleJournalSaveBtn();
+    if (!entry) { showJournalList(); return; }
+
+    journalCurrentId = entry.id;
+    const type = entry.type || 'standup';
+    const dateLabel = entry.date === todayStr() ? 'Today' : formatJournalDate(entry.date);
+    const typeCls = type === 'review' ? 'review' : 'standup';
+    const typeBg = type === 'review' ? 'rgba(245,158,11,0.10)' : 'rgba(124,58,237,0.10)';
+    const typeColor = type === 'review' ? 'var(--amber)' : 'var(--purple)';
+
+    let parsed = null;
+    if (entry.parsed_data) {
+      try { parsed = typeof entry.parsed_data === 'string' ? JSON.parse(entry.parsed_data) : entry.parsed_data; } catch {}
     }
-  } catch {}
+
+    let html = `
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0;">
+        <button class="journal-back-btn" onclick="showJournalList()">← Back</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <span style="font-size:20px;font-weight:700;">${esc(dateLabel)}</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:${typeBg};color:${typeColor};">${esc(type.toUpperCase())}</span>
+      </div>
+    `;
+
+    if (parsed) {
+      html += renderParsedDetail(parsed, type);
+    }
+
+    // Raw text block
+    html += `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#333;margin-bottom:8px">Original Entry</div>
+        <div style="font-size:12px;color:#555;line-height:1.5;white-space:pre-wrap;">${esc(entry.content || '')}</div>
+      </div>
+    `;
+
+    // Re-parse button
+    html += `<button class="journal-reparse-btn" onclick="reparseJournalEntry(${entry.id}, '${esc(type)}', this)">Re-parse</button>`;
+
+    detailContent.innerHTML = html;
+  } catch (e) {
+    detailContent.innerHTML = '<div style="color:var(--red);font-size:13px;padding:20px 0;">Failed to load entry.</div>';
+  }
 }
 
+function showJournalList() {
+  const listView = document.getElementById('journal-list-view');
+  const detailView = document.getElementById('journal-detail-view');
+  if (listView) listView.style.display = '';
+  if (detailView) detailView.style.display = 'none';
+}
+
+// ── Journal: render parsed detail block ──
+function renderParsedDetail(parsed, type) {
+  let html = '<div class="journal-parsed-block">';
+  html += '<div class="journal-parsed-hdr">Parsed</div>';
+
+  // Reconciled (review type)
+  if (parsed.reconciled && parsed.reconciled.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Reconciled vs. Standup</div>';
+    parsed.reconciled.forEach(r => {
+      const st = r.status || 'miss';
+      const stLabel = st === 'done' ? 'DONE' : st === 'partial' ? 'PARTIAL' : 'MISSED';
+      const stCls = st === 'done' ? 'journal-st-done' : st === 'partial' ? 'journal-st-partial' : 'journal-st-miss';
+      const textCls = st === 'done' ? 'journal-recon-done' : st === 'partial' ? 'journal-recon-partial' : 'journal-recon-miss';
+      const projTag = r.project ? ` <span class="journal-ptag">${esc(r.project)}</span>` : '';
+      html += `<div class="journal-recon-item"><span class="journal-recon-status ${stCls}">${stLabel}</span><span class="${textCls}">${esc(r.text || r.action || '')}${projTag}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Actions (standup type)
+  if (parsed.actions && parsed.actions.length && !(parsed.reconciled && parsed.reconciled.length)) {
+    const label = type === 'standup' ? 'Planned Actions' : 'Actions';
+    html += `<div class="journal-ps"><div class="journal-ps-title">${label}</div>`;
+    parsed.actions.forEach(a => {
+      const projTag = a.project ? ` <span class="journal-ptag">${esc(a.project)}</span>` : '';
+      html += `<div class="journal-ps-action"><span class="arr">→</span><span>${esc(a.text || '')}${projTag}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Carry-forwards
+  if (parsed.carry_forwards && parsed.carry_forwards.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Carry-forwards → Tomorrow</div>';
+    parsed.carry_forwards.forEach(cf => {
+      const text = typeof cf === 'string' ? cf : (cf.text || cf.action || '');
+      const projTag = (cf && cf.project) ? ` <span class="journal-ptag">${esc(cf.project)}</span>` : '';
+      const dayTag = (cf && cf.days_carried && cf.days_carried > 1) ? ` <span style="display:inline-block;font-size:8px;padding:2px 6px;border-radius:6px;font-weight:600;background:rgba(239,68,68,0.10);color:var(--red);margin-left:4px;">day ${cf.days_carried}</span>` : '';
+      html += `<div class="journal-ps-action"><span class="arr" style="color:var(--amber)">→</span><span>${esc(text)}${projTag}${dayTag}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Acknowledged carry-forwards (standup referencing review)
+  if (parsed.acknowledged_carry_forwards && parsed.acknowledged_carry_forwards.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Acknowledged carry-forwards</div>';
+    parsed.acknowledged_carry_forwards.forEach(acf => {
+      const text = typeof acf === 'string' ? acf : (acf.text || acf.action || '');
+      const note = acf.note ? ` — <span style="color:${acf.addressing ? 'var(--green)' : '#666'}">${esc(acf.note)}</span>` : '';
+      html += `<div class="journal-ps-action"><span class="arr" style="color:var(--amber)">↳</span><span style="color:#999">${esc(text)}${note}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Blockers
+  if (parsed.blockers && parsed.blockers.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Blockers</div>';
+    parsed.blockers.forEach(b => {
+      const text = typeof b === 'string' ? b : (b.text || '');
+      html += `<div class="journal-ps-blocker">⚠ ${esc(text)}</div>`;
+    });
+    html += '</div>';
+  }
+
+  // Mood + score
+  if (parsed.mood || parsed.mood_score) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Mood / Energy</div>';
+    if (parsed.mood) html += `<div class="journal-ps-mood">● ${esc(parsed.mood)}</div>`;
+    if (parsed.mood_score) {
+      html += `<div style="margin-top:4px;display:flex;align-items:center;gap:6px"><span style="font-size:9px;font-weight:700;color:#444">SCORE</span><span style="font-size:12px;font-weight:800;color:var(--green)">${parsed.mood_score}</span><span style="font-size:10px;color:#555">/5</span></div>`;
+    }
+    html += '</div>';
+  }
+
+  // Learnings
+  if (parsed.learnings && parsed.learnings.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Learnings</div>';
+    parsed.learnings.forEach(l => {
+      const text = typeof l === 'string' ? l : (l.text || '');
+      html += `<div class="journal-ps-learning">💡 <span>${esc(text)}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ── Journal: save entry ──
 async function saveJournalEntry() {
   const input = document.getElementById('journal-input');
   const content = input.value.trim();
   if (!content) return;
+
+  const btn = document.getElementById('journal-save-btn');
+  if (btn) { btn.textContent = 'Saving & parsing…'; btn.style.opacity = '0.6'; }
+
   try {
-    await apiFetch('/api/daily-entries', {
+    const res = await apiFetch('/api/daily-entries', {
       method: 'POST',
-      body: JSON.stringify({ date: journalViewDate, type: journalType, content }),
+      body: JSON.stringify({ date: journalViewDate, type: 'standup', content }),
     });
-    showToast('Saved');
-    // Reload to get the ID for subsequent edits
-    const entries = await apiFetch(`/api/daily-entries?type=${journalType}&limit=10`);
-    const list = entries.data || [];
-    const saved = list.find(e => e.date === journalViewDate);
-    if (saved) journalCurrentId = saved.id;
-    loadJournalRecent();
+
+    if (res.data && res.data.id) {
+      showToast('Saved & parsed');
+      input.value = '';
+      toggleJournalSaveBtn();
+      // Refresh entries then show detail
+      await loadJournalEntries();
+      showJournalDetail(res.data.id);
+    } else {
+      showToast('Saved');
+      await loadJournalEntries();
+    }
   } catch (e) {
     showToast('Error saving');
+  } finally {
+    if (btn) { btn.textContent = 'Save'; btn.style.opacity = ''; }
+    toggleJournalSaveBtn();
+  }
+}
+
+// ── Journal: re-parse ──
+async function reparseJournalEntry(id, type, btnEl) {
+  // Need the content from the detail view
+  if (btnEl) { btnEl.textContent = 'Re-parsing…'; btnEl.style.opacity = '0.6'; }
+  try {
+    const entryRes = await apiFetch(`/api/daily-entries/${id}`);
+    const entry = entryRes.data;
+    if (!entry) throw new Error('Entry not found');
+
+    await apiFetch('/api/daily-entries/parse', {
+      method: 'POST',
+      body: JSON.stringify({ type, content: entry.content, id }),
+    });
+
+    showToast('Re-parsed');
+    await loadJournalEntries();
+    showJournalDetail(id);
+  } catch (e) {
+    showToast('Re-parse failed');
+    if (btnEl) { btnEl.textContent = 'Re-parse'; btnEl.style.opacity = ''; }
+  }
+}
+
+// ── Journal: carry-forwards ──
+async function loadCarryForwards() {
+  const section = document.getElementById('journal-cf-section');
+  if (!section) return;
+  try {
+    const res = await apiFetch('/api/daily-entries?type=review&limit=1');
+    const list = res.data || [];
+    if (!list.length) { section.style.display = 'none'; return; }
+
+    const latest = list[0];
+    let parsed = null;
+    if (latest.parsed_data) {
+      try { parsed = typeof latest.parsed_data === 'string' ? JSON.parse(latest.parsed_data) : latest.parsed_data; } catch {}
+    }
+    if (!parsed) { section.style.display = 'none'; return; }
+
+    const cfs = parsed.carry_forwards || [];
+    const blockers = parsed.blockers || [];
+    if (!cfs.length && !blockers.length) { section.style.display = 'none'; return; }
+
+    let html = '<div class="journal-cf-section">';
+    html += '<div class="journal-cf-label">Carry-forwards from last review</div>';
+    cfs.forEach(cf => {
+      const text = typeof cf === 'string' ? cf : (cf.text || cf.action || '');
+      const projTag = (cf && cf.project) ? ` <span class="journal-ptag">${esc(cf.project)}</span>` : '';
+      html += `<div class="journal-cf-item"><span class="arr">→</span><span>${esc(text)}${projTag}</span></div>`;
+    });
+    blockers.forEach(b => {
+      const text = typeof b === 'string' ? b : (b.text || '');
+      html += `<div class="journal-cf-blocker">⚠ ${esc(text)}</div>`;
+    });
+    html += '</div>';
+
+    section.innerHTML = html;
+    section.style.display = 'block';
+  } catch {
+    section.style.display = 'none';
   }
 }
 
 function toggleJournalSaveBtn() {
   const btn = document.getElementById('journal-save-btn');
-  const parseBtn = document.getElementById('journal-parse-btn');
   const input = document.getElementById('journal-input');
+  if (!btn || !input) return;
   const hasText = input.value.trim().length > 0;
   btn.classList.toggle('enabled', hasText);
-  if (parseBtn) { parseBtn.style.opacity = hasText ? '1' : '0.4'; parseBtn.style.pointerEvents = hasText ? 'auto' : 'none'; }
-}
-
-async function parseJournalEntry() {
-  const input = document.getElementById('journal-input');
-  const content = input ? input.value.trim() : '';
-  if (!content) return;
-  const btn = document.getElementById('journal-parse-btn');
-  const resultDiv = document.getElementById('journal-parse-result');
-  const contentDiv = document.getElementById('journal-parse-content');
-  if (btn) { btn.textContent = 'Parsing…'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
-  try {
-    const json = await apiFetch('/api/daily-entries/parse', {
-      method: 'POST',
-      body: JSON.stringify({ type: journalType, content }),
-    });
-    if (!json.success) throw new Error(json.error || 'Parse failed');
-    const data = json.data;
-    let html = '';
-    if (data.actions && data.actions.length) {
-      const label = journalType === 'standup' ? 'Planned Actions' : 'Completed / Carry-forward';
-      html += `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">${label}</div>`;
-      data.actions.forEach(a => {
-        const proj = a.project ? `<span style="font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;background:#dbeafe;color:#1e40af;margin-left:6px;">${a.project}</span>` : '';
-        html += `<div style="font-size:13px;color:#111827;margin-bottom:3px;"><span style="color:#7c3aed;">→</span> ${a.text}${proj}</div>`;
-      });
-      html += '</div>';
-    }
-    if (data.blockers && data.blockers.length) {
-      html += '<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Blockers</div>';
-      data.blockers.forEach(b => { html += `<div style="font-size:13px;color:#dc2626;margin-bottom:3px;">⚠ ${b}</div>`; });
-      html += '</div>';
-    }
-    if (data.mood) {
-      html += `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Mood / Energy</div><div style="font-size:13px;color:#059669;">● ${data.mood}</div></div>`;
-    }
-    if (data.learnings && data.learnings.length) {
-      html += '<div><div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Learnings</div>';
-      data.learnings.forEach(l => { html += `<div style="font-size:13px;color:#6b7280;margin-bottom:3px;">💡 ${l}</div>`; });
-      html += '</div>';
-    }
-    if (contentDiv) contentDiv.innerHTML = html || '<div style="font-size:13px;color:#6b7280;">No structured data extracted.</div>';
-    if (resultDiv) resultDiv.style.display = 'block';
-  } catch(e) {
-    if (contentDiv) contentDiv.innerHTML = '<div style="font-size:13px;color:#dc2626;">Failed to parse. Try again.</div>';
-    if (resultDiv) resultDiv.style.display = 'block';
-  } finally {
-    if (btn) { btn.textContent = 'Parse with AI'; toggleJournalSaveBtn(); }
-  }
 }
 
 document.addEventListener('input', e => {
@@ -2998,12 +3378,7 @@ function switchTab(tab) {
   }
 
   if (tab === 'journal') {
-    const todayCheck = todayStr();
-    if (journalViewDate !== todayCheck) {
-      journalViewDate = todayCheck;
-      journalCurrentId = null;
-    }
-    loadJournalEntry();
+    initJournalView();
   }
 }
 
