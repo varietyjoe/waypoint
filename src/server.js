@@ -234,8 +234,19 @@ const server = app.listen(PORT, () => {
 // Handle graceful shutdown — flush SQLite WAL before exit
 const db = require('./database/index');
 
+// Periodic WAL checkpoint every 5 min — safety net against SIGKILL
+const walCheckpointInterval = setInterval(() => {
+    try {
+        db.pragma('wal_checkpoint(PASSIVE)');
+    } catch (e) {
+        console.error('Periodic WAL checkpoint failed:', e.message);
+    }
+}, 5 * 60 * 1000);
+walCheckpointInterval.unref();
+
 function gracefulShutdown(signal) {
     console.log(`${signal} received: shutting down gracefully`);
+    clearInterval(walCheckpointInterval);
     server.close(() => {
         console.log('HTTP server closed');
         try {
@@ -249,11 +260,12 @@ function gracefulShutdown(signal) {
         process.exit(0);
     });
     // Force exit after 5s if graceful shutdown stalls
-    setTimeout(() => {
+    const forceTimer = setTimeout(() => {
         console.error('Forced shutdown after timeout');
         try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch (_) {}
         process.exit(1);
     }, 5000);
+    forceTimer.unref();
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
