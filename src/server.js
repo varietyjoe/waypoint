@@ -231,13 +231,33 @@ const server = app.listen(PORT, () => {
     scheduleBriefings();
 });
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing HTTP server');
+// Handle graceful shutdown — flush SQLite WAL before exit
+const db = require('./database/index');
+
+function gracefulShutdown(signal) {
+    console.log(`${signal} received: shutting down gracefully`);
     server.close(() => {
         console.log('HTTP server closed');
+        try {
+            db.pragma('wal_checkpoint(TRUNCATE)');
+            console.log('SQLite WAL checkpointed');
+            db.close();
+            console.log('SQLite connection closed');
+        } catch (e) {
+            console.error('DB shutdown error:', e.message);
+        }
+        process.exit(0);
     });
-});
+    // Force exit after 5s if graceful shutdown stalls
+    setTimeout(() => {
+        console.error('Forced shutdown after timeout');
+        try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch (_) {}
+        process.exit(1);
+    }, 5000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 module.exports = app;
 
