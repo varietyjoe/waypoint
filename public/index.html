@@ -136,6 +136,27 @@
     }
     .rail-btn:hover .rail-tip, .rail-home:hover .rail-tip, .rail-add:hover .rail-tip { opacity: 1; }
 
+    /* ═══════ SIDEBAR AVATAR ICON ═══════ */
+    .sb-avatar-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    /* Icon picker items in edit modal */
+    #editProjectIcons svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     /* ═══════ THEME TOGGLE ═══════ */
     .theme-toggle-btn {
       width: 42px; height: 42px; border-radius: 14px;
@@ -955,7 +976,7 @@ function renderSidebarHeader() {
 
   if (workspaceProjectId === null) {
     el.innerHTML = `
-      <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--wp-surface-raised);border:1.5px solid var(--wp-border);color:var(--wp-text-tertiary);">
+      <div class="sb-avatar-icon" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--wp-surface-raised);border:1.5px solid var(--wp-border);color:var(--wp-text-tertiary);">
         ${PROJECT_ICONS.globe}
       </div>
       <div style="flex:1;min-width:0;">
@@ -970,14 +991,196 @@ function renderSidebarHeader() {
     const projectOutcomes = OUTCOMES.filter(o => o.project_id === workspaceProjectId);
     const activeCount = projectOutcomes.filter(o => o.status === 'active').length;
     el.innerHTML = `
-      <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(${r},${g},${b},0.12);border:1.5px solid rgba(${r},${g},${b},0.3);color:${p.color};">
+      <div class="sb-avatar-icon" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(${r},${g},${b},0.12);border:1.5px solid rgba(${r},${g},${b},0.3);color:${p.color};">
         ${icon}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;color:var(--wp-text-primary);letter-spacing:-0.2px;">${escHtml(p.name)}</div>
         <div style="font-size:10px;color:var(--wp-text-ghost);margin-top:1px;">${projectOutcomes.length} outcomes · ${activeCount} active</div>
-      </div>`;
+      </div>
+      <button onclick="event.stopPropagation();openProjectMenu(${p.id})" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--wp-border);background:transparent;color:var(--wp-text-ghost);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.12s;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>`;
   }
+}
+
+// ============================================================
+// PROJECT CRUD (context menu, edit, delete)
+// ============================================================
+let _projectMenuId = null;
+
+function openProjectMenu(projectId) {
+  _projectMenuId = projectId;
+  const existing = document.getElementById('project-ctx-menu');
+  if (existing) existing.remove();
+
+  const p = PROJECTS.find(pr => pr.id === projectId);
+  if (!p) return;
+
+  const menu = document.createElement('div');
+  menu.id = 'project-ctx-menu';
+  menu.style.cssText = 'position:fixed;z-index:200;background:var(--wp-surface-raised);border:1px solid var(--wp-border);border-radius:12px;padding:4px;min-width:180px;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
+
+  const PROJECT_ICON_KEYS = Object.keys(PROJECT_ICONS);
+  const PROJECT_COLORS = ['#3b82f6','#818cf8','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+
+  menu.innerHTML = `
+    <div style="padding:10px 14px;font-size:12px;font-weight:600;color:var(--wp-text-primary);border-bottom:1px solid var(--wp-border-subtle);margin-bottom:2px;">${escHtml(p.name)}</div>
+    <button onclick="openProjectEdit(${projectId})" style="width:100%;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--wp-text-secondary);background:none;border:none;font-family:inherit;text-align:left;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit Project
+    </button>
+    <button onclick="confirmDeleteProject(${projectId})" style="width:100%;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#ef4444;background:none;border:none;font-family:inherit;text-align:left;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      Delete Project
+    </button>
+  `;
+
+  document.body.appendChild(menu);
+
+  // Position near the header button
+  const headerEl = document.getElementById('sidebarHeader');
+  if (headerEl) {
+    const rect = headerEl.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.left = (rect.left + 60) + 'px';
+  }
+
+  // Close on click outside
+  setTimeout(() => {
+    document.addEventListener('click', closeProjectMenu, { once: true });
+  }, 10);
+}
+
+function closeProjectMenu() {
+  const m = document.getElementById('project-ctx-menu');
+  if (m) m.remove();
+}
+
+function openProjectEdit(projectId) {
+  closeProjectMenu();
+  const p = PROJECTS.find(pr => pr.id === projectId);
+  if (!p) return;
+
+  const PROJECT_ICON_KEYS = Object.keys(PROJECT_ICONS);
+  const PROJECT_COLORS = ['#3b82f6','#818cf8','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+
+  const existing = document.getElementById('project-edit-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'project-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;padding-top:15vh;';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div style="background:var(--wp-surface-raised);border:1px solid var(--wp-border);border-radius:16px;width:380px;padding:24px;box-shadow:0 24px 48px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
+      <div style="font-size:14px;font-weight:700;color:var(--wp-text-primary);margin-bottom:16px;">Edit Project</div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--wp-text-ghost);display:block;margin-bottom:6px;">Name</label>
+        <input id="editProjectName" type="text" value="${escHtml(p.name)}"
+          style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--wp-border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--wp-text-primary);outline:none;font-family:inherit;box-sizing:border-box;"
+        />
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--wp-text-ghost);display:block;margin-bottom:6px;">Icon</label>
+        <div id="editProjectIcons" style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${PROJECT_ICON_KEYS.map(k => `
+            <div onclick="selectEditIcon('${k}')" id="edit-icon-${k}"
+              style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${k === (p.icon || 'folder') ? 'rgba(var(--wp-accent-rgb),0.12)' : 'rgba(255,255,255,0.03)'};border:1.5px solid ${k === (p.icon || 'folder') ? 'rgba(var(--wp-accent-rgb),0.3)' : 'transparent'};color:var(--wp-text-secondary);transition:all 0.12s;">
+              <span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;">${PROJECT_ICONS[k]}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--wp-text-ghost);display:block;margin-bottom:6px;">Color</label>
+        <div id="editProjectColors" style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${PROJECT_COLORS.map(c => `
+            <div onclick="selectEditColor('${c}')" id="edit-color-${c.replace('#','')}"
+              style="width:30px;height:30px;border-radius:50%;cursor:pointer;background:${c};border:2.5px solid ${c === (p.color || '#3b82f6') ? 'var(--wp-text-primary)' : 'transparent'};transition:all 0.12s;"></div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveProjectEdit(${projectId})"
+          style="flex:1;padding:10px;background:var(--wp-accent);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+          Save
+        </button>
+        <button onclick="document.getElementById('project-edit-overlay').remove()"
+          style="padding:10px 16px;background:transparent;border:1px solid var(--wp-border);border-radius:10px;font-size:13px;color:var(--wp-text-tertiary);cursor:pointer;font-family:inherit;">
+          Cancel
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Store edit state
+  window._editProjectIcon = p.icon || 'folder';
+  window._editProjectColor = p.color || '#3b82f6';
+
+  // Focus name input
+  setTimeout(() => {
+    const inp = document.getElementById('editProjectName');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 50);
+}
+
+function selectEditIcon(key) {
+  window._editProjectIcon = key;
+  const PROJECT_ICON_KEYS = Object.keys(PROJECT_ICONS);
+  PROJECT_ICON_KEYS.forEach(k => {
+    const el = document.getElementById('edit-icon-' + k);
+    if (el) {
+      el.style.background = k === key ? 'rgba(var(--wp-accent-rgb),0.12)' : 'rgba(255,255,255,0.03)';
+      el.style.borderColor = k === key ? 'rgba(var(--wp-accent-rgb),0.3)' : 'transparent';
+    }
+  });
+}
+
+function selectEditColor(color) {
+  window._editProjectColor = color;
+  const PROJECT_COLORS = ['#3b82f6','#818cf8','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+  PROJECT_COLORS.forEach(c => {
+    const el = document.getElementById('edit-color-' + c.replace('#',''));
+    if (el) el.style.borderColor = c === color ? 'var(--wp-text-primary)' : 'transparent';
+  });
+}
+
+async function saveProjectEdit(projectId) {
+  const name = document.getElementById('editProjectName')?.value?.trim();
+  if (!name) return;
+  try {
+    await fetch(`/api/projects/${projectId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, icon: window._editProjectIcon, color: window._editProjectColor }),
+    });
+    document.getElementById('project-edit-overlay')?.remove();
+    await loadData();
+    renderAll();
+    showToast('Project updated', 'success');
+  } catch { showToast('Failed to update project', 'warning'); }
+}
+
+async function confirmDeleteProject(projectId) {
+  closeProjectMenu();
+  const p = PROJECTS.find(pr => pr.id === projectId);
+  if (!p) return;
+  if (!confirm(`Delete "${p.name}"? All outcomes in this project will also be deleted. This cannot be undone.`)) return;
+  try {
+    await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+    if (workspaceProjectId === projectId) switchWorkspace(null);
+    await loadData();
+    renderAll();
+    showToast(`"${p.name}" deleted`, 'success');
+  } catch { showToast('Failed to delete project', 'warning'); }
 }
 
 // ============================================================
@@ -1546,17 +1749,89 @@ const NEW_PROJECT_COLORS = ['#818cf8', '#4ade80', '#f87171', '#fb923c', '#38bdf8
 let newProjectSelectedColor = NEW_PROJECT_COLORS[0];
 
 function toggleNewProjectForm() {
-  // Quick project creation via prompt
-  const name = prompt('New project name:');
-  if (!name || !name.trim()) return;
-  const color = NEW_PROJECT_COLORS[Math.floor(Math.random() * NEW_PROJECT_COLORS.length)];
-  fetch('/api/projects', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name.trim(), color }),
-  }).then(r => r.json()).then(() => {
-    loadData().then(() => { renderAll(); showToast(`Project "${name.trim()}" created`, 'success'); });
-  }).catch(() => showToast('Failed to create project', 'warning'));
+  openNewProjectModal();
+}
+
+function openNewProjectModal() {
+  const existing = document.getElementById('project-edit-overlay');
+  if (existing) existing.remove();
+
+  const PROJECT_ICON_KEYS = Object.keys(PROJECT_ICONS);
+  const PROJECT_COLORS = ['#3b82f6','#818cf8','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+
+  window._editProjectIcon = 'folder';
+  window._editProjectColor = '#3b82f6';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'project-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;padding-top:15vh;';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div style="background:var(--wp-surface-raised);border:1px solid var(--wp-border);border-radius:16px;width:380px;padding:24px;box-shadow:0 24px 48px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
+      <div style="font-size:14px;font-weight:700;color:var(--wp-text-primary);margin-bottom:16px;">New Project</div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--wp-text-ghost);display:block;margin-bottom:6px;">Name</label>
+        <input id="editProjectName" type="text" placeholder="Project name…"
+          style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--wp-border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--wp-text-primary);outline:none;font-family:inherit;box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();createNewProject();}"
+        />
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--wp-text-ghost);display:block;margin-bottom:6px;">Icon</label>
+        <div id="editProjectIcons" style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${PROJECT_ICON_KEYS.map(k => `
+            <div onclick="selectEditIcon('${k}')" id="edit-icon-${k}"
+              style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${k === 'folder' ? 'rgba(var(--wp-accent-rgb),0.12)' : 'rgba(255,255,255,0.03)'};border:1.5px solid ${k === 'folder' ? 'rgba(var(--wp-accent-rgb),0.3)' : 'transparent'};color:var(--wp-text-secondary);transition:all 0.12s;">
+              <span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;">${PROJECT_ICONS[k]}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--wp-text-ghost);display:block;margin-bottom:6px;">Color</label>
+        <div id="editProjectColors" style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${PROJECT_COLORS.map(c => `
+            <div onclick="selectEditColor('${c}')" id="edit-color-${c.replace('#','')}"
+              style="width:30px;height:30px;border-radius:50%;cursor:pointer;background:${c};border:2.5px solid ${c === '#3b82f6' ? 'var(--wp-text-primary)' : 'transparent'};transition:all 0.12s;"></div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <button onclick="createNewProject()"
+          style="flex:1;padding:10px;background:var(--wp-accent);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+          Create
+        </button>
+        <button onclick="document.getElementById('project-edit-overlay').remove()"
+          style="padding:10px 16px;background:transparent;border:1px solid var(--wp-border);border-radius:10px;font-size:13px;color:var(--wp-text-tertiary);cursor:pointer;font-family:inherit;">
+          Cancel
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('editProjectName')?.focus(), 50);
+}
+
+async function createNewProject() {
+  const name = document.getElementById('editProjectName')?.value?.trim();
+  if (!name) { document.getElementById('editProjectName')?.focus(); return; }
+  try {
+    await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, icon: window._editProjectIcon, color: window._editProjectColor }),
+    });
+    document.getElementById('project-edit-overlay')?.remove();
+    await loadData();
+    renderAll();
+    showToast(`"${name}" created`, 'success');
+  } catch { showToast('Failed to create project', 'warning'); }
 }
 
 function selectNewProjectColor(color) {
