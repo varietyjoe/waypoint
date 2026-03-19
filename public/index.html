@@ -1022,7 +1022,7 @@ function renderSidebarHeader() {
       </div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;color:var(--wp-text-primary);letter-spacing:-0.2px;">All Workspaces</div>
-        <div style="font-size:10px;color:var(--wp-text-ghost);margin-top:1px;">${PROJECTS.length} projects · ${OUTCOMES.length} outcomes</div>
+        <div style="font-size:10px;color:var(--wp-text-ghost);margin-top:1px;">${PROJECTS.length} projects · ${OUTCOMES.filter(o => o.status === 'active').length} outcomes</div>
       </div>`;
   } else {
     const p = PROJECTS.find(pr => pr.id === workspaceProjectId);
@@ -1270,7 +1270,7 @@ function normalizeAction(a) {
 async function loadData() {
   try {
     const [outRes, projRes] = await Promise.all([
-      fetch('/api/outcomes?status=active'),
+      fetch('/api/outcomes?status=active,someday'),
       fetch('/api/projects'),
     ])
     const outData  = await outRes.json()
@@ -1686,14 +1686,15 @@ function renderPhaseIndicator() {
 // ============================================================
 
 function renderSidebarStats() {
-  const total  = OUTCOMES.length
-  const done   = OUTCOMES.filter(o => getProgress(o) === 100).length
+  const activeOutcomes = OUTCOMES.filter(o => o.status === 'active')
+  const total  = activeOutcomes.length
+  const done   = activeOutcomes.filter(o => getProgress(o) === 100).length
   const active = total - done
 
   document.getElementById('progressCount').textContent = `${done} / ${total}`
 
   // Progress bars — one bar per outcome coloured by completion state
-  document.getElementById('progressBars').innerHTML = OUTCOMES.map(o => {
+  document.getElementById('progressBars').innerHTML = activeOutcomes.map(o => {
     const pct = getProgress(o)
     const col = pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'
     return `<div class="h-1.5 flex-1 rounded-full ${col}"></div>`
@@ -1741,38 +1742,50 @@ function renderSidebarOutcomes() {
     ? OUTCOMES.filter(o => o.project_id === workspaceProjectId)
     : OUTCOMES;
 
+  const activeItems = wsFiltered.filter(o => o.status === 'active');
+  const somedayItems = wsFiltered.filter(o => o.status === 'someday');
+
   // Phase 5.1 — sort: is_active DESC
-  const sorted = [...wsFiltered].sort((a, b) => (b.is_active || 0) - (a.is_active || 0));
+  const sorted = [...activeItems].sort((a, b) => (b.is_active || 0) - (a.is_active || 0));
 
   // Update Active header
-  const inProgressCount = wsFiltered.filter(o => o.is_active).length;
   const headerEl = document.getElementById('sidebarActiveHeader');
   if (headerEl) {
     headerEl.textContent = 'In Motion';
   }
 
-  document.getElementById('sidebarOutcomes').innerHTML = sorted.length === 0
-    ? `<div style="padding:7px 8px;font-size:12px;color:var(--wp-text-ghost);">No active outcomes</div>`
-    : sorted.map(o => {
-        const pct  = getProgress(o)
-        const risk = getRisk(o)
-        const sel  = o.id === selectedId && currentPhase === 2
-        const color = o.projectColor || 'var(--wp-accent)';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;margin-bottom:1px;${sel ? 'background:rgba(var(--wp-accent-rgb),0.08);' : ''}" onclick="selectOutcome(${o.id})" onmouseover="this.style.background=this.style.background||'var(--wp-surface-raised)'" onmouseout="if(!${sel})this.style.background=''">
-          <div style="width:5px;height:5px;border-radius:50%;flex-shrink:0;background:${color};"></div>
-          <span style="flex:1;font-size:12px;color:var(--wp-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(o.title)}</span>
-          <div style="width:36px;height:2px;background:var(--wp-border);border-radius:99px;overflow:hidden;flex-shrink:0;">
-            <div style="height:100%;border-radius:99px;width:${pct}%;background:${color};"></div>
-          </div>
-        </div>`
-      }).join('')
+  const renderOutcomeRow = (o, muted) => {
+    const pct  = getProgress(o)
+    const sel  = o.id === selectedId && currentPhase === 2
+    const color = muted ? 'var(--wp-text-ghost)' : (o.projectColor || 'var(--wp-accent)');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;margin-bottom:1px;${muted ? 'opacity:0.6;' : ''}${sel ? 'background:rgba(var(--wp-accent-rgb),0.08);' : ''}" onclick="selectOutcome(${o.id})" onmouseover="this.style.background=this.style.background||'var(--wp-surface-raised)'" onmouseout="if(!${sel})this.style.background=''">
+      <div style="width:5px;height:5px;border-radius:50%;flex-shrink:0;background:${color};"></div>
+      <span style="flex:1;font-size:12px;color:${muted ? 'var(--wp-text-tertiary)' : 'var(--wp-text-secondary)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(o.title)}</span>
+      <div style="width:36px;height:2px;background:var(--wp-border);border-radius:99px;overflow:hidden;flex-shrink:0;">
+        <div style="height:100%;border-radius:99px;width:${pct}%;background:${color};"></div>
+      </div>
+    </div>`
+  };
+
+  let html = '';
+  if (sorted.length === 0 && somedayItems.length === 0) {
+    html = `<div style="padding:7px 8px;font-size:12px;color:var(--wp-text-ghost);">No active outcomes</div>`;
+  } else {
+    html = sorted.map(o => renderOutcomeRow(o, false)).join('');
+    if (somedayItems.length > 0) {
+      html += `<div style="padding:10px 8px 4px;font-size:10px;font-weight:600;color:var(--wp-text-ghost);text-transform:uppercase;letter-spacing:0.05em;">Someday</div>`;
+      html += somedayItems.map(o => renderOutcomeRow(o, true)).join('');
+    }
+  }
+
+  document.getElementById('sidebarOutcomes').innerHTML = html;
 }
 
 function renderSidebarProjects() {
   document.getElementById('sidebarProjects').innerHTML = PROJECTS.length === 0
     ? `<div class="text-gray-400 px-2 py-1.5" style="font-size:11px">No projects yet</div>`
     : PROJECTS.map(p => {
-        const outcomeCount = OUTCOMES.filter(o => o.project_id === p.id).length
+        const outcomeCount = OUTCOMES.filter(o => o.project_id === p.id && o.status === 'active').length
         const isSelected = activeProjectFilter === p.id
         const bgStyle = isSelected ? `background:${p.color || '#818cf8'}20;` : ''
         return `<div class="project-row flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-gray-50"
@@ -2025,8 +2038,10 @@ function renderPhase1() {
     ? OUTCOMES.filter(o => o.project_id === activeProjectFilter)
     : OUTCOMES;
 
-  const activatedOutcomes = allFiltered.filter(o => o.is_active);
-  const regularOutcomes   = allFiltered.filter(o => !o.is_active);
+  const activeFiltered    = allFiltered.filter(o => o.status === 'active');
+  const somedayOutcomes   = allFiltered.filter(o => o.status === 'someday');
+  const activatedOutcomes = activeFiltered.filter(o => o.is_active);
+  const regularOutcomes   = activeFiltered.filter(o => !o.is_active);
 
   // ---- IN PROGRESS strip ----
   const inProgressStrip = activatedOutcomes.length > 0 ? `
@@ -2114,6 +2129,11 @@ function renderPhase1() {
         <span>${o.actions.filter(a => a.done).length} / ${o.actions.length} done</span>
         <span class="ml-auto flex items-center gap-2">
           <button
+            class="text-gray-300 hover:text-amber-500 border border-gray-200 hover:border-amber-300 rounded-full px-2 py-0.5 transition-colors"
+            style="font-size:10px;font-weight:500;"
+            onclick="moveToSomeday(${o.id}); event.stopPropagation();"
+          >\u2192 Someday</button>
+          <button
             class="activate-btn text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300 rounded-full px-2.5 py-0.5 transition-colors"
             style="font-size:10px;font-weight:500;"
             onclick="showActivatePrompt(${o.id}); event.stopPropagation();"
@@ -2149,7 +2169,7 @@ function renderPhase1() {
   // Build project filter tabs — only show when 2+ distinct projects
   const distinctProjects = [];
   const seenIds = new Set();
-  for (const o of OUTCOMES) {
+  for (const o of allFiltered) {
     if (!seenIds.has(o.project_id)) {
       seenIds.add(o.project_id);
       distinctProjects.push({ id: o.project_id, name: o.project, color: o.projectColor });
@@ -2173,6 +2193,41 @@ function renderPhase1() {
     </div>
   ` : '';
 
+  // Someday section
+  const somedayCards = somedayOutcomes.map(o => {
+    const pct = getProgress(o);
+    return `<div class="outcome-card bg-white rounded-xl border border-gray-100 p-5" style="opacity:0.7;" onclick="selectOutcome(${o.id})">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" fill="${o.projectColor}"/></svg>
+            <span class="text-gray-400" style="font-size:10px">${escHtml(o.project)}</span>
+          </div>
+          <div class="font-semibold text-gray-500 leading-snug" style="font-size:14px">${escHtml(o.title)}</div>
+          ${o.description ? `<div class="text-gray-400 mt-1 leading-relaxed" style="font-size:11px">${escHtml(o.description)}</div>` : ''}
+        </div>
+        <button
+          onclick="moveToActive(${o.id}); event.stopPropagation();"
+          class="shrink-0 text-gray-400 hover:text-blue-500 border border-gray-200 hover:border-blue-300 rounded-full px-2.5 py-0.5 transition-colors"
+          style="font-size:10px;font-weight:500;white-space:nowrap;"
+        >\u2192 Active</button>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full bg-gray-300" style="width:${pct}%"></div>
+        </div>
+        <span class="text-gray-400 shrink-0" style="font-size:11px">${pct}%</span>
+      </div>
+    </div>`
+  }).join('');
+
+  const somedaySection = somedayOutcomes.length > 0 ? `
+    <div class="mt-8">
+      <div class="text-gray-400 font-semibold uppercase tracking-wider mb-3" style="font-size:10px">Someday</div>
+      <div class="space-y-4">${somedayCards}</div>
+    </div>
+  ` : '';
+
   // Quick capture input
   const quickCapture = `
     <div style="margin-top:20px;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
@@ -2182,7 +2237,7 @@ function renderPhase1() {
       <input
         id="quick-capture-outcome"
         type="text"
-        placeholder="Add outcome\u2026"
+        placeholder="Add outcome\u2026 (prefix ~ for someday)"
         style="flex:1;background:transparent;border:none;outline:none;font-size:12px;color:#374151;"
         onkeydown="handleQuickCaptureOutcome(event)"
       />
@@ -2220,7 +2275,7 @@ function renderPhase1() {
         <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
         <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
       </div>
-      Recommended: 1&ndash;3 active outcomes at a time. You currently have ${OUTCOMES.length}.
+      Recommended: 1&ndash;3 active outcomes at a time. You currently have ${activeFiltered.length}.
     </div>
 
     ${tabsHtml}
@@ -2232,6 +2287,8 @@ function renderPhase1() {
     ${emptyState}
 
     <div class="space-y-4">${cards}</div>
+
+    ${somedaySection}
 
     ${quickCapture}
   </div>`
@@ -2309,12 +2366,52 @@ async function deactivateOutcome(outcomeId) {
   }
 }
 
+async function moveToSomeday(outcomeId) {
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'someday', is_active: 0 }),
+    });
+    if (!res.ok) throw new Error('move failed');
+    await loadData();
+    renderAll();
+    showToast('Moved to Someday', 'success');
+  } catch {
+    showToast('Failed to move outcome', 'warning');
+  }
+}
+
+async function moveToActive(outcomeId) {
+  try {
+    const res = await fetch(`/api/outcomes/${outcomeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'active' }),
+    });
+    if (!res.ok) throw new Error('move failed');
+    await loadData();
+    renderAll();
+    showToast('Moved to Active', 'success');
+  } catch {
+    showToast('Failed to move outcome', 'warning');
+  }
+}
+
 async function handleQuickCaptureOutcome(e) {
   if (e.key !== 'Enter') return;
   const input = document.getElementById('quick-capture-outcome');
-  const title = input?.value.trim();
+  let title = input?.value.trim();
   if (!title) return;
   input.value = ''; // clear immediately before async fetch
+
+  // ~ prefix = create as someday
+  let status = 'active';
+  if (title.startsWith('~')) {
+    status = 'someday';
+    title = title.slice(1).trim();
+    if (!title) return;
+  }
 
   // Determine which project to assign: use filter if active, else first project
   const projectId = activeProjectFilter || (PROJECTS[0]?.id || null);
@@ -2327,12 +2424,12 @@ async function handleQuickCaptureOutcome(e) {
     const res = await fetch('/api/outcomes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, project_id: projectId }),
+      body: JSON.stringify({ title, project_id: projectId, status }),
     });
     if (!res.ok) throw new Error('create failed');
     await loadData();
     renderAll();
-    showToast('Outcome created', 'success');
+    showToast(status === 'someday' ? 'Someday outcome created' : 'Outcome created', 'success');
   } catch {
     showToast('Failed to create outcome', 'warning');
   }
@@ -4246,7 +4343,7 @@ function buildContext(overrideOutcome) {
         done:          a.done,
       })),
     } : null,
-    active_outcomes: OUTCOMES.map(o => {
+    active_outcomes: OUTCOMES.filter(o => o.status === 'active').map(o => {
       const s    = OUTCOME_STATS[o.id]
       const proj = PROJECTS.find(p => p.id === o.project_id)
       return {
@@ -4829,19 +4926,20 @@ function renderMobileHome() {
   const panel = document.getElementById('mobileHomePanel')
   if (!panel) return
 
-  const total = OUTCOMES.length
-  const done  = OUTCOMES.filter(o => getProgress(o) === 100).length
+  const mobileActiveOutcomes = OUTCOMES.filter(o => o.status === 'active')
+  const total = mobileActiveOutcomes.length
+  const done  = mobileActiveOutcomes.filter(o => getProgress(o) === 100).length
 
   // Progress bars
-  const barsHtml = OUTCOMES.map(o => {
+  const barsHtml = mobileActiveOutcomes.map(o => {
     const pct = getProgress(o)
     return `<div class="h-2 flex-1 rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-400'}"></div>`
   }).join('') || '<div class="h-2 flex-1 rounded-full bg-gray-100"></div>'
 
   // Active outcomes list
-  const outcomesHtml = OUTCOMES.length === 0
+  const outcomesHtml = mobileActiveOutcomes.length === 0
     ? `<div class="text-gray-400 py-2" style="font-size:13px">No active outcomes</div>`
-    : OUTCOMES.map(o => {
+    : mobileActiveOutcomes.map(o => {
         const pct  = getProgress(o)
         const risk = getRisk(o)
         return `<div class="flex items-center gap-3 py-3 border-b border-gray-100 cursor-pointer sidebar-outcome"
@@ -4864,7 +4962,7 @@ function renderMobileHome() {
   const projectsHtml = PROJECTS.length === 0
     ? `<div class="text-gray-400 py-2" style="font-size:13px">No projects yet</div>`
     : PROJECTS.map(p => {
-        const count = OUTCOMES.filter(o => o.project_id === p.id).length
+        const count = OUTCOMES.filter(o => o.project_id === p.id && o.status === 'active').length
         return `<div class="project-row flex items-center gap-3 py-2.5 border-b border-gray-100">
           <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${p.color || '#818cf8'}"></div>
           <span class="flex-1 text-gray-700" style="font-size:14px">${p.name}</span>
@@ -6019,24 +6117,25 @@ function renderAnalyticsView(stats, patterns, heatmapData, moodTrendData) {
 
       <!-- Execution Intelligence (moved from right sidebar) -->
       ${(() => {
+        const _activeOutcomes = OUTCOMES.filter(o => o.status === 'active');
         const intelValues = Object.values(PROJECT_INTEL);
         const hasIntel = intelValues.length > 0;
-        if (!hasIntel && OUTCOMES.length === 0) return '';
+        if (!hasIntel && _activeOutcomes.length === 0) return '';
 
         const totalTime = hasIntel
           ? intelValues.reduce((s, i) => s + i.total_queued_time, 0)
-          : OUTCOMES.reduce((s, o) => s + o.estimatedTime, 0);
+          : _activeOutcomes.reduce((s, o) => s + o.estimatedTime, 0);
         const deepTime = hasIntel
           ? intelValues.reduce((s, i) => s + Math.round(i.deep_split * i.total_queued_time), 0)
-          : OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.energy === 'deep').reduce((sa, a) => sa + a.time, 0), 0);
+          : _activeOutcomes.reduce((s, o) => s + o.actions.filter(a => a.energy === 'deep').reduce((sa, a) => sa + a.time, 0), 0);
         const lightTime = hasIntel
           ? intelValues.reduce((s, i) => s + Math.round(i.light_split * i.total_queued_time), 0)
-          : OUTCOMES.reduce((s, o) => s + o.actions.filter(a => a.energy === 'light').reduce((sa, a) => sa + a.time, 0), 0);
+          : _activeOutcomes.reduce((s, o) => s + o.actions.filter(a => a.energy === 'light').reduce((sa, a) => sa + a.time, 0), 0);
         const total = deepTime + lightTime || 1;
         const deepPct = Math.round(deepTime / total * 100);
 
         const serverRisks = hasIntel ? intelValues.flatMap(i => i.deadline_risks) : [];
-        const riskRows = OUTCOMES.map(o => {
+        const riskRows = _activeOutcomes.map(o => {
           const sr = serverRisks.find(r => r.outcome_id === o.id);
           const risk = sr ? sr.risk : (o.daysLeft !== null ? getRisk(o) : null);
           const daysLabel = sr ? sr.days_left + 'd remaining' : (o.daysLeft !== null ? o.daysLeft + 'd remaining' : 'No deadline');
@@ -6051,7 +6150,7 @@ function renderAnalyticsView(stats, patterns, heatmapData, moodTrendData) {
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">' +
             '<div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">' +
               '<div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Active Outcomes</div>' +
-              '<div style="font-size:22px;font-weight:700;color:#111827;">' + OUTCOMES.length + '</div>' +
+              '<div style="font-size:22px;font-weight:700;color:#111827;">' + _activeOutcomes.length + '</div>' +
             '</div>' +
             '<div style="background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">' +
               '<div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Total Work Queued</div>' +

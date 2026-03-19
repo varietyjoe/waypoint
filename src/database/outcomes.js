@@ -39,14 +39,15 @@ function initOutcomesTable() {
 }
 
 function createOutcome(data) {
-    const { project_id, title, description, deadline, priority = 'medium', impact } = data;
+    const { project_id, title, description, deadline, priority = 'medium', impact, status = 'active' } = data;
     if (!project_id) throw new Error('project_id is required');
     if (!title || !title.trim()) throw new Error('title is required');
+    if (!['active', 'someday'].includes(status)) throw new Error('status must be active or someday');
 
     const result = db.prepare(`
-        INSERT INTO outcomes (project_id, title, description, deadline, priority, impact)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `).run(project_id, title.trim(), description || null, deadline || null, priority, impact || null);
+        INSERT INTO outcomes (project_id, title, description, deadline, priority, impact, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(project_id, title.trim(), description || null, deadline || null, priority, impact || null, status);
 
     return getOutcomeById(result.lastInsertRowid);
 }
@@ -61,7 +62,11 @@ function getAllOutcomes(filters = {}) {
     `;
     const params = [];
     if (project_id) { sql += ' AND o.project_id = ?'; params.push(parseInt(project_id)); }
-    if (status)     { sql += ' AND o.status = ?';     params.push(status); }
+    if (status) {
+        const statuses = status.split(',');
+        sql += ` AND o.status IN (${statuses.map(() => '?').join(',')})`;
+        params.push(...statuses);
+    }
     sql += ' ORDER BY o.created_at DESC';
     return db.prepare(sql).all(...params);
 }

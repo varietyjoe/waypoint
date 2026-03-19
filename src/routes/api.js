@@ -276,11 +276,11 @@ router.get('/outcomes/:id', (req, res, next) => {
  */
 router.post('/outcomes', (req, res, next) => {
     try {
-        const { project_id, title, description, deadline, priority, impact } = req.body;
+        const { project_id, title, description, deadline, priority, impact, status } = req.body;
         if (!project_id) return res.status(400).json({ success: false, error: 'project_id is required' });
         if (!title)      return res.status(400).json({ success: false, error: 'title is required' });
 
-        const outcome = outcomesDb.createOutcome({ project_id, title, description, deadline, priority, impact });
+        const outcome = outcomesDb.createOutcome({ project_id, title, description, deadline, priority, impact, status });
         res.status(201).json({ success: true, message: 'Outcome created', data: { ...outcome, actions: [] } });
     } catch (err) {
         next(err);
