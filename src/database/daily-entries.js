@@ -13,11 +13,18 @@ function initDailyEntriesTable() {
       date TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('standup', 'review')),
       content TEXT NOT NULL,
+      parsed_data TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       UNIQUE(date, type)
     )
   `);
+  // Migrate existing tables that lack parsed_data column
+  const cols = db.prepare(`PRAGMA table_info(daily_entries)`).all();
+  if (!cols.find(c => c.name === 'parsed_data')) {
+    db.exec(`ALTER TABLE daily_entries ADD COLUMN parsed_data TEXT`);
+    console.log('✅ Migrated daily_entries: added parsed_data column');
+  }
   console.log('✅ Daily entries table initialized');
 }
 
@@ -74,6 +81,24 @@ function getRecentEntries(limit = 10) {
   `).all(limit);
 }
 
+function updateParsedData(id, data) {
+  db.prepare(`
+    UPDATE daily_entries SET parsed_data = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(JSON.stringify(data), id);
+}
+
+function getTodayStatus() {
+  const today = new Date().toISOString().slice(0, 10);
+  const standup = db.prepare(
+    `SELECT id FROM daily_entries WHERE date = ? AND type = 'standup'`
+  ).get(today);
+  const review = db.prepare(
+    `SELECT id FROM daily_entries WHERE date = ? AND type = 'review'`
+  ).get(today);
+  return { standup: !!standup, review: !!review, date: today };
+}
+
 module.exports = {
   initDailyEntriesTable,
   upsertDailyEntry,
@@ -81,4 +106,6 @@ module.exports = {
   getDailyEntry,
   getDailyEntryByDateType,
   getRecentEntries,
+  updateParsedData,
+  getTodayStatus,
 };

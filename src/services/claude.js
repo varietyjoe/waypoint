@@ -849,4 +849,68 @@ Be concise. Only extract what's explicitly stated or clearly implied.`,
   }
 }
 
-module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates, sendAdvisorMessage, parseJournalEntry };
+/**
+ * Conduct a standup or review interview.
+ * Returns Claude's next question/response, and includes a [STANDUP_SAVED:...] or [REVIEW_SAVED:...]
+ * marker when all questions have been answered so the frontend can auto-save the entry.
+ */
+async function conductInterview(type, message, conversationHistory = [], contextSnapshot = '') {
+  const today = new Date().toISOString().split('T')[0];
+  const contextBlock = contextSnapshot ? `\n\nUser context:\n${contextSnapshot}` : '';
+
+  const standupPrompt = `You are conducting a daily standup interview for Waypoint, a personal execution OS.
+Today's date: ${today}
+Your job: ask exactly 3 questions, one at a time, waiting for an answer each time.
+
+Questions to ask in order:
+1. "What did you accomplish since yesterday?"
+2. "What are you focused on today?"
+3. "Any blockers or things slowing you down?" (if no blockers, "None" or "No blockers" is a fine answer)
+
+Rules:
+- Ask only ONE question per response.
+- Keep your responses short and warm — no filler, no coaching.
+- After the user answers question 3, write a brief 1-sentence acknowledgment, then on a new line include EXACTLY this marker (fill in their answers):
+[STANDUP_SAVED:{"yesterday":"<their answer>","today":"<their answer>","blockers":"<their answer or 'None'>"}]
+- After including the marker, do not ask any more questions.${contextBlock}`;
+
+  const reviewPrompt = `You are conducting an end-of-day review interview for Waypoint, a personal execution OS.
+Today's date: ${today}
+Your job: ask exactly 3 questions, one at a time, waiting for an answer each time.
+
+Questions to ask in order:
+1. "What did you actually get done today?"
+2. "What are you carrying forward to tomorrow?"
+3. "What did you learn, or what would you do differently?"
+
+Rules:
+- Ask only ONE question per response.
+- Keep your responses short and warm — no filler, no coaching.
+- After the user answers question 3, write a brief 1-sentence acknowledgment, then on a new line include EXACTLY this marker (fill in their answers):
+[REVIEW_SAVED:{"done":"<their answer>","carryforward":"<their answer>","learnings":"<their answer>"}]
+- After including the marker, do not ask any more questions.${contextBlock}`;
+
+  const systemPrompt = type === 'review' ? reviewPrompt : standupPrompt;
+
+  const messages = [
+    ...conversationHistory,
+    ...(message ? [{ role: 'user', content: message }] : []),
+  ];
+
+  // On the first turn (no history, no message), trigger Claude to start immediately
+  if (messages.length === 0) {
+    messages.push({ role: 'user', content: 'Start the interview.' });
+  }
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 512,
+    system: systemPrompt,
+    messages,
+  });
+
+  const text = response.content.find(b => b.type === 'text')?.text?.trim() || '';
+  return { text };
+}
+
+module.exports = { sendMessage, classifyForInbox, sendWithTools, streamFocusMessage, batchTriageInbox, summarizeFocusSession, proposeTodayPlan, generateTodayRecommendation, autoTagLibraryEntry, autoTagOutcome, generateOutcomeSummary, extractContextUpdates, sendAdvisorMessage, parseJournalEntry, conductInterview };

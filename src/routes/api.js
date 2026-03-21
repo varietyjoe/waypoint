@@ -1339,6 +1339,14 @@ router.post('/chat', async (req, res, next) => {
             return res.json({ success: true, response: response.text, actions: response.actions || [] });
         }
 
+        // Standup / review interview mode
+        if (mode === 'standup' || mode === 'review') {
+            const userContextDb = require('../database/user-context');
+            const contextSnapshot = userContextDb.getContextSnapshot();
+            const result = await claudeService.conductInterview(mode, message || null, conversationHistory || [], contextSnapshot);
+            return res.json({ success: true, response: result.text });
+        }
+
         // Existing behaviour: plain chat (used by triage pipeline etc.)
         const response = await claudeService.sendMessage(message, conversationHistory || [], preview);
         res.json({ success: true, response: response.text, actions: response.actions || [] });
@@ -2357,6 +2365,17 @@ router.post('/sales-pulse/generate', async (req, res, next) => {
 // ============================================================
 // DAILY ENTRIES (Standups & Reviews)
 // ============================================================
+
+/**
+ * GET /api/daily-entries/today-status
+ * Returns whether standup and review have been completed today.
+ */
+router.get('/daily-entries/today-status', (req, res, next) => {
+  try {
+    const status = dailyEntriesDb.getTodayStatus();
+    res.json({ success: true, data: status });
+  } catch (err) { next(err); }
+});
 
 /**
  * GET /api/daily-entries
