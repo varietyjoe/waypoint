@@ -1342,8 +1342,19 @@ router.post('/chat', async (req, res, next) => {
         // Standup / review interview mode
         if (mode === 'standup' || mode === 'review') {
             const userContextDb = require('../database/user-context');
+            const standupContext = require('../services/standup-context');
             const contextSnapshot = userContextDb.getContextSnapshot();
-            const result = await claudeService.conductInterview(mode, message || null, conversationHistory || [], contextSnapshot);
+            // Only gather work context on the first turn (no conversation history yet)
+            let workContextStr = '';
+            if (!conversationHistory || conversationHistory.length === 0) {
+                try {
+                    const workCtx = standupContext.gatherWorkContext();
+                    workContextStr = standupContext.formatWorkContext(workCtx);
+                } catch (ctxErr) {
+                    console.warn('Work context gathering failed (non-fatal):', ctxErr.message);
+                }
+            }
+            const result = await claudeService.conductInterview(mode, message || null, conversationHistory || [], contextSnapshot, workContextStr);
             return res.json({ success: true, response: result.text });
         }
 

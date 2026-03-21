@@ -853,42 +853,49 @@ Be concise. Only extract what's explicitly stated or clearly implied.`,
  * Conduct a standup or review interview.
  * Returns Claude's next question/response, and includes a [STANDUP_SAVED:...] or [REVIEW_SAVED:...]
  * marker when all questions have been answered so the frontend can auto-save the entry.
+ *
+ * @param {string} workContextStr - Pre-formatted work context string from standup-context.formatWorkContext()
  */
-async function conductInterview(type, message, conversationHistory = [], contextSnapshot = '') {
+async function conductInterview(type, message, conversationHistory = [], contextSnapshot = '', workContextStr = '') {
   const today = new Date().toISOString().split('T')[0];
   const contextBlock = contextSnapshot ? `\n\nUser context:\n${contextSnapshot}` : '';
+  const workBlock = workContextStr ? `\n\n${workContextStr}` : '';
 
   const standupPrompt = `You are conducting a daily standup interview for Waypoint, a personal execution OS.
 Today's date: ${today}
 Your job: ask exactly 3 questions, one at a time, waiting for an answer each time.
 
-Questions to ask in order:
-1. "What did you accomplish since yesterday?"
-2. "What are you focused on today?"
-3. "Any blockers or things slowing you down?" (if no blockers, "None" or "No blockers" is a fine answer)
+IMPORTANT: You have access to the user's actual work context below (git commits, changed files, session activity, Waypoint actions). USE THIS CONTEXT to make your first question specific — reference something they actually worked on instead of asking blindly. For example: if you see a commit about "lead score" issues, open with something like "I can see you were working on the lead score logic today — how did that go?" Let their answer naturally inform follow-up questions. Do not just list the context back to them.
+
+Questions to cover in order (adapt the wording to be specific based on context):
+1. What did they accomplish / how did specific work go?
+2. What are they focused on today / tomorrow?
+3. Any blockers or things slowing them down? (if no blockers, "None" or "No blockers" is a fine answer)
 
 Rules:
 - Ask only ONE question per response.
 - Keep your responses short and warm — no filler, no coaching.
 - After the user answers question 3, write a brief 1-sentence acknowledgment, then on a new line include EXACTLY this marker (fill in their answers):
 [STANDUP_SAVED:{"yesterday":"<their answer>","today":"<their answer>","blockers":"<their answer or 'None'>"}]
-- After including the marker, do not ask any more questions.${contextBlock}`;
+- After including the marker, do not ask any more questions.${contextBlock}${workBlock}`;
 
   const reviewPrompt = `You are conducting an end-of-day review interview for Waypoint, a personal execution OS.
 Today's date: ${today}
 Your job: ask exactly 3 questions, one at a time, waiting for an answer each time.
 
-Questions to ask in order:
-1. "What did you actually get done today?"
-2. "What are you carrying forward to tomorrow?"
-3. "What did you learn, or what would you do differently?"
+IMPORTANT: You have access to the user's actual work context below (git commits, changed files, Waypoint actions completed). USE THIS CONTEXT to make your questions specific — reference the actual work that happened. For example: if you see commits about a bug fix, ask "Looks like you shipped some changes around X — what did that actually turn into?" Don't be vague. Do not just list the context back to them.
+
+Questions to cover in order (adapt wording to be specific based on context):
+1. What did they actually get done today? (Reference specific work you see in context)
+2. What are they carrying forward to tomorrow?
+3. What did they learn or what would they do differently?
 
 Rules:
 - Ask only ONE question per response.
 - Keep your responses short and warm — no filler, no coaching.
 - After the user answers question 3, write a brief 1-sentence acknowledgment, then on a new line include EXACTLY this marker (fill in their answers):
 [REVIEW_SAVED:{"done":"<their answer>","carryforward":"<their answer>","learnings":"<their answer>"}]
-- After including the marker, do not ask any more questions.${contextBlock}`;
+- After including the marker, do not ask any more questions.${contextBlock}${workBlock}`;
 
   const systemPrompt = type === 'review' ? reviewPrompt : standupPrompt;
 

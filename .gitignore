@@ -31,6 +31,12 @@ Thumbs.db
 # Local tool config
 .obsidian/
 .claude/
+# Track shared Claude Code config (commands, hooks, settings.json)
+!.claude/commands/
+!.claude/commands/**
+!.claude/hooks/
+!.claude/hooks/**
+!.claude/settings.json
 
 # Build output
 dist/
