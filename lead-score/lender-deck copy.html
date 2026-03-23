@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Alignable Sponsorships — Lenders</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+      scroll-behavior: smooth;
+    }
+    .slide {
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Subtle grid texture */
+    .bg-grid {
+      background-color: #F9FAFB;
+      background-image:
+        linear-gradient(rgba(209,213,219,0.4) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(209,213,219,0.4) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* Brand purple gradient */
+    .stripe-accent {
+      background: linear-gradient(90deg, #6C33D8 0%, #7C3AED 60%, #A855F7 100%);
+    }
+
+    /* Stat number style */
+    .stat-hero {
+      font-size: 4.25rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    /* FAB */
+    #fab {
+      position: fixed;
+      bottom: 1.75rem;
+      right: 1.75rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    #fab-up, #fab-down {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #6C33D8;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(108,51,216,0.35);
+      transition: background 0.15s ease, opacity 0.2s ease, transform 0.15s ease;
+    }
+    #fab-up:hover, #fab-down:hover { background: #5B28B8; transform: translateY(-2px); }
+    #fab-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #6C33D8;
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 100px;
+      box-shadow: 0 4px 16px rgba(108,51,216,0.4);
+      transition: background 0.15s ease, transform 0.15s ease;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    #fab-cta:hover { background: #5B28B8; transform: translateY(-2px); }
+    #fab.on-dark #fab-up,
+    #fab.on-dark #fab-down {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #fab.on-dark #fab-up:hover,
+    #fab.on-dark #fab-down:hover { background: rgba(255,255,255,0.3); }
+    #fab.on-dark #fab-cta {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    #fab.on-dark #fab-cta:hover { background: rgba(255,255,255,0.25); }
+    .fab-hidden { opacity: 0 !important; pointer-events: none !important; }
+
+    /* Grow bar animation */
+    @keyframes growBar {
+      from { width: 0%; }
+      to { width: var(--target-width); }
+    }
+    .animated-bar {
+      animation: growBar 1.2s cubic-bezier(0.4,0,0.2,1) forwards;
+    }
+
+    /* Fade-up entrance */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up-1 { animation: fadeUp 0.55s 0.05s ease both; }
+    .fade-up-2 { animation: fadeUp 0.55s 0.15s ease both; }
+    .fade-up-3 { animation: fadeUp 0.55s 0.25s ease both; }
+    .fade-up-4 { animation: fadeUp 0.55s 0.35s ease both; }
+
+    /* Hover lift on cards */
+    .lift-card {
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .lift-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.09);
+    }
+
+    /* Tooltip */
+    .tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: default;
+    }
+    .tip .tip-bubble {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      background: #1f2937;
+      color: #f9fafb;
+      font-size: 11px;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      line-height: 1.5;
+      padding: 7px 11px;
+      border-radius: 7px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .tip .tip-bubble::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 12px;
+      border: 5px solid transparent;
+      border-top-color: #1f2937;
+    }
+    .tip:hover .tip-bubble { opacity: 1; }
+
+    /* Lead temperature card explicit styles */
+    .lt-row { display: flex !important; align-items: flex-start !important; gap: 12px !important; }
+    .lt-badge { flex-shrink: 0 !important; }
+    .lt-header { color: #ffffff !important; font-size: 12px !important; font-weight: 600 !important; margin-bottom: 8px !important; }
+    .lt-label { color: #ffffff !important; font-size: 11px !important; font-weight: 600 !important; }
+    .lt-desc  { color: #e9d5ff !important; font-size: 10px !important; line-height: 1.4 !important; }
+    .lt-footer { color: #e9d5ff !important; font-size: 10px !important; line-height: 1.4 !important; margin-top: 16px !important; padding-top: 12px !important; border-top: 1px solid rgba(255,255,255,0.15) !important; }
+    /* Fallback for old Tailwind class names in case browser has cached HTML */
+    #slide-1 .text-purple-100 { color: #e9d5ff !important; }
+    #slide-1 [class*="flex items-start gap-3"] { display: flex !important; align-items: flex-start !important; gap: 12px !important; }
+
+    /* Scrollbar minimal */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 2px; }
+
+    /* Alignable logo watermark */
+    .alignable-logo {
+      position: absolute;
+      bottom: 18px;
+      left: 28px;
+      width: 112px;
+      opacity: 0.55;
+      pointer-events: none;
+      user-select: none;
+      filter: saturate(1.0);
+    }
+    .alignable-logo.on-dark {
+      opacity: 0.70;
+      filter: brightness(1.05) saturate(1.05);
+    }
+
+    /* Gate slide inputs */
+    .gate-input {
+      width: 100%;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #111827;
+      border: 1px solid #E5E7EB;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .gate-input::placeholder { color: #D1D5DB; }
+    .gate-input:focus {
+      border-color: #6C33D8;
+      box-shadow: 0 0 0 3px rgba(108,51,216,0.15);
+    }
+    .gate-input.invalid {
+      border-color: #EF4444;
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+    }
+
+    /* Shake animation for invalid email */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      15%       { transform: translateX(-6px); }
+      30%       { transform: translateX(6px); }
+      45%       { transform: translateX(-5px); }
+      60%       { transform: translateX(5px); }
+      75%       { transform: translateX(-3px); }
+      90%       { transform: translateX(3px); }
+    }
+    .shake { animation: shake 0.6s ease both; }
+  </style>
+</head>
+
+<body class="text-gray-900 antialiased">
+
+<!-- ============================================================ -->
+<!-- NAV ARROW -->
+<!-- ============================================================ -->
+<div id="fab">
+  <button id="fab-up" onclick="goTo(Math.max(currentIdx-1,0))" aria-label="Previous slide">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+  </button>
+  <button id="fab-down" onclick="advanceSlide()" aria-label="Next slide">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+  </button>
+  <a id="fab-cta" href="https://meetings.hubspot.com/jtancula/alignable-ads-for-lenders" target="_blank" rel="noopener">
+    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+    Talk to a Campaign Manager
+  </a>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE PRE — Gate / Data Entry -->
+<!-- ============================================================ -->
+<section class="slide bg-white flex flex-col" id="slide-pre">
+
+  <!-- Top bar -->
+  <div class="h-[52px] bg-white border-b border-gray-200 flex items-center px-8 gap-3 shrink-0 z-10">
+    <div class="w-7 h-7 bg-[#6C33D8] rounded-md flex items-center justify-center shrink-0">
+      <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-gray-900 text-sm">Alignable Sponsorships</span>
+    <span class="text-gray-300 mx-1">|</span>
+    <span class="text-gray-400 text-xs">Lender Growth Deck</span>
+    <div class="flex-1"></div>
+  </div>
+
+  <!-- Content: centered -->
+  <div class="flex-1 flex flex-col items-center justify-center px-12 py-8">
+    <div class="w-full max-w-[560px] fade-up-1">
+
+      <!-- Eyebrow -->
+      <div class="text-[#6C33D8] text-[11px] font-semibold uppercase tracking-widest mb-5">Before we start</div>
+
+      <!-- Headline -->
+      <h1 class="text-[3.25rem] font-extrabold text-gray-900 leading-[1.06] tracking-tight mb-4">
+        Two quick numbers.
+      </h1>
+
+      <!-- Subtext -->
+      <p class="text-sm text-gray-400 leading-relaxed mb-10 max-w-md">
+        Everything in this presentation runs on your actual numbers — not industry averages.
+      </p>
+
+      <!-- Inputs -->
+      <div class="flex flex-col sm:flex-row gap-5 mb-8" style="align-items:flex-end;">
+
+        <!-- Commission input -->
+        <div class="flex-1">
+          <label for="inputLoanSize" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            <span class="tip">
+              Avg commission from funded loan
+              <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="tip-bubble">3% on a $100,000 loan = $3,000</span>
+            </span>
+          </label>
+          <input
+            type="text"
+            id="inputLoanSize"
+            placeholder="e.g. $3,000"
+            class="gate-input"
+          />
+        </div>
+
+        <!-- Close rate input -->
+        <div class="flex-1">
+          <label for="inputCloseRate" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            <span class="tip">
+              Your close rate
+              <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="tip-bubble">% of leads you convert to closed loans. Industry avg: 10–20%.</span>
+            </span>
+          </label>
+          <input
+            type="text"
+            id="inputCloseRate"
+            placeholder="e.g. 18%"
+            class="gate-input"
+          />
+        </div>
+
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-gray-100 mb-8"></div>
+
+      <!-- Email input -->
+      <div class="mb-6">
+        <label for="inputEmail" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          Your email to unlock results
+        </label>
+        <input
+          type="email"
+          id="inputEmail"
+          placeholder="you@company.com"
+          class="gate-input"
+        />
+        <p id="emailError" class="text-red-500 text-xs mt-2 hidden">Please enter a valid email address.</p>
+      </div>
+
+      <!-- CTA button -->
+      <button
+        id="runNumbers"
+        onclick="handleSubmit()"
+        class="bg-[#6C33D8] hover:bg-[#5B28B8] text-white font-semibold text-sm px-8 py-3.5 rounded-xl transition-colors flex items-center gap-2"
+      >
+        See your numbers →
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Alignable logo watermark -->
+  <img class="alignable-logo" src="full logo.png" alt="Alignable logo"/>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- SLIDE 1 — Auction vs Ownership -->
+<!-- ============================================================ -->
+<section class="slide bg-grid flex flex-col" id="slide-0">
+
+  <!-- Top bar -->
+  <div class="h-[52px] bg-white border-b border-gray-200 flex items-center px-8 gap-3 shrink-0 z-10">
+    <div class="w-7 h-7 bg-[#6C33D8] rounded-md flex items-center justify-center shrink-0">
+      <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-gray-900 text-sm">Alignable Sponsorships</span>
+    <span class="text-gray-300 mx-1">|</span>
+    <span class="text-gray-400 text-xs">Lender Growth Deck</span>
+    <div class="flex-1"></div>
+    <span class="text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Slide 2 of 5</span>
+  </div>
+
+  <div class="flex-1 flex flex-col justify-center px-12 py-8 max-w-[1100px] mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="mb-8 fade-up-1">
+      <div class="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        The Problem
+      </div>
+
+      <h1 class="text-[2.75rem] font-extrabold text-gray-900 leading-[1.08] tracking-tight">
+        Stop Competing for the<br>
+        <span class="text-[#6C33D8]">Same Borrowers.</span>
+      </h1>
+
+      <p class="text-sm text-gray-500 mt-3 max-w-2xl leading-relaxed">
+        Most lenders fight inside oversaturated PPC auctions and shared lead marketplaces.
+        Alignable Sponsorships put you in front of verified small business owners — inside the communities where they network.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6">
+
+      <!-- LEFT: Pain Points -->
+      <div class="space-y-3 fade-up-2">
+        <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Without Community Exclusivity</div>
+
+        <div class="lift-card bg-white border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2v1c0 1.105 1.343 2 3 2s3 .895 3 2v1c0 1.105-1.343 2-3 2m0-12V5m0 14v-1"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-gray-800 mb-0.5">Auction Dynamics Compress Margins</div>
+            <div class="text-[11px] text-gray-500 leading-snug">
+              If your funnel starts with “best small business loan,” you’re buying attention at peak competition.
+            </div>
+          </div>
+        </div>
+
+        <div class="lift-card bg-white border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-gray-800 mb-0.5">Shared Leads = Shared Closings</div>
+            <div class="text-[11px] text-gray-500 leading-snug">
+              Lead brokers sell the same borrower to multiple lenders. Your conversion rate pays the tax.
+            </div>
+          </div>
+        </div>
+
+        <div class="lift-card bg-white border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-gray-800 mb-0.5">No Trust → No Preference</div>
+            <div class="text-[11px] text-gray-500 leading-snug">
+              Borrowers remember platforms, not lenders. So it becomes rate-shopping instead of relationship.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Visual 1 — Auction vs Ownership -->
+      <div class="fade-up-3">
+        <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Visual: Auction vs. Ownership</div>
+
+        <div class="grid grid-cols-2 gap-3">
+
+          <!-- PPC / Auction -->
+          <div class="lift-card bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
+            <div class="absolute inset-x-0 top-0 h-1" style="background: linear-gradient(90deg, rgba(244,63,94,0.95) 0%, rgba(245,158,11,0.85) 100%);"></div>
+            <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Google PPC</div>
+
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-2.5 h-2.5 bg-red-400 rounded-full"></div>
+                <div class="w-full h-2 bg-gray-200 rounded-full"></div>
+              </div>
+
+              <div class="space-y-2">
+                <div class="h-8 bg-white border border-gray-200 rounded-lg flex items-center px-2 justify-between">
+                  <span class="text-[10px] text-gray-500">Ad • Lender A</span>
+                  <span class="text-[10px] text-red-500 font-semibold">CPC ↑</span>
+                </div>
+                <div class="h-8 bg-white border border-gray-200 rounded-lg flex items-center px-2 justify-between">
+                  <span class="text-[10px] text-gray-500">Ad • Lender B</span>
+                  <span class="text-[10px] text-red-500 font-semibold">CPC ↑</span>
+                </div>
+                <div class="h-8 bg-white border border-gray-200 rounded-lg flex items-center px-2 justify-between">
+                  <span class="text-[10px] text-gray-500">Ad • Lead Broker</span>
+                  <span class="text-[10px] text-red-500 font-semibold">Shared</span>
+                </div>
+              </div>
+
+              <div class="mt-3 text-[10px] text-gray-500 leading-snug">
+                You pay more to show up next to competitors.
+              </div>
+            </div>
+          </div>
+
+          <!-- Alignable / Ownership -->
+          <div class="lift-card rounded-2xl p-4 text-white relative overflow-hidden" style="background:#6C33D8;">
+            <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px); background-size: 18px 18px;"></div>
+
+            <div class="relative">
+              <div class="text-[10px] font-semibold text-purple-200 uppercase tracking-wider mb-2">Alignable Sponsorship</div>
+
+              <div class="bg-white/12 border border-white/20 rounded-xl p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[10px] text-purple-100">Community: Woodstock, GA</span>
+                  <span class="text-[10px] font-semibold bg-white/15 border border-white/20 px-2 py-0.5 rounded-full">EXCLUSIVE</span>
+                </div>
+
+                <div class="h-24 bg-white/10 border border-white/15 rounded-lg flex items-center justify-center">
+                  <div class="text-center">
+                    <div class="text-xs font-semibold">Your Lender Brand</div>
+                    <div class="text-[10px] text-purple-100 mt-1">Sticky • Unskippable • Always Visible</div>
+                  </div>
+                </div>
+
+                <div class="mt-3 text-[10px] text-purple-100 leading-snug">
+                  You’re the only lender they see in the community.
+                </div>
+              </div>
+
+              <div class="mt-3 pt-3 border-t border-white/15 grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div class="text-lg font-bold">1</div>
+                  <div class="text-[10px] text-purple-200">lender</div>
+                </div>
+                <div>
+                  <div class="text-lg font-bold">0</div>
+                  <div class="text-[10px] text-purple-200">competitors</div>
+                </div>
+                <div>
+                  <div class="text-lg font-bold">∞</div>
+                  <div class="text-[10px] text-purple-200">repeat views</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="mt-3 text-[11px] text-gray-500">
+          The difference is structural: auctions rent attention; Sponsorships create local monopoly visibility.
+        </div>
+
+        <!-- Hero stat block — compact horizontal -->
+        <div class="mt-3 lift-card rounded-xl px-5 py-4 text-white flex items-center gap-5 relative overflow-hidden" style="background:#6C33D8;">
+          <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px); background-size: 20px 20px;"></div>
+          <div class="relative shrink-0">
+            <div class="text-purple-200 text-[10px] font-semibold uppercase tracking-wider mb-1">Why lenders win here</div>
+            <div id="rev-per-deal-s1" class="text-[2.6rem] font-extrabold leading-none tracking-tight">$25k+</div>
+          </div>
+          <div class="relative border-l border-white/20 pl-5">
+            <div class="text-sm font-semibold text-white">your commission from one funded deal</div>
+            <div class="text-purple-100 text-[11px] leading-snug mt-1">
+              Sponsorships drive identifiable, relationship-based pipeline — not anonymous clicks.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Alignable logo watermark -->
+  <img class="alignable-logo" src="full logo.png" alt="Alignable logo"/>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- SLIDE 2 — Placement Mock + Lead Ladder -->
+<!-- ============================================================ -->
+<section class="slide flex flex-col" style="background-color:#6C33D8;color:white;" id="slide-1">
+
+  <!-- Top bar -->
+  <div class="h-[52px] bg-[#5B28B8]/55 border-b border-white/15 flex items-center px-8 gap-3 shrink-0">
+    <div class="w-7 h-7 bg-white/15 rounded-md flex items-center justify-center shrink-0">
+      <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18v16H3z"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-white text-sm">Alignable Sponsorships</span>
+    <span class="text-purple-200 mx-1">|</span>
+    <span class="text-purple-100 text-xs">How it works</span>
+    <div class="flex-1"></div>
+    <span class="text-[10px] font-semibold text-purple-200/70 uppercase tracking-wider">Slide 3 of 5</span>
+  </div>
+
+  <!-- Subtle grid -->
+  <div class="absolute inset-0 pointer-events-none opacity-25"
+       style="background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 28px 28px;"></div>
+
+  <div class="flex-1 flex flex-col justify-center px-12 py-8 max-w-[1100px] mx-auto w-full relative">
+
+    <div class="mb-8 fade-up-1">
+      <div class="inline-flex items-center gap-2 bg-white/15 border border-white/20 text-white text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
+        The Mechanism
+      </div>
+      <h2 class="text-[2.75rem] font-extrabold text-white leading-[1.08] tracking-tight">
+        Own the Community.<br>
+        <span class="text-purple-200">Be the Only Lender They See.</span>
+      </h2>
+      <p class="text-sm text-purple-100 mt-3 max-w-xl leading-relaxed">
+        Your Sponsorship appears in the 3 highest-visibility surfaces: Home Page (sticky), Community Page, and Local Spark newsletter.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-12 gap-4 fade-up-2">
+
+      <!-- Visual 2: Placement Mock -->
+      <div class="col-span-7 lift-card bg-white/10 border border-white/20 rounded-2xl p-5 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-[10px] font-semibold text-purple-100 uppercase tracking-wider">Placement Preview</div>
+          <div class="text-[10px] text-purple-200">Unskippable, fixed visibility</div>
+        </div>
+
+        <div class="bg-white/10 border border-white/15 rounded-xl overflow-hidden">
+          <div class="h-10 bg-white/10 border-b border-white/10 flex items-center px-3 gap-2">
+            <div class="w-6 h-6 bg-white/15 rounded-md"></div>
+            <div class="h-2 w-44 bg-white/15 rounded-full"></div>
+            <div class="flex-1"></div>
+            <div class="h-2 w-16 bg-white/10 rounded-full"></div>
+          </div>
+
+          <div class="grid grid-cols-12">
+            <div class="col-span-4 border-r border-white/10 p-3">
+              <div class="text-[10px] text-purple-200 uppercase tracking-wider mb-2">Home Page (Sticky)</div>
+              <div class="h-28 bg-white/12 border border-white/15 rounded-lg flex flex-col justify-center items-center text-center px-2">
+                <div class="text-xs font-semibold text-white">Your Lender Ad</div>
+                <div class="text-[10px] text-purple-100 mt-1">Learn More →</div>
+                <div class="mt-2 text-[9px] bg-white/15 border border-white/15 px-2 py-0.5 rounded-full text-purple-100">
+                  Exclusive Sponsor
+                </div>
+              </div>
+              <div class="mt-3 text-[10px] text-purple-100 leading-snug">
+                Stays on screen — members can’t scroll past it.
+              </div>
+            </div>
+
+            <div class="col-span-8 p-3">
+              <div class="text-[10px] text-purple-200 uppercase tracking-wider mb-2">Community Page</div>
+              <div class="space-y-2">
+                <div class="h-10 bg-white/10 border border-white/10 rounded-lg"></div>
+                <div class="h-10 bg-white/10 border border-white/10 rounded-lg"></div>
+                <div class="h-10 bg-white/10 border border-white/10 rounded-lg"></div>
+              </div>
+
+              <div class="mt-4 text-[10px] text-purple-200 uppercase tracking-wider mb-2">Newsletter (Top Slot)</div>
+              <div class="h-12 bg-white/12 border border-white/15 rounded-lg flex items-center justify-between px-3">
+                <div class="text-[10px] text-purple-100">Local Spark • Sponsored</div>
+                <div class="text-[10px] font-semibold text-white">Your Brand</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 grid grid-cols-3 gap-2">
+          <div class="bg-white/10 border border-white/10 rounded-lg px-3 py-2">
+            <div class="text-[10px] text-purple-200 uppercase">Home</div>
+            <div class="text-[11px] text-white mt-0.5">Sticky placement</div>
+          </div>
+          <div class="bg-white/10 border border-white/10 rounded-lg px-3 py-2">
+            <div class="text-[10px] text-purple-200 uppercase">Community</div>
+            <div class="text-[11px] text-white mt-0.5">High intent context</div>
+          </div>
+          <div class="bg-white/10 border border-white/10 rounded-lg px-3 py-2">
+            <div class="text-[10px] text-purple-200 uppercase">Newsletter</div>
+            <div class="text-[11px] text-white mt-0.5">Top slot reach</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lead temperature ladder -->
+      <div class="col-span-5 space-y-3">
+        <div class="text-[10px] font-semibold text-purple-200 uppercase tracking-wider">What you get back</div>
+
+        <div class=”lift-card bg-white/10 border border-white/20 rounded-2xl p-5 backdrop-blur-sm”>
+          <div class=”lt-header” style=”font-size:12px;font-weight:600;margin-bottom:8px;”>3 lead temperatures (measurable)</div>
+
+          <div class=”space-y-2”>
+            <div class=”lt-row bg-white/10 border border-white/10 rounded-lg p-3” style=”display:flex;align-items:flex-start;gap:12px;”>
+              <div class=”lt-badge bg-white/10 rounded-lg px-2 py-1.5 leading-none” style=”flex-shrink:0;font-size:14px;”>🔥</div>
+              <div>
+                <div class=”lt-label” style=”font-size:11px;font-weight:600;”>Lead</div>
+                <div class=”lt-desc” style=”font-size:10px;color:#e9d5ff;”>Clicks on your ad, profile, or services.</div>
+              </div>
+            </div>
+
+            <div class=”lt-row bg-white/10 border border-white/10 rounded-lg p-3” style=”display:flex;align-items:flex-start;gap:12px;”>
+              <div class=”lt-badge bg-white/10 rounded-lg px-2 py-1.5 leading-none” style=”flex-shrink:0;font-size:14px;”>🔥🔥</div>
+              <div>
+                <div class=”lt-label” style=”font-size:11px;font-weight:600;”>Warm Lead</div>
+                <div class=”lt-desc” style=”font-size:10px;color:#e9d5ff;”>Clicks “Learn More” looking for lending info.</div>
+              </div>
+            </div>
+
+            <div class=”lt-row bg-white/10 border border-white/10 rounded-lg p-3” style=”display:flex;align-items:flex-start;gap:12px;”>
+              <div class=”lt-badge bg-white/10 rounded-lg px-2 py-1.5 leading-none” style=”flex-shrink:0;font-size:14px;”>🔥🔥🔥</div>
+              <div>
+                <div class=”lt-label” style=”font-size:11px;font-weight:600;”>Hot Lead</div>
+                <div class=”lt-desc” style=”font-size:10px;color:#e9d5ff;”>Submits a Service Request form.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class=”lt-footer” style=”font-size:10px;color:#e9d5ff;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.15);”>
+            Track total impressions, weekly visibility trend, and identity-level click data (who, when, how many times).
+          </div>
+        </div>
+
+        <div class="lift-card bg-emerald-500/15 border border-emerald-300/25 rounded-2xl p-5 backdrop-blur-sm">
+          <div class="text-[10px] font-semibold text-emerald-200 uppercase tracking-wider mb-1">Targeting logic</div>
+          <div class="text-xs font-semibold text-white mb-1">Geo-Community targeting</div>
+          <div class="text-[11px] text-emerald-100 leading-snug">
+            Small businesses prefer to buy from people they know, like, and trust — Sponsorships build local familiarity inside a community.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Alignable logo watermark (on dark) -->
+  <img class="alignable-logo on-dark" src="full logo.png" alt="Alignable logo"/>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- SLIDE 3 — ROI + Breakeven + Case Studies -->
+<!-- ============================================================ -->
+<section class="slide bg-grid flex flex-col" id="slide-2">
+
+  <!-- Top bar -->
+  <div class="h-[52px] bg-white border-b border-gray-200 flex items-center px-8 gap-3 shrink-0 z-10">
+    <div class="w-7 h-7 bg-[#6C33D8] rounded-md flex items-center justify-center shrink-0">
+      <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-gray-900 text-sm">Alignable Sponsorships</span>
+    <span class="text-gray-300 mx-1">|</span>
+    <span class="text-gray-400 text-xs">Lender ROI</span>
+    <div class="flex-1"></div>
+    <span class="text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Slide 4 of 5</span>
+  </div>
+
+  <div class="flex-1 flex flex-col justify-center px-12 py-8 max-w-[1100px] mx-auto w-full">
+
+    <div class="mb-5 fade-up-1">
+      <div class="inline-flex items-center gap-2 bg-purple-50 border border-purple-200 text-[#6C33D8] text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
+        The ROI
+      </div>
+      <h2 class="text-[2.55rem] font-extrabold text-gray-900 leading-[1.08] tracking-tight">
+        The 3-Month Pilot Math.<br>
+        <span class="text-[#6C33D8]">It only takes one deal.</span>
+      </h2>
+      <p class="text-sm text-gray-500 mt-3 max-w-2xl leading-relaxed">
+        At $500/mo for 3 months, your total intro spend is $1,500. One funded deal covers it — and then some.
+      </p>
+    </div>
+
+    <!-- Visual 3: Breakeven Bar -->
+    <div class="fade-up-2 lift-card bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Breakeven Visual</div>
+        <div class="text-[10px] text-gray-500">Based on your numbers</div>
+      </div>
+
+      <div class="grid grid-cols-12 gap-4 items-center">
+        <div class="col-span-3">
+          <div class="text-xs font-semibold text-gray-800">3-month pilot</div>
+          <div class="text-lg font-extrabold text-gray-900">$1,500</div>
+          <div class="text-[11px] text-gray-500">($500/mo × 3)</div>
+        </div>
+
+        <div class="col-span-9">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-[11px] text-gray-600">Your 3-month spend</span>
+            <span class="text-[11px] font-semibold text-gray-800">$1,500</span>
+          </div>
+          <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-gray-900 rounded-full animated-bar" style="--target-width: 20%; width: 0%"></div>
+          </div>
+
+          <div class="mt-4 mb-2 flex items-center justify-between">
+            <span class="text-[11px] text-gray-600">Your commission from 1 funded deal</span>
+            <span id="rev-per-deal-s3" class="text-[11px] font-semibold" style="color:#6C33D8;">$3k+</span>
+          </div>
+          <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div id="breakeven-bar" class="h-full rounded-full animated-bar" style="background:#6C33D8; --target-width: 50%; width: 0%"></div>
+          </div>
+
+          <div class="mt-3 text-[11px] text-gray-500">
+            Sponsorships win because you’re buying <strong>exclusive mindshare</strong> — not click volume.
+          </div>
+          <div id="leads-needed" class="mt-2 text-[11px] font-semibold text-[#6C33D8] hidden">
+            At your close rate, ~<span id="leads-count">6</span> warm leads funds 1 deal
+          </div>
+          <div id="roi-callout" class="mt-1 text-[11px] font-semibold text-emerald-600 hidden">
+            1 funded deal = <span id="roi-multiple">2×</span> your entire 3-month spend
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Case Studies -->
+    <div class="grid grid-cols-2 gap-4 fade-up-3">
+
+      <!-- Amy P. -->
+      <div class="lift-card bg-white border border-gray-200 rounded-2xl p-5">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Sponsor Results</div>
+            <div class="text-lg font-extrabold text-gray-900">Amy P.</div>
+            <div class="text-[11px] text-gray-500 mt-1">SBA-focused lender • Suburban market</div>
+          </div>
+          <div class="text-[10px] font-semibold bg-purple-50 border border-purple-200 text-[#6C33D8] px-2 py-1 rounded-full">
+            Exclusive Sponsor
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div class="text-lg font-extrabold text-gray-900">18.7k</div>
+            <div class="text-[10px] text-gray-500">impressions</div>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div class="text-lg font-extrabold" style="color:#6C33D8;">34</div>
+            <div class="text-[10px] text-gray-500">warm leads</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+            <div class="text-lg font-extrabold text-emerald-700">2</div>
+            <div class="text-[10px] text-emerald-700/70">funded</div>
+          </div>
+        </div>
+
+        <div class="mt-4 text-[11px] text-gray-600 leading-relaxed">
+          Amy became the “default lender” in her local SMB community via repeat visibility. Warm leads converted when speed-to-lead stayed tight.
+        </div>
+
+        <div class="mt-4 bg-gray-900 rounded-xl p-4 text-white">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider">Outcome</div>
+          <div class="text-xl font-extrabold">$38,000</div>
+          <div class="text-[11px] text-gray-300">estimated contribution from funded deals vs. ~$1k/mo spend</div>
+        </div>
+      </div>
+
+      <!-- Kevin L. -->
+      <div class="lift-card bg-white border border-gray-200 rounded-2xl p-5">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Sponsor Results</div>
+            <div class="text-lg font-extrabold text-gray-900">Kevin L.</div>
+            <div class="text-[11px] text-gray-500 mt-1">Working capital / MCA • Metro edge market</div>
+          </div>
+          <div class="text-[10px] font-semibold bg-purple-50 border border-purple-200 text-[#6C33D8] px-2 py-1 rounded-full">
+            Co-Sponsor
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div class="text-lg font-extrabold text-gray-900">26.4k</div>
+            <div class="text-[10px] text-gray-500">impressions</div>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div class="text-lg font-extrabold" style="color:#6C33D8;">61</div>
+            <div class="text-[10px] text-gray-500">warm leads</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+            <div class="text-lg font-extrabold text-emerald-700">3</div>
+            <div class="text-[10px] text-emerald-700/70">funded</div>
+          </div>
+        </div>
+
+        <div class="mt-4 text-[11px] text-gray-600 leading-relaxed">
+          Kevin targeted adjacent communities and used quick creative swaps to keep the message fresh. Direct outreach to warm leads lifted conversion.
+        </div>
+
+        <div class="mt-4 bg-gray-900 rounded-xl p-4 text-white">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider">Outcome</div>
+          <div class="text-xl font-extrabold">$54,000</div>
+          <div class="text-[11px] text-gray-300">estimated contribution from funded deals vs. ~$1–1.5k/mo spend</div>
+        </div>
+      </div>
+
+    </div>
+
+
+  </div>
+
+  <!-- Alignable logo watermark -->
+  <img class="alignable-logo" src="full logo.png" alt="Alignable logo"/>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- SLIDE 4 — CTA + Limited-Time Offer -->
+<!-- ============================================================ -->
+<section class="slide bg-grid flex flex-col" id="slide-3">
+
+  <!-- Top bar -->
+  <div class="h-[52px] bg-white border-b border-gray-200 flex items-center px-8 gap-3 shrink-0 z-10">
+    <div class="w-7 h-7 bg-[#6C33D8] rounded-md flex items-center justify-center shrink-0">
+      <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <span class="font-semibold text-gray-900 text-sm">Alignable Sponsorships</span>
+    <span class="text-gray-300 mx-1">|</span>
+    <span class="text-gray-400 text-xs">Get Started</span>
+    <div class="flex-1"></div>
+    <span class="text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Slide 5 of 5</span>
+  </div>
+
+  <div class="flex-1 flex flex-col justify-center px-12 py-8 max-w-[1100px] mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="mb-8 fade-up-1">
+      <h2 class="text-[2.75rem] font-extrabold text-gray-900 leading-[1.08] tracking-tight">
+        Ready to Own<br>
+        <span class="text-[#6C33D8]">Your Local Market?</span>
+      </h2>
+      <p class="text-sm text-gray-500 mt-3 max-w-xl leading-relaxed">
+        One exclusive sponsorship. One community. You're the only lender they see.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6">
+
+      <!-- LEFT: Promo offer -->
+      <div class="space-y-4 fade-up-2">
+
+        <!-- 50% promo box -->
+        <div class="lift-card rounded-2xl p-6 text-white relative overflow-hidden" style="background:#6C33D8;">
+          <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px); background-size: 18px 18px;"></div>
+          <div class="relative">
+            <div class="inline-flex items-center gap-1.5 bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full mb-3">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 000-18z"/>
+              </svg>
+              Limited Availability — Act Now
+            </div>
+            <div class="text-[3rem] font-extrabold leading-none">50% Off</div>
+            <div class="text-purple-200 text-sm mt-1 mb-5">all 3 months of your intro sponsorship</div>
+            <div class="flex items-center gap-6 mb-5">
+              <div>
+                <div class="text-[10px] text-purple-300 uppercase tracking-wider mb-0.5">Regular price</div>
+                <div class="text-xl font-semibold text-purple-300 line-through">$1,000/mo</div>
+              </div>
+              <svg class="w-5 h-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+              </svg>
+              <div>
+                <div class="text-[10px] text-purple-200 uppercase tracking-wider mb-0.5">Intro offer</div>
+                <div class="text-3xl font-extrabold">$500<span class="text-lg font-medium text-purple-200">/mo × 3</span></div>
+              </div>
+            </div>
+            <div class="text-[10px] text-purple-200 border-t border-white/15 pt-3">
+              50% off applies to all 3 months — $1,500 total. Then $1,000/mo, no long-term contracts.
+            </div>
+          </div>
+        </div>
+
+        <!-- What's included -->
+        <div class="lift-card bg-white border border-gray-200 rounded-2xl p-5">
+          <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">What's included</div>
+          <div class="space-y-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <span class="text-[11px] text-gray-700">Exclusive community placement — no competing lenders</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <span class="text-[11px] text-gray-700">Home page sticky + Community page + Newsletter top slot</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <span class="text-[11px] text-gray-700">Identity-level click data — see exactly who engaged</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <span class="text-[11px] text-gray-700">Hot lead alerts via Service Request form</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Steps + Contact -->
+      <div class="space-y-4 fade-up-3">
+
+        <!-- How to start -->
+        <div class="lift-card bg-white border border-gray-200 rounded-2xl p-5">
+          <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">How to start</div>
+          <div class="space-y-4">
+            <div class="flex items-start gap-3">
+              <div class="w-7 h-7 bg-[#6C33D8] text-white rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">1</div>
+              <div>
+                <div class="text-xs font-semibold text-gray-800">Pick your community</div>
+                <div class="text-[11px] text-gray-500 mt-0.5 leading-snug">Choose the city or town where your ideal borrowers are active.</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-7 h-7 bg-[#6C33D8] text-white rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">2</div>
+              <div>
+                <div class="text-xs font-semibold text-gray-800">Lock in the 50% intro rate</div>
+                <div class="text-[11px] text-gray-500 mt-0.5 leading-snug">Claim exclusivity before another lender does — limited availability.</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-7 h-7 bg-[#6C33D8] text-white rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">3</div>
+              <div>
+                <div class="text-xs font-semibold text-gray-800">Go live in days</div>
+                <div class="text-[11px] text-gray-500 mt-0.5 leading-snug">Upload your creative, set your CTA, and start showing up where borrowers network.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA button — Talk to a Campaign Manager -->
+        <a href="#" target="_blank"
+           class="lift-card flex items-center justify-between rounded-2xl p-6 text-white no-underline"
+           style="background:#6C33D8;">
+          <div>
+            <div class="text-[10px] font-semibold text-purple-200 uppercase tracking-wider mb-1">Next step</div>
+            <div class="text-xl font-extrabold">Talk to a Campaign Manager</div>
+          </div>
+          <svg class="w-7 h-7 text-purple-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+          </svg>
+        </a>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Alignable logo watermark -->
+  <img class="alignable-logo" src="full logo.png" alt="Alignable logo"/>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT — Gate + Navigation + Dynamic Numbers -->
+<!-- ============================================================ -->
+<script>
+  const slides   = document.querySelectorAll('.slide');
+  const fabUp    = document.getElementById('fab-up');
+  const fabDown  = document.getElementById('fab-down');
+  const fab      = document.getElementById('fab');
+  let currentIdx = 0;
+
+  // Gate: prevent scrolling past slide-pre until submitted
+  let gateUnlocked = false;
+
+  // Email pre-fill from URL param
+  (function prefillEmail() {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email');
+    if (email) {
+      const emailInput = document.getElementById('inputEmail');
+      if (emailInput) {
+        emailInput.value = email;
+        emailInput.readOnly = true;
+        emailInput.style.backgroundColor = '#F9FAFB';
+        emailInput.style.color = '#6B7280';
+      }
+    }
+  })();
+
+  function goTo(index) {
+    // If gate not unlocked, only allow staying on slide-pre (index 0)
+    if (!gateUnlocked && index > 0) return;
+    slides[index].scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function advanceSlide() {
+    goTo(Math.min(currentIdx + 1, slides.length - 1));
+  }
+
+  function updateArrow(idx) {
+    currentIdx = idx;
+    const isFirstSlide = idx === 0;
+    const isLastSlide  = idx >= slides.length - 1;
+    const isGateSlide  = idx === 0;
+    fabUp.classList.toggle('fab-hidden',   isFirstSlide);
+    fabDown.classList.toggle('fab-hidden', isLastSlide || isGateSlide);
+    // slide-1 (index 2) is the dark purple slide
+    fab.classList.toggle('on-dark', idx === 2);
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        updateArrow(Array.from(slides).indexOf(entry.target));
+      }
+    });
+  }, { threshold: 0.55 });
+
+  slides.forEach(s => observer.observe(s));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+      e.preventDefault(); goTo(Math.min(currentIdx + 1, slides.length - 1));
+    }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault(); goTo(Math.max(currentIdx - 1, 0));
+    }
+  });
+
+  // Prevent scroll-snapping past gate slide until unlocked
+  window.addEventListener('wheel', e => {
+    if (!gateUnlocked && currentIdx === 0 && e.deltaY > 0) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; });
+  let touchStartY = 0;
+  window.addEventListener('touchmove', e => {
+    if (!gateUnlocked && currentIdx === 0) {
+      const delta = touchStartY - e.touches[0].clientY;
+      if (delta > 20) e.preventDefault();
+    }
+  }, { passive: false });
+
+  // ── Email validation ──────────────────────────────────────────
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  // ── Dynamic number update ─────────────────────────────────────
+  function updateDynamicNumbers(commission, closeRate) {
+    const leadsForOneDeal = Math.ceil(100 / closeRate);
+    // Bar: cost bar fixed at 20%; commission bar scales relative to $1,500 spend
+    // commission/1500 * 20 = same width at breakeven, 2× wider at 2× commission
+    const barPct          = Math.min(Math.round((commission / 1500) * 20), 90);
+    const formattedRev    = commission >= 1000
+      ? '$' + (commission / 1000).toFixed(commission % 1000 === 0 ? 0 : 1) + 'k'
+      : '$' + commission;
+    const roiMultiple     = (commission / 1500).toFixed(1) + '×';
+
+    // Update commission display elements
+    const s1el = document.getElementById('rev-per-deal-s1');
+    const s3el = document.getElementById('rev-per-deal-s3');
+    if (s1el) s1el.textContent = formattedRev;
+    if (s3el) s3el.textContent = formattedRev;
+
+    // Update breakeven bar width
+    const bar = document.getElementById('breakeven-bar');
+    if (bar) bar.style.setProperty('--target-width', barPct + '%');
+
+    // Show leads-needed callout
+    const leadsEl    = document.getElementById('leads-needed');
+    const leadsCount = document.getElementById('leads-count');
+    if (leadsEl && leadsCount) {
+      leadsCount.textContent = leadsForOneDeal;
+      leadsEl.classList.remove('hidden');
+    }
+
+    // Show ROI callout
+    const roiEl  = document.getElementById('roi-callout');
+    const roiMul = document.getElementById('roi-multiple');
+    if (roiEl && roiMul) {
+      roiMul.textContent = roiMultiple;
+      roiEl.classList.remove('hidden');
+    }
+  }
+
+  // ── Gate submit handler ───────────────────────────────────────
+  function handleSubmit() {
+    const emailInput = document.getElementById('inputEmail');
+    const emailError = document.getElementById('emailError');
+    const email      = emailInput.value.trim();
+
+    if (!isValidEmail(email)) {
+      emailInput.classList.add('invalid', 'shake');
+      emailError.classList.remove('hidden');
+      setTimeout(() => {
+        emailInput.classList.remove('shake');
+        emailInput.classList.remove('invalid');
+      }, 600);
+      return;
+    }
+
+    emailError.classList.add('hidden');
+
+    const rawCommissionInput = document.getElementById('inputLoanSize').value.trim();
+    const rawCloseInput      = document.getElementById('inputCloseRate').value.trim();
+
+    const parsedCommission = parseFloat(rawCommissionInput.replace(/[$,]/g, '')) || 3000;
+    const parsedCloseRate  = parseFloat(rawCloseInput.replace(/%/g, ''))         || 18;
+
+    const payload = {
+      email,
+      avgCommission: parsedCommission,
+      closeRate:     parsedCloseRate,
+      submittedAt:   new Date().toISOString()
+    };
+
+    localStorage.setItem('lender_deck_lead', JSON.stringify(payload));
+
+    // Submit to HubSpot via serverless function (fire-and-forget — don't block unlock on failure)
+    fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        avg_commission: parsedCommission,
+        close_rate:     parsedCloseRate
+      })
+    }).catch(err => console.warn('[HubSpot] Submission failed', err));
+
+    updateDynamicNumbers(parsedCommission, parsedCloseRate);
+
+    gateUnlocked = true;
+    advanceSlide();
+  }
+</script>
+
+</body>
+</html>
