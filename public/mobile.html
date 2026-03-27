@@ -2796,6 +2796,23 @@ function renderConfirmCard(data) {
 }
 
 /**
+ * Re-fetch outcomes from the server and re-render all outcome-dependent UI.
+ * Call this after any mutation that adds, updates, or removes an outcome.
+ */
+async function refreshOutcomes() {
+  try {
+    const [outcomesRes, statsRes] = await Promise.all([
+      apiFetch('/api/outcomes'),
+      apiFetch('/api/outcomes/stats/today'),
+    ]);
+    outcomes = outcomesRes.data || [];
+    renderBriefing(outcomes);
+    renderOutcomesTab(outcomes);
+    updateContextPills(statsRes, outcomes);
+  } catch { /* non-fatal — UI stays stale but won't crash */ }
+}
+
+/**
  * Execute the API call for an approved tool.
  * Returns { success: boolean, error?: string }
  */
@@ -2896,6 +2913,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (approveBtn) {
       // Execute the actual API call
       const result = await executeToolCall(toolName, toolInput);
+
+      // Reactively update the outcomes list for any mutation that affects it
+      if (result.success && ['create_outcome', 'update_outcome', 'create_action'].includes(toolName)) {
+        refreshOutcomes();
+      }
 
       // Append assistant turn + tool_result to history
       chatHistory.push({ role: 'assistant', content: assistantContent });
