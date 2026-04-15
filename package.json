@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": { "node": "20.x" },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "better-sqlite3": "^12.6.2",
@@ -23,6 +24,7 @@
     "express-session": "^1.19.0",
     "googleapis": "^171.4.0",
     "node-cron": "^4.2.1",
-    "sqlite3": "^5.1.7"
+    "pptxgenjs": "^4.0.1",
+    "xlsx": "^0.18.5"
   }
 }
