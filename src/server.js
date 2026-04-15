@@ -1,4 +1,16 @@
+// Catch any crash during startup — must be first
+process.on('uncaughtException', (err) => {
+  console.error('FATAL UNCAUGHT EXCEPTION:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+console.log('--- Waypoint process starting ---');
+console.log('Node:', process.version, '| Platform:', process.platform, process.arch);
+console.log('DATABASE_PATH:', process.env.DATABASE_PATH || '(not set)');
+console.log('PORT:', process.env.PORT || '(not set, will default to 3000)');
+
 const express = require('express');
+console.log('Express loaded:', require('express/package.json').version);
 const session = require('express-session');
 const path = require('path');
 const cors = require('cors');
@@ -6,7 +18,9 @@ if (process.env.NODE_ENV !== 'test') {
   require('dotenv').config({ path: path.join(__dirname, '../.env'), override: true });
 }
 
+console.log('Loading routes...');
 const apiRoutes = require('./routes/api');
+console.log('API routes loaded');
 const slackRoutes = require('./routes/slack');
 const grainRoutes = require('./routes/grain');
 const { scheduleBriefings } = require('./jobs/briefings');
