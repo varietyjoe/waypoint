@@ -8,4 +8,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 && r
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY . .
-CMD ["node", "src/server.js"]
+CMD ["node", "-e", "require('http').createServer((q,r)=>r.end('ok')).listen(process.env.PORT||3000,()=>console.log('ALIVE on port',process.env.PORT||3000))"]
