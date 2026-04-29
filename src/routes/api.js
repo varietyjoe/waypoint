@@ -26,33 +26,10 @@ const sharesDb = require('../database/shares');
 const advisorDb = require('../database/advisor');
 const advisorService = require('../services/advisor');
 const dailyEntriesDb = require('../database/daily-entries');
-const { runSeedIfEmpty } = require('../database/seeder');
 const hubspotClient = require('../integrations/hubspot-client');
 const { formatSalesPulse } = require('../utils/sales-pulse-formatter');
 const { assembleContext, formatContextForPrompt } = require('../services/context-assembler');
 const timelineDb    = require('../database/timeline');
-
-// Initialize tables on startup
-projectsDb.initProjectsTable();
-outcomesDb.initOutcomesTable();
-outcomesDb.initReflectionsTable();
-actionsDb.initActionsTable();
-inboxDb.initInboxMigrations();
-focusSessionsDb.initFocusSessionsTable();
-userContextDb.initUserContextTable();
-scheduler.init();
-calendarDb.initCalendarTables();
-prefDb.initUserPreferences();
-libraryDb.initLibraryMigrations();
-patternsDb.initPatternTables();
-dependenciesDb.initDependenciesTable();
-sharesDb.initSharesTable();
-advisorDb.initAdvisorTables();
-dailyEntriesDb.initDailyEntriesTable();
-timelineDb.initTimelineTable();
-
-// Auto-seed on empty DB (Railway volume reset recovery)
-runSeedIfEmpty();
 
 // ============================================================
 // HELPERS

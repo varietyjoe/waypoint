@@ -4,6 +4,10 @@ process.on('uncaughtException', (err) => {
   console.error(err.stack);
   process.exit(1);
 });
+const path = require('path');
+
+require('./config/env').loadEnv();
+
 console.log('--- Waypoint process starting ---');
 console.log('Node:', process.version, '| Platform:', process.platform, process.arch);
 console.log('DATABASE_PATH:', process.env.DATABASE_PATH || '(not set)');
@@ -12,11 +16,13 @@ console.log('PORT:', process.env.PORT || '(not set, will default to 3000)');
 const express = require('express');
 console.log('Express loaded:', require('express/package.json').version);
 const session = require('express-session');
-const path = require('path');
 const cors = require('cors');
-if (process.env.NODE_ENV !== 'test') {
-  require('dotenv').config({ path: path.join(__dirname, '../.env'), override: true });
-}
+const db = require('./database/index');
+const { initDatabase } = require('./database/bootstrap');
+
+console.log('Initializing database...');
+initDatabase();
+console.log('Database initialized');
 
 console.log('Loading routes...');
 const apiRoutes = require('./routes/api');
@@ -31,6 +37,10 @@ const { requireApiKey } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
 
 // CORS — allow configured origin + local dev
 const allowedOrigins = [
@@ -59,7 +69,10 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'waypoint-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+    }
 }));
 
 // Serve static files from public directory
@@ -67,7 +80,21 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // ─── HEALTH CHECK — no auth ────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    try {
+        db.prepare('SELECT 1').get();
+        res.json({
+            status: 'ok',
+            database: 'ok',
+            timestamp: new Date().toISOString(),
+        });
+    } catch (err) {
+        res.status(503).json({
+            status: 'error',
+            database: 'unavailable',
+            error: err.message,
+            timestamp: new Date().toISOString(),
+        });
+    }
 });
 
 // ─── API KEY AUTH for /api/* ────────────────────────────────────────────────
@@ -242,11 +269,12 @@ const server = app.listen(PORT, () => {
     console.log(`📁 Serving static files from: ${path.join(__dirname, '../public')}`);
     console.log(`🔌 API endpoints available at: http://localhost:${PORT}/api`);
     console.log('✅ Server started successfully');
-    scheduleBriefings();
+    if (process.env.NODE_ENV !== 'test') {
+        scheduleBriefings();
+    }
 });
 
 // Handle graceful shutdown — flush SQLite WAL before exit
-const db = require('./database/index');
 
 // Periodic WAL checkpoint every 5 min — safety net against SIGKILL
 const walCheckpointInterval = setInterval(() => {
@@ -286,4 +314,3 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 module.exports = app;
-
