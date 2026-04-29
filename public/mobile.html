@@ -1001,6 +1001,10 @@
       background: rgba(245,158,11,0.12); color: #fbbf24;
       border-color: rgba(245,158,11,0.25);
     }
+    .journal-pill.active-ai_work {
+      background: rgba(59,130,246,0.12); color: var(--blue);
+      border-color: rgba(59,130,246,0.25);
+    }
     /* Timeline */
     .journal-timeline {
       position: relative; padding-left: 28px;
@@ -1038,6 +1042,7 @@
     }
     .journal-ac-card.standup::after { background: var(--purple); }
     .journal-ac-card.review::after { background: var(--amber); }
+    .journal-ac-card.ai_work::after { background: var(--blue); }
     /* Type labels */
     .journal-ac-type {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
@@ -1045,6 +1050,7 @@
     }
     .journal-ac-type.standup { color: var(--purple); }
     .journal-ac-type.review { color: var(--amber); }
+    .journal-ac-type.ai_work { color: var(--blue); }
     .journal-ac-summary { font-size: 12px; color: #888; line-height: 1.4; }
     .journal-ac-summary strong { color: #ccc; font-weight: 600; }
     .journal-ac-summary .mood-i { color: var(--green); }
@@ -2988,6 +2994,7 @@ function renderJournalPills() {
     { key: 'all', label: 'All' },
     { key: 'standup', label: 'Standup' },
     { key: 'review', label: 'Review' },
+    { key: 'ai_work', label: 'AI Work' },
   ];
   container.innerHTML = pills.map(p => {
     let cls = 'journal-pill';
@@ -3063,6 +3070,16 @@ function renderJournalCard(entry) {
   let previewHtml = '';
 
   if (parsed) {
+    if (type === 'ai_work') {
+      const files = parsed.files_changed || parsed.desktop_paths || [];
+      const commands = parsed.commands_run || [];
+      const parts = [];
+      if (files.length) parts.push(`<strong>${files.length} file${files.length > 1 ? 's' : ''}</strong>`);
+      if (commands.length) parts.push(`${commands.length} command${commands.length > 1 ? 's' : ''}`);
+      if (parsed.status) parts.push(`<span class="mood-i">${esc(parsed.status)}</span>`);
+      summaryHtml = parts.join(' · ') || '<strong>AI work</strong>';
+      previewHtml = esc(parsed.summary || parsed.latest_outcome || '');
+    } else {
     // Build summary line
     const parts = [];
     if (parsed.reconciled && parsed.reconciled.length) {
@@ -3082,6 +3099,7 @@ function renderJournalCard(entry) {
     const actions = parsed.actions || parsed.reconciled || [];
     const previews = actions.slice(0, 2).map(a => esc(a.text || a.action || '')).filter(Boolean);
     if (previews.length) previewHtml = previews.join(' · ');
+    }
   } else {
     // No parsed data — show raw text preview
     const raw = (entry.content || '').trim();
@@ -3114,9 +3132,8 @@ async function showJournalDetail(id) {
     journalCurrentId = entry.id;
     const type = entry.type || 'standup';
     const dateLabel = entry.date === todayStr() ? 'Today' : formatJournalDate(entry.date);
-    const typeCls = type === 'review' ? 'review' : 'standup';
-    const typeBg = type === 'review' ? 'rgba(245,158,11,0.10)' : 'rgba(124,58,237,0.10)';
-    const typeColor = type === 'review' ? 'var(--amber)' : 'var(--purple)';
+    const typeBg = type === 'ai_work' ? 'rgba(59,130,246,0.10)' : type === 'review' ? 'rgba(245,158,11,0.10)' : 'rgba(124,58,237,0.10)';
+    const typeColor = type === 'ai_work' ? 'var(--blue)' : type === 'review' ? 'var(--amber)' : 'var(--purple)';
 
     let parsed = null;
     if (entry.parsed_data) {
@@ -3134,7 +3151,7 @@ async function showJournalDetail(id) {
     `;
 
     if (parsed) {
-      html += renderParsedDetail(parsed, type);
+      html += type === 'ai_work' ? renderAiWorkDetail(parsed) : renderParsedDetail(parsed, type);
     }
 
     // Raw text block
@@ -3146,7 +3163,9 @@ async function showJournalDetail(id) {
     `;
 
     // Re-parse button
-    html += `<button class="journal-reparse-btn" onclick="reparseJournalEntry(${entry.id}, '${esc(type)}', this)">Re-parse</button>`;
+    if (type !== 'ai_work') {
+      html += `<button class="journal-reparse-btn" onclick="reparseJournalEntry(${entry.id}, '${esc(type)}', this)">Re-parse</button>`;
+    }
 
     detailContent.innerHTML = html;
   } catch (e) {
@@ -3242,6 +3261,47 @@ function renderParsedDetail(parsed, type) {
       html += `<div class="journal-ps-learning">💡 <span>${esc(text)}</span></div>`;
     });
     html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderAiWorkDetail(parsed) {
+  const files = parsed.files_changed || parsed.desktop_paths || [];
+  const commands = parsed.commands_run || [];
+  const tests = parsed.tests_run || [];
+  let html = '<div class="journal-parsed-block" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.18);">';
+  html += '<div class="journal-parsed-hdr" style="color:var(--blue);">AI Work</div>';
+
+  if (parsed.summary) {
+    html += `<div class="journal-ps"><div class="journal-ps-title">Summary</div><div class="journal-ps-action"><span>${esc(parsed.summary)}</span></div></div>`;
+  }
+  if (parsed.latest_outcome) {
+    html += `<div class="journal-ps"><div class="journal-ps-title">Outcome</div><div class="journal-ps-action"><span>${esc(parsed.latest_outcome)}</span></div></div>`;
+  }
+  if (parsed.cwd) {
+    html += `<div class="journal-ps"><div class="journal-ps-title">Workspace</div><div class="journal-ps-action"><span>${esc(parsed.cwd)}</span></div></div>`;
+  }
+  if (files.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Files touched</div>';
+    files.slice(0, 30).forEach(f => { html += `<div class="journal-ps-action"><span class="arr" style="color:var(--blue)">→</span><span>${esc(f)}</span></div>`; });
+    html += '</div>';
+  }
+  if (commands.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Commands</div>';
+    commands.slice(0, 15).forEach(c => { html += `<div class="journal-ps-action"><span>${esc(c)}</span></div>`; });
+    html += '</div>';
+  }
+  if (tests.length || parsed.deploy_status) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">Verification</div>';
+    tests.forEach(t => { html += `<div class="journal-ps-action"><span>${esc(t)}</span></div>`; });
+    if (parsed.deploy_status) html += `<div class="journal-ps-action"><span>${esc(parsed.deploy_status)}</span></div>`;
+    html += '</div>';
+  }
+  if (parsed.status || parsed.git_branch || parsed.commit_sha) {
+    const meta = [parsed.status, parsed.git_branch, parsed.commit_sha].filter(Boolean).join(' · ');
+    html += `<div class="journal-ps"><div class="journal-ps-title">Metadata</div><div class="journal-ps-action"><span>${esc(meta)}</span></div></div>`;
   }
 
   html += '</div>';

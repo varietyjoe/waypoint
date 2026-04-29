@@ -7556,6 +7556,7 @@ async function showJournalView() {
       .jv-pill.active-all{background:#111827;color:#fff;border-color:#111827;}
       .jv-pill.active-standup{background:#7c3aed;color:#fff;border-color:#7c3aed;}
       .jv-pill.active-review{background:#d97706;color:#fff;border-color:#d97706;}
+      .jv-pill.active-ai_work{background:#2563eb;color:#fff;border-color:#2563eb;}
       .jv-tl{position:relative;padding-left:28px;}
       .jv-tl::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:1px;background:#e5e7eb;}
       .jv-tl-node{position:relative;padding:12px 0 6px;display:flex;align-items:center;gap:10px;}
@@ -7567,8 +7568,10 @@ async function showJournalView() {
       .jv-ac-card::after{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:2px;}
       .jv-ac-card.standup::after{background:#7c3aed;}
       .jv-ac-card.review::after{background:#d97706;}
+      .jv-ac-card.ai_work::after{background:#2563eb;}
       .jv-ac-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
       .jv-ac-type.standup{color:#7c3aed;}.jv-ac-type.review{color:#d97706;}
+      .jv-ac-type.ai_work{color:#2563eb;}
       .jv-ac-summary{font-size:12px;color:#6b7280;line-height:1.4;}
       .jv-ac-summary strong{color:#111827;font-weight:600;}
       .jv-ac-summary .mood-i{color:#059669;}.jv-ac-summary .block-i{color:#dc2626;}
@@ -7616,6 +7619,7 @@ async function showJournalView() {
         <button class="jv-pill active-all" id="jv-pill-all" onclick="_setJournalFilter('all')">All</button>
         <button class="jv-pill" id="jv-pill-standup" onclick="_setJournalFilter('standup')">Standup</button>
         <button class="jv-pill" id="jv-pill-review" onclick="_setJournalFilter('review')">Review</button>
+        <button class="jv-pill" id="jv-pill-ai_work" onclick="_setJournalFilter('ai_work')">AI Work</button>
       </div>
 
       <!-- Carry-forward section (populated dynamically) -->
@@ -7658,7 +7662,7 @@ async function showJournalView() {
 function _setJournalFilter(type) {
   _journalFilter = type;
   // Update pill active states
-  ['all','standup','review'].forEach(t => {
+  ['all','standup','review','ai_work'].forEach(t => {
     const pill = document.getElementById('jv-pill-' + t);
     if (!pill) return;
     pill.className = 'jv-pill' + (t === type ? ' active-' + t : '');
@@ -7737,6 +7741,7 @@ async function _loadJournalTimeline() {
     // Client-side filter
     if (_journalFilter === 'standup') list = list.filter(e => e.type === 'standup');
     else if (_journalFilter === 'review') list = list.filter(e => e.type === 'review');
+    else if (_journalFilter === 'ai_work') list = list.filter(e => e.type === 'ai_work');
 
     const container = document.getElementById('jv-timeline');
     if (!container) return;
@@ -7780,6 +7785,16 @@ function _renderTimelineCard(entry) {
   let previewTexts = [];
 
   if (parsed) {
+    if (type === 'ai_work') {
+      const files = parsed.files_changed || parsed.desktop_paths || [];
+      const commands = parsed.commands_run || [];
+      const status = parsed.status ? `<span class="mood-i">${_escHtml(parsed.status)}</span>` : '';
+      if (files.length) summaryParts.push(`<strong>${files.length} file${files.length > 1 ? 's' : ''}</strong>`);
+      if (commands.length) summaryParts.push(`<span>${commands.length} command${commands.length > 1 ? 's' : ''}</span>`);
+      if (parsed.deploy_status) summaryParts.push(`<span>${_escHtml(parsed.deploy_status)}</span>`);
+      if (status) summaryParts.push(status);
+      previewTexts = [parsed.summary || parsed.latest_outcome || entry.content || ''];
+    } else {
     // Actions count
     const actions = parsed.actions || [];
     if (actions.length) {
@@ -7800,6 +7815,7 @@ function _renderTimelineCard(entry) {
     // Carry-forwards
     const cfs = parsed.carry_forwards || [];
     if (cfs.length) summaryParts.push(`<span style="color:#d97706;">${cfs.length} carry-fwd</span>`);
+    }
   } else {
     // Fallback: show raw text preview
     const preview = (entry.content || '').slice(0, 100);
@@ -7824,8 +7840,8 @@ async function _showJournalDetail(id) {
     const entry = json.data;
     const type = entry.type || 'standup';
     const dateLabel = _fmtJournalDate(entry.date);
-    const badgeColor = type === 'standup' ? '#7c3aed' : '#d97706';
-    const badgeBg = type === 'standup' ? '#ede9fe' : '#fef3c7';
+    const badgeColor = type === 'ai_work' ? '#2563eb' : type === 'standup' ? '#7c3aed' : '#d97706';
+    const badgeBg = type === 'ai_work' ? '#dbeafe' : type === 'standup' ? '#ede9fe' : '#fef3c7';
 
     let parsed = null;
     try { parsed = entry.parsed_data ? (typeof entry.parsed_data === 'string' ? JSON.parse(entry.parsed_data) : entry.parsed_data) : null; } catch(_) {}
@@ -7846,7 +7862,7 @@ async function _showJournalDetail(id) {
 
     // Parsed detail block
     if (parsed) {
-      html += _renderParsedDetail(parsed, type);
+      html += type === 'ai_work' ? _renderAiWorkDetail(parsed) : _renderParsedDetail(parsed, type);
     }
 
     // Raw text block
@@ -7858,7 +7874,9 @@ async function _showJournalDetail(id) {
     `;
 
     // Re-parse button
-    html += `<button class="jv-reparse-btn" id="jv-reparse-btn" onclick="_reparseJournalEntry(${id}, '${type}')">Re-parse</button>`;
+    if (type !== 'ai_work') {
+      html += `<button class="jv-reparse-btn" id="jv-reparse-btn" onclick="_reparseJournalEntry(${id}, '${type}')">Re-parse</button>`;
+    }
 
     html += '</div>';
     center.innerHTML = html;
@@ -7941,6 +7959,46 @@ function _renderParsedDetail(parsed, type) {
       html += `<div class="jv-ps-learning">&#128161; <span>${_escHtml(text)}</span></div>`;
     });
     html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function _renderAiWorkDetail(parsed) {
+  const files = parsed.files_changed || parsed.desktop_paths || [];
+  const commands = parsed.commands_run || [];
+  const tests = parsed.tests_run || [];
+  let html = '<div class="jv-parsed-block" style="background:#eff6ff;border-color:#bfdbfe;"><div class="jv-parsed-hdr" style="color:#2563eb;">AI Work</div>';
+
+  if (parsed.summary) {
+    html += `<div class="jv-ps"><div class="jv-ps-title">Summary</div><div class="jv-ps-action"><span>${_escHtml(parsed.summary)}</span></div></div>`;
+  }
+  if (parsed.latest_outcome) {
+    html += `<div class="jv-ps"><div class="jv-ps-title">Outcome</div><div class="jv-ps-action"><span>${_escHtml(parsed.latest_outcome)}</span></div></div>`;
+  }
+  if (parsed.cwd) {
+    html += `<div class="jv-ps"><div class="jv-ps-title">Workspace</div><div class="jv-ps-action"><span>${_escHtml(parsed.cwd)}</span></div></div>`;
+  }
+  if (files.length) {
+    html += '<div class="jv-ps"><div class="jv-ps-title">Files touched</div>';
+    files.slice(0, 30).forEach(f => { html += `<div class="jv-ps-action"><span class="arr" style="color:#2563eb;">&#8594;</span><span>${_escHtml(f)}</span></div>`; });
+    html += '</div>';
+  }
+  if (commands.length) {
+    html += '<div class="jv-ps"><div class="jv-ps-title">Commands</div>';
+    commands.slice(0, 15).forEach(c => { html += `<div class="jv-ps-action"><span>${_escHtml(c)}</span></div>`; });
+    html += '</div>';
+  }
+  if (tests.length || parsed.deploy_status) {
+    html += '<div class="jv-ps"><div class="jv-ps-title">Verification</div>';
+    tests.forEach(t => { html += `<div class="jv-ps-action"><span>${_escHtml(t)}</span></div>`; });
+    if (parsed.deploy_status) html += `<div class="jv-ps-action"><span>${_escHtml(parsed.deploy_status)}</span></div>`;
+    html += '</div>';
+  }
+  if (parsed.git_branch || parsed.commit_sha || parsed.status) {
+    const meta = [parsed.status, parsed.git_branch, parsed.commit_sha].filter(Boolean).join(' · ');
+    html += `<div class="jv-ps"><div class="jv-ps-title">Metadata</div><div class="jv-ps-action"><span>${_escHtml(meta)}</span></div></div>`;
   }
 
   html += '</div>';

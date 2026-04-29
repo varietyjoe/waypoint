@@ -2335,6 +2335,112 @@ router.post('/sales-pulse/generate', async (req, res, next) => {
 // DAILY ENTRIES (Standups & Reviews)
 // ============================================================
 
+function toISODate(value) {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 10);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function uniqueStrings(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(v => String(v || '').trim()).filter(Boolean))];
+}
+
+function buildAiWorkContent(payload) {
+  const toolLabel = payload.tool === 'claude_code' ? 'Claude Code' : payload.tool === 'codex' ? 'Codex' : payload.tool;
+  const lines = [`AI work session (${toolLabel})`];
+  if (payload.summary) lines.push('', payload.summary.trim());
+  if (payload.latest_outcome || payload.outcome) lines.push('', `Outcome: ${payload.latest_outcome || payload.outcome}`);
+  if (payload.cwd) lines.push('', `Workspace: ${payload.cwd}`);
+
+  const files = uniqueStrings(payload.files_changed || payload.desktop_paths);
+  if (files.length) {
+    lines.push('', 'Files touched:');
+    for (const file of files.slice(0, 20)) lines.push(`- ${file}`);
+    if (files.length > 20) lines.push(`- ...and ${files.length - 20} more`);
+  }
+
+  const commands = uniqueStrings(payload.commands_run);
+  if (commands.length) {
+    lines.push('', 'Commands:');
+    for (const command of commands.slice(0, 10)) lines.push(`- ${command}`);
+    if (commands.length > 10) lines.push(`- ...and ${commands.length - 10} more`);
+  }
+
+  const tests = uniqueStrings(payload.tests_run);
+  if (tests.length) {
+    lines.push('', 'Verification:');
+    for (const test of tests.slice(0, 10)) lines.push(`- ${test}`);
+  }
+
+  if (payload.deploy_status) lines.push('', `Deploy: ${payload.deploy_status}`);
+  if (payload.git_branch || payload.commit_sha) {
+    const gitBits = [payload.git_branch, payload.commit_sha].filter(Boolean).join(' @ ');
+    lines.push('', `Git: ${gitBits}`);
+  }
+
+  return lines.join('\n').trim();
+}
+
+/**
+ * POST /api/journal/ai-work
+ * Upserts a rolling AI work journal entry by date + session_id.
+ */
+router.post('/journal/ai-work', (req, res, next) => {
+  try {
+    const payload = req.body || {};
+    const { session_id, tool, summary } = payload;
+
+    if (!session_id || typeof session_id !== 'string') {
+      return res.status(400).json({ success: false, error: 'session_id is required' });
+    }
+    if (!['codex', 'claude_code'].includes(tool)) {
+      return res.status(400).json({ success: false, error: 'tool must be codex or claude_code' });
+    }
+    if (!summary || typeof summary !== 'string' || !summary.trim()) {
+      return res.status(400).json({ success: false, error: 'summary is required' });
+    }
+
+    const startedAt = payload.started_at || new Date().toISOString();
+    const status = payload.status || (payload.finalized_at ? 'finalized' : 'active');
+    if (!['active', 'paused', 'finalized'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'status must be active, paused, or finalized' });
+    }
+
+    const parsedData = {
+      tool,
+      session_id,
+      cwd: payload.cwd || null,
+      desktop_paths: uniqueStrings(payload.desktop_paths),
+      files_changed: uniqueStrings(payload.files_changed),
+      commands_run: uniqueStrings(payload.commands_run),
+      tests_run: uniqueStrings(payload.tests_run),
+      deploy_status: payload.deploy_status || null,
+      git_branch: payload.git_branch || null,
+      commit_sha: payload.commit_sha || null,
+      summary: summary.trim(),
+      latest_outcome: payload.latest_outcome || payload.outcome || null,
+      started_at: startedAt,
+      updated_at: payload.updated_at || new Date().toISOString(),
+      finalized_at: payload.finalized_at || null,
+      status,
+    };
+
+    const entry = dailyEntriesDb.upsertAiWorkEntry({
+      date: payload.date || toISODate(startedAt),
+      session_id,
+      content: payload.content || buildAiWorkContent({ ...payload, ...parsedData }),
+      parsed_data: parsedData,
+      source: tool,
+      status,
+      finalized_at: parsedData.finalized_at,
+    });
+
+    res.json({ success: true, data: entry });
+  } catch (err) { next(err); }
+});
+
 /**
  * GET /api/daily-entries
  * Query params: ?type=standup|review&limit=20&offset=0
