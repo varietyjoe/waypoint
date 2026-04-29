@@ -7786,10 +7786,13 @@ function _renderTimelineCard(entry) {
 
   if (parsed) {
     if (type === 'ai_work') {
-      const files = parsed.files_changed || parsed.desktop_paths || [];
+      const files = parsed.notable_files || parsed.files_changed || parsed.desktop_paths || [];
       const commands = parsed.commands_run || [];
+      const changes = parsed.changes || [];
       const status = parsed.status ? `<span class="mood-i">${_escHtml(parsed.status)}</span>` : '';
-      if (files.length) summaryParts.push(`<strong>${files.length} file${files.length > 1 ? 's' : ''}</strong>`);
+      if (parsed.project_name) summaryParts.push(`<strong>${_escHtml(parsed.project_name)}</strong>`);
+      else if (files.length) summaryParts.push(`<strong>${files.length} file${files.length > 1 ? 's' : ''}</strong>`);
+      if (changes.length) summaryParts.push(`<span>${changes.length} change${changes.length > 1 ? 's' : ''}</span>`);
       if (commands.length) summaryParts.push(`<span>${commands.length} command${commands.length > 1 ? 's' : ''}</span>`);
       if (parsed.deploy_status) summaryParts.push(`<span>${_escHtml(parsed.deploy_status)}</span>`);
       if (status) summaryParts.push(status);
@@ -7865,13 +7868,16 @@ async function _showJournalDetail(id) {
       html += type === 'ai_work' ? _renderAiWorkDetail(parsed) : _renderParsedDetail(parsed, type);
     }
 
-    // Raw text block
-    html += `
-      <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;">Original Entry</div>
-        <div style="font-size:12px;color:#6b7280;line-height:1.5;white-space:pre-wrap;">${_escHtml(entry.content || '')}</div>
-      </div>
-    `;
+    // Raw text block. AI work entries are already structured, so avoid duplicating
+    // the same generated content below the useful summary.
+    if (type !== 'ai_work') {
+      html += `
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;">Original Entry</div>
+          <div style="font-size:12px;color:#6b7280;line-height:1.5;white-space:pre-wrap;">${_escHtml(entry.content || '')}</div>
+        </div>
+      `;
+    }
 
     // Re-parse button
     if (type !== 'ai_work') {
@@ -7966,23 +7972,26 @@ function _renderParsedDetail(parsed, type) {
 }
 
 function _renderAiWorkDetail(parsed) {
-  const files = parsed.files_changed || parsed.desktop_paths || [];
+  const files = parsed.notable_files || parsed.files_changed || parsed.desktop_paths || [];
+  const changes = parsed.changes || [];
   const commands = parsed.commands_run || [];
   const tests = parsed.tests_run || [];
   let html = '<div class="jv-parsed-block" style="background:#eff6ff;border-color:#bfdbfe;"><div class="jv-parsed-hdr" style="color:#2563eb;">AI Work</div>';
 
   if (parsed.summary) {
-    html += `<div class="jv-ps"><div class="jv-ps-title">Summary</div><div class="jv-ps-action"><span>${_escHtml(parsed.summary)}</span></div></div>`;
+    html += `<div class="jv-ps"><div class="jv-ps-title">Outcome</div><div style="font-size:14px;line-height:1.45;color:#111827;font-weight:650;">${_escHtml(parsed.summary)}</div></div>`;
   }
   if (parsed.latest_outcome) {
-    html += `<div class="jv-ps"><div class="jv-ps-title">Outcome</div><div class="jv-ps-action"><span>${_escHtml(parsed.latest_outcome)}</span></div></div>`;
+    html += `<div class="jv-ps"><div class="jv-ps-title">Result</div><div class="jv-ps-action"><span>${_escHtml(parsed.latest_outcome)}</span></div></div>`;
   }
-  if (parsed.cwd) {
-    html += `<div class="jv-ps"><div class="jv-ps-title">Workspace</div><div class="jv-ps-action"><span>${_escHtml(parsed.cwd)}</span></div></div>`;
+  if (changes.length) {
+    html += '<div class="jv-ps"><div class="jv-ps-title">What changed</div>';
+    changes.slice(0, 8).forEach(change => { html += `<div class="jv-ps-action"><span class="arr" style="color:#2563eb;">&#8594;</span><span>${_escHtml(change)}</span></div>`; });
+    html += '</div>';
   }
   if (files.length) {
-    html += '<div class="jv-ps"><div class="jv-ps-title">Files touched</div>';
-    files.slice(0, 30).forEach(f => { html += `<div class="jv-ps-action"><span class="arr" style="color:#2563eb;">&#8594;</span><span>${_escHtml(f)}</span></div>`; });
+    html += '<div class="jv-ps"><div class="jv-ps-title">Key files</div>';
+    files.slice(0, 8).forEach(f => { html += `<div class="jv-ps-action"><span>${_escHtml(f)}</span></div>`; });
     html += '</div>';
   }
   if (commands.length) {

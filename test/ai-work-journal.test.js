@@ -65,7 +65,13 @@ test('POST /api/journal/ai-work validates and upserts an AI work journal entry',
       cwd: '/Users/joetancula/Desktop/projects/waypoint',
       started_at: '2026-04-29T10:00:00.000Z',
       summary: 'Implemented automatic AI work journaling.',
-      files_changed: ['/Users/joetancula/Desktop/projects/waypoint/src/routes/api.js'],
+      project_name: 'waypoint',
+      files_changed: [
+        '/Users/joetancula/Desktop/projects/waypoint/src/routes/api.js',
+        '/Users/joetancula/Desktop/projects/waypoint/.obsidian/workspace.json',
+      ],
+      notable_files: ['src/routes/api.js'],
+      changes: ['added a dedicated AI work journal endpoint'],
       commands_run: ['npm test'],
       tests_run: ['npm test'],
       status: 'active',
@@ -81,6 +87,9 @@ test('POST /api/journal/ai-work validates and upserts an AI work journal entry',
     assert.equal(createdBody.success, true);
     assert.equal(createdBody.data.type, 'ai_work');
     assert.equal(createdBody.data.session_id, 'codex:test-session');
+    assert.match(createdBody.data.content, /Changed:/);
+    assert.match(createdBody.data.content, /added a dedicated AI work journal endpoint/);
+    assert.doesNotMatch(createdBody.data.content, /\.obsidian/);
 
     const updated = await fetch(`${baseUrl}/api/journal/ai-work`, {
       method: 'POST',
@@ -215,5 +224,41 @@ test('AI work logger strips git porcelain status from scanned files', () => {
   } finally {
     fs.rmSync(stateDir, { recursive: true, force: true });
     fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test('AI work logger filters metadata paths and emits concise work context', () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
+  const script = path.join(__dirname, '..', 'scripts', 'ai-work-journal.js');
+
+  try {
+    const dry = spawnSync('node', [script, 'codex-notify', '--dry-run'], {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir },
+      input: JSON.stringify({
+        cwd: '/Users/joetancula/Desktop/projects/quoter',
+        session_id: 'metadata-filter-test',
+        last_assistant_message: 'Created mockups for right rail, drawer and tiles to include labor, overhauled UX from creation to quote send and finalized costs + labor design across the app.',
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: '/Users/joetancula/Desktop/projects/quoter/.obsidian/workspace.json',
+          file_paths: [
+            '/Users/joetancula/Desktop/projects/quoter/app/static/app.css',
+            '/Users/joetancula/Desktop/projects/quoter/docs/joe/.obsidian/workspace.json',
+          ],
+        },
+      }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(dry.status, 0);
+    const firstJson = dry.stdout.slice(0, dry.stdout.indexOf('\n{', 1));
+    const payload = JSON.parse(firstJson);
+    assert.equal(payload.project_name, 'quoter');
+    assert.equal(payload.summary, 'Created mockups for right rail, drawer and tiles to include labor, overhauled UX from creation to quote send and finalized costs + labor design across the app.');
+    assert.deepEqual(payload.notable_files, ['app/static/app.css']);
+    assert.doesNotMatch(dry.stdout, /\.obsidian/);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });

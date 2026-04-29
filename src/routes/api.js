@@ -2347,18 +2347,40 @@ function uniqueStrings(value) {
   return [...new Set(value.map(v => String(v || '').trim()).filter(Boolean))];
 }
 
+function aiWorkDisplayPath(filePath, cwd) {
+  const value = String(filePath || '').trim();
+  if (!value) return '';
+  if (cwd && value.startsWith(`${cwd}/`)) return value.slice(cwd.length + 1);
+  const desktop = '/Users/joetancula/Desktop/';
+  if (value.startsWith(desktop)) return value.slice(desktop.length);
+  return value;
+}
+
+function filterAiWorkFiles(files) {
+  return uniqueStrings(files).filter(file => {
+    const parts = file.split(/[\\/]/);
+    if (parts.includes('.obsidian') || parts.includes('.git') || parts.includes('node_modules')) return false;
+    return !file.endsWith('.db-shm') && !file.endsWith('.db-wal') && !file.endsWith('.DS_Store');
+  });
+}
+
 function buildAiWorkContent(payload) {
   const toolLabel = payload.tool === 'claude_code' ? 'Claude Code' : payload.tool === 'codex' ? 'Codex' : payload.tool;
   const lines = [`AI work session (${toolLabel})`];
   if (payload.summary) lines.push('', payload.summary.trim());
   if (payload.latest_outcome || payload.outcome) lines.push('', `Outcome: ${payload.latest_outcome || payload.outcome}`);
-  if (payload.cwd) lines.push('', `Workspace: ${payload.cwd}`);
 
-  const files = uniqueStrings(payload.files_changed || payload.desktop_paths);
+  const changes = uniqueStrings(payload.changes);
+  if (changes.length) {
+    lines.push('', 'Changed:');
+    for (const change of changes.slice(0, 6)) lines.push(`- ${change}`);
+  }
+
+  const files = filterAiWorkFiles(payload.notable_files || payload.files_changed || payload.desktop_paths);
   if (files.length) {
-    lines.push('', 'Files touched:');
-    for (const file of files.slice(0, 20)) lines.push(`- ${file}`);
-    if (files.length > 20) lines.push(`- ...and ${files.length - 20} more`);
+    lines.push('', 'Key files:');
+    for (const file of files.slice(0, 8)) lines.push(`- ${aiWorkDisplayPath(file, payload.cwd)}`);
+    if (files.length > 8) lines.push(`- ...and ${files.length - 8} more`);
   }
 
   const commands = uniqueStrings(payload.commands_run);
@@ -2412,8 +2434,11 @@ router.post('/journal/ai-work', (req, res, next) => {
       tool,
       session_id,
       cwd: payload.cwd || null,
-      desktop_paths: uniqueStrings(payload.desktop_paths),
-      files_changed: uniqueStrings(payload.files_changed),
+      project_name: payload.project_name || (payload.cwd ? String(payload.cwd).split('/').filter(Boolean).pop() : null),
+      desktop_paths: filterAiWorkFiles(payload.desktop_paths),
+      files_changed: filterAiWorkFiles(payload.files_changed),
+      notable_files: filterAiWorkFiles(payload.notable_files || payload.files_changed).map(file => aiWorkDisplayPath(file, payload.cwd || '')),
+      changes: uniqueStrings(payload.changes),
       commands_run: uniqueStrings(payload.commands_run),
       tests_run: uniqueStrings(payload.tests_run),
       deploy_status: payload.deploy_status || null,

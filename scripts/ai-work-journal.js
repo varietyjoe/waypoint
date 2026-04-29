@@ -14,6 +14,18 @@ const STATE_PATH = path.join(STATE_DIR, 'sessions.json');
 const QUEUE_PATH = path.join(STATE_DIR, 'queue.jsonl');
 const CONFIG_PATH = path.join(STATE_DIR, 'config.json');
 const IDLE_MS = Number(process.env.WAYPOINT_AI_LOG_IDLE_MS || 15 * 60 * 1000);
+const IGNORED_PATH_PARTS = new Set([
+  '.git',
+  '.obsidian',
+  '.superpowers',
+  'node_modules',
+  '.venv',
+  'venv',
+  '__pycache__',
+  '.pytest_cache',
+  '.mypy_cache',
+]);
+const IGNORED_SUFFIXES = ['.db-shm', '.db-wal', '.DS_Store'];
 
 function ensureStateDir() {
   fs.mkdirSync(STATE_DIR, { recursive: true });
@@ -93,6 +105,14 @@ function isDesktopPath(value) {
   return abs === DESKTOP_ROOT || abs.startsWith(DESKTOP_ROOT + path.sep);
 }
 
+function isWorkPath(value) {
+  if (!isDesktopPath(value)) return false;
+  const abs = path.resolve(String(value));
+  const parts = abs.split(path.sep);
+  if (parts.some(part => IGNORED_PATH_PARTS.has(part))) return false;
+  return !IGNORED_SUFFIXES.some(suffix => abs.endsWith(suffix));
+}
+
 function findGitRoot(cwd) {
   try {
     return execFileSync('git', ['rev-parse', '--show-toplevel'], {
@@ -142,10 +162,60 @@ function gitChangedFiles(cwd) {
       .filter(Boolean)
       .map(line => line.slice(3).trim().split(' -> ').pop())
       .map(file => path.join(root, file))
-      .filter(isDesktopPath);
+      .filter(isWorkPath);
   } catch (_) {
     return [];
   }
+}
+
+function relativeWorkPath(cwd, file) {
+  const root = findGitRoot(cwd) || cwd;
+  try {
+    const rel = path.relative(root, file);
+    return rel && !rel.startsWith('..') ? rel : file;
+  } catch (_) {
+    return file;
+  }
+}
+
+function projectName(cwd) {
+  const root = findGitRoot(cwd) || cwd || '';
+  return path.basename(root) || 'Desktop project';
+}
+
+function isLowSignalSummary(summary) {
+  return !summary
+    || /current repo state shows/i.test(summary)
+    || /\bfile\(s\) changed\b/i.test(summary)
+    || /\bcompleted work in\b/i.test(summary);
+}
+
+function inferChangeFromFile(file) {
+  const rel = file.replace(/\\/g, '/');
+  const base = path.basename(rel);
+  if (/mockup|prototype/i.test(rel)) return 'created or refined product mockups';
+  if (/drawer|rail|tile|quote|pricing|labor|cost/i.test(rel)) return 'advanced quote, labor, and cost experience work';
+  if (/\.(css|scss)$/.test(base)) return 'refined styling and layout';
+  if (/\.(html|hbs|ejs|njk)$/.test(base)) return 'updated UI structure and screen flows';
+  if (/\.(js|mjs|cjs|ts|tsx)$/.test(base)) return 'changed application behavior';
+  if (/route|api|server/i.test(rel)) return 'updated backend/API behavior';
+  if (/test|spec/i.test(rel)) return 'added or updated verification coverage';
+  if (/doc|readme|brief|plan/i.test(rel)) return 'updated supporting documentation';
+  return `touched ${rel}`;
+}
+
+function inferChanges(session) {
+  const files = uniq(session.files_changed).map(file => relativeWorkPath(session.cwd, file));
+  return uniq(files.map(inferChangeFromFile)).slice(0, 5);
+}
+
+function executiveSummary(session) {
+  if (!isLowSignalSummary(session.summary)) return session.summary.trim();
+  const changes = inferChanges(session);
+  if (changes.length) {
+    return `${projectName(session.cwd)}: ${changes.join(', ')}.`;
+  }
+  return `${session.tool === 'claude_code' ? 'Claude Code' : 'Codex'} worked in ${projectName(session.cwd)}.`;
 }
 
 function sessionKey(tool, input, cwd) {
@@ -207,11 +277,13 @@ function updateSessionFromInput(session, input, trigger) {
   const event = extractEvent(input);
   session.updated_at = nowISO();
   session.trigger = trigger;
-  session.files_changed = uniq([...session.files_changed, ...event.files.filter(isDesktopPath)]);
-  session.desktop_paths = uniq([...session.desktop_paths, ...event.files.filter(isDesktopPath)]);
+  session.files_changed = uniq([...session.files_changed, ...event.files.filter(isWorkPath)]);
+  session.desktop_paths = uniq([...session.desktop_paths, ...event.files.filter(isWorkPath)]);
   session.commands_run = uniq([...session.commands_run, ...event.commands]);
   session.tests_run = uniq([...session.tests_run, ...event.tests]);
   if (event.deployStatus) session.deploy_status = event.deployStatus;
+  if (input.latest_outcome || input.outcome) session.latest_outcome = String(input.latest_outcome || input.outcome).trim();
+  if (Array.isArray(input.changes)) session.changes = uniq([...(session.changes || []), ...input.changes]);
 
   const assistant = input.last_assistant_message || input.message || '';
   if (assistant && typeof assistant === 'string') {
@@ -221,29 +293,29 @@ function updateSessionFromInput(session, input, trigger) {
 
 function refreshGitSession(session) {
   if (!session.cwd || !isDesktopPath(session.cwd)) return;
-  session.files_changed = uniq([...session.files_changed, ...gitChangedFiles(session.cwd)]);
-  session.desktop_paths = uniq([...session.desktop_paths, ...session.files_changed]);
+  session.files_changed = uniq([...session.files_changed, ...gitChangedFiles(session.cwd)]).filter(isWorkPath);
+  session.desktop_paths = uniq([...session.desktop_paths, ...session.files_changed]).filter(isWorkPath);
   session.git_branch = session.git_branch || gitBranch(session.cwd);
   session.commit_sha = session.commit_sha || gitHead(session.cwd);
 }
 
 function fallbackSummary(session) {
-  if (session.summary) return session.summary;
-  const bits = [];
-  bits.push(`${session.tool === 'claude_code' ? 'Claude Code' : 'Codex'} completed work in ${session.cwd || 'a Desktop workspace'}.`);
-  if (session.files_changed.length) bits.push(`${session.files_changed.length} file(s) changed.`);
-  if (session.commands_run.length) bits.push(`${session.commands_run.length} command(s) run.`);
-  return bits.join(' ');
+  return executiveSummary(session);
 }
 
 function payloadForSession(session, status = session.status || 'active') {
   refreshGitSession(session);
   const ended = nowISO();
   const finalizedAt = status === 'finalized' || status === 'paused' ? ended : null;
+  const changes = uniq([...(session.changes || []), ...inferChanges(session)]);
+  const notableFiles = uniq(session.files_changed)
+    .map(file => relativeWorkPath(session.cwd, file))
+    .slice(0, 8);
   return {
     session_id: session.session_id,
     tool: session.tool,
     cwd: session.cwd,
+    project_name: projectName(session.cwd),
     started_at: session.started_at,
     updated_at: ended,
     finalized_at: finalizedAt,
@@ -252,6 +324,8 @@ function payloadForSession(session, status = session.status || 'active') {
     latest_outcome: session.latest_outcome,
     desktop_paths: uniq(session.desktop_paths),
     files_changed: uniq(session.files_changed),
+    notable_files: notableFiles,
+    changes,
     commands_run: uniq(session.commands_run),
     tests_run: uniq(session.tests_run),
     deploy_status: session.deploy_status,

@@ -3071,10 +3071,13 @@ function renderJournalCard(entry) {
 
   if (parsed) {
     if (type === 'ai_work') {
-      const files = parsed.files_changed || parsed.desktop_paths || [];
+      const files = parsed.notable_files || parsed.files_changed || parsed.desktop_paths || [];
       const commands = parsed.commands_run || [];
+      const changes = parsed.changes || [];
       const parts = [];
-      if (files.length) parts.push(`<strong>${files.length} file${files.length > 1 ? 's' : ''}</strong>`);
+      if (parsed.project_name) parts.push(`<strong>${esc(parsed.project_name)}</strong>`);
+      else if (files.length) parts.push(`<strong>${files.length} file${files.length > 1 ? 's' : ''}</strong>`);
+      if (changes.length) parts.push(`${changes.length} change${changes.length > 1 ? 's' : ''}`);
       if (commands.length) parts.push(`${commands.length} command${commands.length > 1 ? 's' : ''}`);
       if (parsed.status) parts.push(`<span class="mood-i">${esc(parsed.status)}</span>`);
       summaryHtml = parts.join(' · ') || '<strong>AI work</strong>';
@@ -3154,13 +3157,14 @@ async function showJournalDetail(id) {
       html += type === 'ai_work' ? renderAiWorkDetail(parsed) : renderParsedDetail(parsed, type);
     }
 
-    // Raw text block
-    html += `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#333;margin-bottom:8px">Original Entry</div>
-        <div style="font-size:12px;color:#555;line-height:1.5;white-space:pre-wrap;">${esc(entry.content || '')}</div>
-      </div>
-    `;
+    if (type !== 'ai_work') {
+      html += `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#333;margin-bottom:8px">Original Entry</div>
+          <div style="font-size:12px;color:#555;line-height:1.5;white-space:pre-wrap;">${esc(entry.content || '')}</div>
+        </div>
+      `;
+    }
 
     // Re-parse button
     if (type !== 'ai_work') {
@@ -3268,24 +3272,27 @@ function renderParsedDetail(parsed, type) {
 }
 
 function renderAiWorkDetail(parsed) {
-  const files = parsed.files_changed || parsed.desktop_paths || [];
+  const files = parsed.notable_files || parsed.files_changed || parsed.desktop_paths || [];
+  const changes = parsed.changes || [];
   const commands = parsed.commands_run || [];
   const tests = parsed.tests_run || [];
   let html = '<div class="journal-parsed-block" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.18);">';
   html += '<div class="journal-parsed-hdr" style="color:var(--blue);">AI Work</div>';
 
   if (parsed.summary) {
-    html += `<div class="journal-ps"><div class="journal-ps-title">Summary</div><div class="journal-ps-action"><span>${esc(parsed.summary)}</span></div></div>`;
+    html += `<div class="journal-ps"><div class="journal-ps-title">Outcome</div><div style="font-size:14px;line-height:1.45;color:var(--text);font-weight:650;">${esc(parsed.summary)}</div></div>`;
   }
   if (parsed.latest_outcome) {
-    html += `<div class="journal-ps"><div class="journal-ps-title">Outcome</div><div class="journal-ps-action"><span>${esc(parsed.latest_outcome)}</span></div></div>`;
+    html += `<div class="journal-ps"><div class="journal-ps-title">Result</div><div class="journal-ps-action"><span>${esc(parsed.latest_outcome)}</span></div></div>`;
   }
-  if (parsed.cwd) {
-    html += `<div class="journal-ps"><div class="journal-ps-title">Workspace</div><div class="journal-ps-action"><span>${esc(parsed.cwd)}</span></div></div>`;
+  if (changes.length) {
+    html += '<div class="journal-ps"><div class="journal-ps-title">What changed</div>';
+    changes.slice(0, 8).forEach(change => { html += `<div class="journal-ps-action"><span class="arr" style="color:var(--blue)">→</span><span>${esc(change)}</span></div>`; });
+    html += '</div>';
   }
   if (files.length) {
-    html += '<div class="journal-ps"><div class="journal-ps-title">Files touched</div>';
-    files.slice(0, 30).forEach(f => { html += `<div class="journal-ps-action"><span class="arr" style="color:var(--blue)">→</span><span>${esc(f)}</span></div>`; });
+    html += '<div class="journal-ps"><div class="journal-ps-title">Key files</div>';
+    files.slice(0, 8).forEach(f => { html += `<div class="journal-ps-action"><span>${esc(f)}</span></div>`; });
     html += '</div>';
   }
   if (commands.length) {
