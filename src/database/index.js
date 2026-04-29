@@ -21,6 +21,7 @@ console.log(`📦 Opening database at: ${DB_PATH}`);
 const db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrency
+db.pragma('foreign_keys = ON');
 db.pragma('journal_mode = WAL');
 db.pragma('busy_timeout = 5000');
 
