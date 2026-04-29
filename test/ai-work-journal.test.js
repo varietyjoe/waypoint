@@ -181,3 +181,39 @@ test('AI work logger supports dry-run, offline queue, and drain', () => {
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });
+
+test('AI work logger strips git porcelain status from scanned files', () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
+  const repoRoot = fs.mkdtempSync(path.join(__dirname, '..', '.tmp-ai-log-git-'));
+  const script = path.join(__dirname, '..', 'scripts', 'ai-work-journal.js');
+  const filePath = path.join(repoRoot, 'note.txt');
+
+  try {
+    spawnSync('git', ['init'], { cwd: repoRoot, encoding: 'utf8' });
+    fs.writeFileSync(filePath, 'before\n');
+    spawnSync('git', ['add', 'note.txt'], { cwd: repoRoot, encoding: 'utf8' });
+    spawnSync('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=Test', 'commit', '-m', 'init'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    fs.writeFileSync(filePath, 'after\n');
+
+    const dry = spawnSync('node', [script, 'codex-notify', '--dry-run'], {
+      cwd: repoRoot,
+      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir },
+      input: JSON.stringify({
+        cwd: repoRoot,
+        session_id: 'porcelain-test-session',
+        last_assistant_message: 'Porcelain parsing test.',
+      }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(dry.status, 0);
+    assert.match(dry.stdout, new RegExp(filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.doesNotMatch(dry.stdout, /\/M note\.txt/);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});

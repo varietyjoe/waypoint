@@ -139,9 +139,8 @@ function gitChangedFiles(cwd) {
       stdio: ['ignore', 'pipe', 'ignore'],
     });
     return output.split(/\r?\n/)
-      .map(line => line.trim())
       .filter(Boolean)
-      .map(line => line.replace(/^.. /, '').split(' -> ').pop())
+      .map(line => line.slice(3).trim().split(' -> ').pop())
       .map(file => path.join(root, file))
       .filter(isDesktopPath);
   } catch (_) {
