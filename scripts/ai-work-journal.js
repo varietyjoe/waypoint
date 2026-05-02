@@ -13,6 +13,7 @@ const STATE_DIR = process.env.WAYPOINT_AI_LOG_STATE_DIR || path.join(os.homedir(
 const STATE_PATH = path.join(STATE_DIR, 'sessions.json');
 const QUEUE_PATH = path.join(STATE_DIR, 'queue.jsonl');
 const CONFIG_PATH = path.join(STATE_DIR, 'config.json');
+const HOOK_EVENTS_PATH = path.join(STATE_DIR, 'hook-events.jsonl');
 const IDLE_MS = Number(process.env.WAYPOINT_AI_LOG_IDLE_MS || 15 * 60 * 1000);
 const IGNORED_PATH_PARTS = new Set([
   '.git',
@@ -31,13 +32,63 @@ function ensureStateDir() {
   fs.mkdirSync(STATE_DIR, { recursive: true });
 }
 
-function readStdinJson() {
+function parseJsonObject(raw) {
+  if (!raw || typeof raw !== 'string') return {};
   try {
-    const raw = fs.readFileSync(0, 'utf8').trim();
-    return raw ? JSON.parse(raw) : {};
+    const parsed = JSON.parse(raw.trim());
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch (_) {
     return {};
   }
+}
+
+function readStdinJson() {
+  try {
+    return parseJsonObject(fs.readFileSync(0, 'utf8'));
+  } catch (_) {
+    return {};
+  }
+}
+
+function readArgvJson() {
+  for (const arg of process.argv.slice(3)) {
+    const trimmed = String(arg || '').trim();
+    if (!trimmed.startsWith('{')) continue;
+    const parsed = parseJsonObject(trimmed);
+    if (Object.keys(parsed).length) return parsed;
+  }
+  return {};
+}
+
+function normalizeInput(input) {
+  const normalized = { ...(input || {}) };
+  const aliases = {
+    'thread-id': 'thread_id',
+    'turn-id': 'turn_id',
+    'last-assistant-message': 'last_assistant_message',
+    'input-messages': 'input_messages',
+    'transcript-path': 'transcript_path',
+    'tool-name': 'tool_name',
+    'tool-input': 'tool_input',
+  };
+
+  for (const [from, to] of Object.entries(aliases)) {
+    if (normalized[to] === undefined && normalized[from] !== undefined) {
+      normalized[to] = normalized[from];
+    }
+  }
+
+  if (!normalized.session_id) {
+    normalized.session_id = normalized.thread_id || normalized.turn_id;
+  }
+
+  return normalized;
+}
+
+function readInputJson() {
+  const stdin = readStdinJson();
+  const argv = readArgvJson();
+  return normalizeInput(Object.keys(stdin).length ? stdin : argv);
 }
 
 function readDotEnv(filePath) {
@@ -367,6 +418,25 @@ function queuePayload(payload, error) {
   fs.appendFileSync(QUEUE_PATH, JSON.stringify({ payload, error: String(error?.message || error), queued_at: nowISO() }) + '\n');
 }
 
+function appendHookEvent(event) {
+  ensureStateDir();
+  const safe = {
+    seen_at: nowISO(),
+    tool: event.tool,
+    trigger: event.trigger,
+    mode: process.argv[2] || 'codex-notify',
+    input_keys: Object.keys(event.input || {}).sort(),
+    session_id: event.session?.session_id,
+    cwd: event.session?.cwd,
+    summary_present: Boolean(event.session?.summary),
+    files_changed_count: event.session?.files_changed?.length || 0,
+    commands_run_count: event.session?.commands_run?.length || 0,
+    should_post: event.shouldPost,
+    skipped_reason: event.skippedReason || null,
+  };
+  fs.appendFileSync(HOOK_EVENTS_PATH, JSON.stringify(safe) + '\n');
+}
+
 async function drainQueue() {
   ensureStateDir();
   if (!fs.existsSync(QUEUE_PATH)) return;
@@ -400,6 +470,15 @@ async function handleHook(tool, trigger, input) {
   const state = loadState();
   const session = getSession(state, tool, input, cwd);
   updateSessionFromInput(session, input, trigger);
+  const postable = shouldPost(session);
+  appendHookEvent({
+    tool,
+    trigger,
+    input,
+    session,
+    shouldPost: postable,
+    skippedReason: postable ? null : (!isDesktopPath(session.cwd) ? 'cwd_not_desktop' : 'no_summary_files_or_commands'),
+  });
 
   if (trigger === 'stop' || trigger === 'codex-turn-ended') {
     await flushSession(session, 'active');
@@ -425,7 +504,7 @@ async function sweepIdle() {
 
 async function main() {
   const mode = process.argv[2] || 'codex-notify';
-  const input = readStdinJson();
+  const input = readInputJson();
 
   if (mode === 'sweep') {
     await sweepIdle();

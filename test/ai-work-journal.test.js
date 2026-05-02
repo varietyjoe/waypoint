@@ -191,6 +191,77 @@ test('AI work logger supports dry-run, offline queue, and drain', () => {
   }
 });
 
+test('AI work logger parses Codex legacy notify argv payload', () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
+  const script = path.join(__dirname, '..', 'scripts', 'ai-work-journal.js');
+  const payload = {
+    type: 'agent-turn-complete',
+    'thread-id': 'codex-thread-argv-test',
+    'turn-id': 'codex-turn-argv-test',
+    cwd: '/Users/joetancula/Desktop/projects/waypoint',
+    'input-messages': ['demo'],
+    'last-assistant-message': 'Codex argv notify completed.',
+  };
+
+  try {
+    const dry = spawnSync('node', [script, 'codex-notify', JSON.stringify(payload), '--dry-run'], {
+      cwd: '/',
+      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir },
+      encoding: 'utf8',
+    });
+
+    assert.equal(dry.status, 0);
+    const firstJson = dry.stdout.slice(0, dry.stdout.indexOf('\n{', 1));
+    const posted = JSON.parse(firstJson);
+    assert.equal(posted.tool, 'codex');
+    assert.equal(posted.cwd, '/Users/joetancula/Desktop/projects/waypoint');
+    assert.equal(posted.summary, 'Codex argv notify completed.');
+    assert.equal(posted.session_id.includes('42099b4af021e53f'), false);
+
+    const state = JSON.parse(fs.readFileSync(path.join(stateDir, 'sessions.json'), 'utf8'));
+    const sessions = Object.values(state.sessions);
+    assert.equal(sessions.length, 1);
+    assert.equal(sessions[0].cwd, '/Users/joetancula/Desktop/projects/waypoint');
+
+    const hookEvents = fs.readFileSync(path.join(stateDir, 'hook-events.jsonl'), 'utf8');
+    assert.match(hookEvents, /"should_post":true/);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('AI work logger records Claude Code stdin hook events', () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
+  const script = path.join(__dirname, '..', 'scripts', 'ai-work-journal.js');
+
+  try {
+    const dry = spawnSync('node', [script, 'claude-stop', '--dry-run'], {
+      cwd: '/',
+      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir },
+      input: JSON.stringify({
+        session_id: 'claude-stdin-test',
+        cwd: '/Users/joetancula/Desktop/projects/waypoint',
+        hook_event_name: 'Stop',
+        last_assistant_message: 'Claude Code stdin hook completed.',
+      }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(dry.status, 0);
+    const firstJson = dry.stdout.slice(0, dry.stdout.indexOf('\n{', 1));
+    const posted = JSON.parse(firstJson);
+    assert.equal(posted.tool, 'claude_code');
+    assert.equal(posted.cwd, '/Users/joetancula/Desktop/projects/waypoint');
+    assert.equal(posted.summary, 'Claude Code stdin hook completed.');
+
+    const hookEvents = fs.readFileSync(path.join(stateDir, 'hook-events.jsonl'), 'utf8');
+    assert.match(hookEvents, /"tool":"claude_code"/);
+    assert.match(hookEvents, /"should_post":true/);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test('AI work logger strips git porcelain status from scanned files', () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
   const repoRoot = fs.mkdtempSync(path.join(__dirname, '..', '.tmp-ai-log-git-'));
