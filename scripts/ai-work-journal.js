@@ -235,7 +235,13 @@ function projectName(cwd) {
 }
 
 function isLowSignalSummary(summary) {
-  return !summary
+  const text = String(summary || '').trim();
+  return !text
+    || /^\{[\s\S]*"risk_level"[\s\S]*"outcome"[\s\S]*\}$/.test(text)
+    || /^No files edited\./i.test(text)
+    || /\*\*Likely Root Cause\*\*/i.test(text)
+    || /settings\.json[\s\S]*(SessionStart|PostToolUse|SessionEnd)/i.test(text)
+    || /subagent_notification/i.test(text)
     || /current repo state shows/i.test(summary)
     || /\bfile\(s\) changed\b/i.test(summary)
     || /\bcompleted work in\b/i.test(summary);
@@ -244,6 +250,10 @@ function isLowSignalSummary(summary) {
 function inferChangeFromFile(file) {
   const rel = file.replace(/\\/g, '/');
   const base = path.basename(rel);
+  if (/scripts\/ai-work-journal\.js|test\/ai-work-journal\.test\.js/.test(rel)) return 'fixed AI work journal logging';
+  if (/\.claude\/settings\.json|\.claude\/settings\.local\.json/.test(rel)) return 'updated Claude Code hook configuration';
+  if (/src\/routes\/api\.js|daily-entries/i.test(rel)) return 'improved AI work journal storage';
+  if (/public\/index\.html/.test(rel)) return 'improved the Waypoint journal UI';
   if (/mockup|prototype/i.test(rel)) return 'created or refined product mockups';
   if (/drawer|rail|tile|quote|pricing|labor|cost/i.test(rel)) return 'advanced quote, labor, and cost experience work';
   if (/\.(css|scss)$/.test(base)) return 'refined styling and layout';
@@ -262,7 +272,7 @@ function inferChanges(session) {
 
 function executiveSummary(session) {
   if (!isLowSignalSummary(session.summary)) return session.summary.trim();
-  const changes = inferChanges(session);
+  const changes = uniq([...(session.changes || []), ...inferChanges(session)]).slice(0, 5);
   if (changes.length) {
     return `${projectName(session.cwd)}: ${changes.join(', ')}.`;
   }
@@ -324,6 +334,15 @@ function extractEvent(input) {
   return event;
 }
 
+function cleanAssistantSummary(value) {
+  const summary = String(value || '').trim();
+  if (!summary || isLowSignalSummary(summary)) return '';
+  return summary
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
 function updateSessionFromInput(session, input, trigger) {
   const event = extractEvent(input);
   session.updated_at = nowISO();
@@ -336,15 +355,17 @@ function updateSessionFromInput(session, input, trigger) {
   if (input.latest_outcome || input.outcome) session.latest_outcome = String(input.latest_outcome || input.outcome).trim();
   if (Array.isArray(input.changes)) session.changes = uniq([...(session.changes || []), ...input.changes]);
 
-  const assistant = input.last_assistant_message || input.message || '';
-  if (assistant && typeof assistant === 'string') {
-    session.summary = assistant.trim().slice(0, 1200);
+  const assistant = cleanAssistantSummary(input.last_assistant_message || input.message || '');
+  if (assistant) {
+    session.summary = assistant;
   }
 }
 
 function refreshGitSession(session) {
   if (!session.cwd || !isDesktopPath(session.cwd)) return;
-  session.files_changed = uniq([...session.files_changed, ...gitChangedFiles(session.cwd)]).filter(isWorkPath);
+  if (process.env.WAYPOINT_AI_LOG_INCLUDE_GIT_STATUS === '1') {
+    session.files_changed = uniq([...session.files_changed, ...gitChangedFiles(session.cwd)]).filter(isWorkPath);
+  }
   session.desktop_paths = uniq([...session.desktop_paths, ...session.files_changed]).filter(isWorkPath);
   session.git_branch = session.git_branch || gitBranch(session.cwd);
   session.commit_sha = session.commit_sha || gitHead(session.cwd);
@@ -387,7 +408,7 @@ function payloadForSession(session, status = session.status || 'active') {
 
 function shouldPost(session) {
   if (!isDesktopPath(session.cwd)) return false;
-  return Boolean(session.summary || session.files_changed.length || session.commands_run.length);
+  return Boolean(session.summary || session.files_changed.length || session.commands_run.length || (session.changes || []).length);
 }
 
 async function postPayload(payload) {

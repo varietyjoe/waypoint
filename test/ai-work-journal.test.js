@@ -230,6 +230,33 @@ test('AI work logger parses Codex legacy notify argv payload', () => {
   }
 });
 
+test('AI work logger ignores internal diagnostics as user-facing summaries', () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
+  const script = path.join(__dirname, '..', 'scripts', 'ai-work-journal.js');
+  const payload = {
+    type: 'agent-turn-complete',
+    'thread-id': 'codex-internal-summary-test',
+    cwd: '/Users/joetancula/Desktop/projects/waypoint',
+    'last-assistant-message': 'No files edited.\n\n**Likely Root Cause**\n`settings.json` currently puts hook events at the top level: `SessionStart`.',
+    changes: ['fixed AI work journal logging'],
+  };
+
+  try {
+    const dry = spawnSync('node', [script, 'codex-notify', JSON.stringify(payload), '--dry-run'], {
+      cwd: '/',
+      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir },
+      encoding: 'utf8',
+    });
+
+    assert.equal(dry.status, 0);
+    const firstJson = dry.stdout.slice(0, dry.stdout.indexOf('\n{', 1));
+    const posted = JSON.parse(firstJson);
+    assert.equal(posted.summary, 'waypoint: fixed AI work journal logging.');
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test('AI work logger records Claude Code stdin hook events', () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waypoint-ai-log-'));
   const script = path.join(__dirname, '..', 'scripts', 'ai-work-journal.js');
@@ -280,7 +307,7 @@ test('AI work logger strips git porcelain status from scanned files', () => {
 
     const dry = spawnSync('node', [script, 'codex-notify', '--dry-run'], {
       cwd: repoRoot,
-      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir },
+      env: { ...process.env, WAYPOINT_AI_LOG_STATE_DIR: stateDir, WAYPOINT_AI_LOG_INCLUDE_GIT_STATUS: '1' },
       input: JSON.stringify({
         cwd: repoRoot,
         session_id: 'porcelain-test-session',
